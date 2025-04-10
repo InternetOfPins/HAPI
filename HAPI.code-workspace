@@ -1,0 +1,53 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"name": "flat",
+			"path": "examples/flat"
+		},
+		{
+			"name": "virt",
+			"path": "examples/virt"
+		},
+		{
+			"name": "std",
+			"path": "examples/std"
+		},
+		{
+			"name": "crtp",
+			"path": "examples/crtp"
+		},
+		{
+			"name": "free",
+			"path": "examples/free"
+		}
+	],
+	"settings": {
+		"cSpell.words": [
+			"Bracks",
+			"hapi"
+		],
+		"files.associations": {
+			"array": "cpp",
+			"deque": "cpp",
+			"string": "cpp",
+			"unordered_map": "cpp",
+			"unordered_set": "cpp",
+			"vector": "cpp",
+			"string_view": "cpp",
+			"initializer_list": "cpp",
+			"span": "cpp",
+			"format": "cpp",
+			"__bit_reference": "cpp",
+			"__hash_table": "cpp",
+			"__split_buffer": "cpp",
+			"__tree": "cpp",
+			"filesystem": "cpp",
+			"iterator": "cpp",
+			"map": "cpp",
+			"set": "cpp"
+		}
+	}
+}
