@@ -20,7 +20,7 @@
 #endif
 
 #include <hapi.h>
-using namesspace hapi;
+using namespace hapi;
 
 struct Item {
   static void api(const char*o) {cout<<o;}
