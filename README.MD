@@ -36,7 +36,7 @@ struct MyPart {
 };
 ```
 
-and eventually the new can be a template arbitrary parameters.
+a part setup can be a template with arbitrary parameters.
 
 ```c++
 template<int defVal=30>
@@ -60,8 +60,10 @@ this parts can be combined like this using c++ (tedious)
 Power::Part<MyPart::Part<Nil>> example;
 ```
 
-the `example` object now has api functions from MyPart::Part<Nil>
-override by Power::Part. 
+the `example` object now has api functions from `MyPart::Part<Nil>`
+override with `Power::Part`. 
+
+Or chained with **Parts** tool: `Parts<Power,MyPart>`.
 
 ## How it works
 
