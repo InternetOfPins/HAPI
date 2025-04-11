@@ -1,4 +1,4 @@
-# HAPY
+# HAPI
 
 **The happy API**
 
