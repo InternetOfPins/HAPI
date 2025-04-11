@@ -11,22 +11,32 @@
  * 
  */
 
-namespace hapi {
+// namespace hapi {
 
   //parts chain default termination
   struct Nil {};
 
   template<typename...> struct Parts;
-  template<> struct Parts<> {template<typename P> using Part=P;};
-  template<typename O> struct Parts<O>:O {template<typename P> using Part=Parts<O,P>;};
-  template<typename O,typename... OO> struct Parts<O,OO...>:O::template Part<Parts<OO...>>{
-    template<typename P> using Part=Parts<O,OO...,P>;
+  template<> struct Parts<> {
+    template<typename P> using Part=P;
+    ~Parts()=delete;
   };
+
+  template<typename O> struct Parts<O>:O {
+    template<typename P> using Part=Parts<O,P>;
+    ~Parts()=delete;
+  };
+
+  template<typename O,typename... OO>
+  struct Parts<O,OO...>:O::template Part<Parts<OO...>>{
+    template<typename P> using Part=::Parts<O,OO...,P>;
+    ~Parts()=delete;
+};
 
   template<typename API>
   struct APIOf {
     template<typename... OO>
-    using Parts=hapi::Parts<OO...,API>;
+    using Parts=::Parts<OO...,API>;
   };
 
   template<typename O,typename Fallback=Nil>
@@ -36,4 +46,4 @@ namespace hapi {
     const O& obj() const {return *this;}
     Obj& obj() {return *reinterpret_cast<Obj*>(this);}
   };
-};
+// };
