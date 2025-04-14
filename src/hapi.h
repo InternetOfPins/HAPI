@@ -16,6 +16,8 @@ namespace hapi {
   //parts chain default termination
   struct Nil {};
 
+  /// @brief Parts
+  /// @tparam ... composing parts list
   template<typename...> struct Parts;
   template<> struct Parts<> {template<typename P> using Part=P;};
   template<typename O> struct Parts<O>:O {};
