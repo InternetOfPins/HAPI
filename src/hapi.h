@@ -13,18 +13,21 @@
 
 namespace hapi {
 
-  //parts chain default termination
+  /// @brief parts chain default termination
   struct Nil {};
 
   /// @brief Parts
   /// @tparam ... composing parts list
-  template<typename...> struct Parts;
-  template<> struct Parts<> {template<typename P> using Part=P;};
-  template<typename O> struct Parts<O>:O {};
-  template<typename O,typename... OO> struct Parts<O,OO...>:O::template Part<Parts<OO...>>{
+  template<typename O,typename... OO>
+  struct Parts:O::template Part<Parts<OO...>>{
+    using Base=typename O::template Part<Parts<OO...>>;
+    using Base::Base;
     template<typename P> using Part=hapi::Parts<O,OO...,P>;
   };
+  template<typename O> struct Parts<O>:O {using O::O;};
 
+  /// @brief create API with given base.
+  /// @tparam API the base type
   template<typename API>
   struct APIOf {
     template<typename... OO>
@@ -35,6 +38,9 @@ namespace hapi {
   /// @tparam ...OO members parts
   template<typename... OO> using NilPart=Parts<OO...,Nil>;
 
+  /// @brief provide CRTP top reference
+  /// @tparam O top type
+  /// @tparam Fallback optional base for CRTP
   template<typename O,typename Fallback=Nil>
   struct CRTP:Fallback {//optional
     static constexpr const bool hasCRTP=true;
