@@ -54,6 +54,8 @@ struct Power {
 struct Nil {};
 ```
 
+### combining parts with C++
+
 this parts can be combined like this using c++ (tedious)
 
 ```c++
@@ -61,7 +63,9 @@ Power::Part<MyPart::Part<Nil>> example;
 ```
 
 the `example` object now has api functions from `MyPart::Part<Nil>`
-override with `Power::Part`. 
+override with `Power::Part`.
+
+### using sugar to bind the parts
 
 Or chained with **Parts** tool: `Parts<Power,MyPart>`.
 
