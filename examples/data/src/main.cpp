@@ -1,5 +1,13 @@
-#include <iostream>
-using namespace std;
+#ifdef ARDUINO
+  #include <streamFlow.h>
+  using namespace StreamFlow;
+  #define cout Serial
+  #define endl "\n"
+#else
+  #include <iostream>
+  using namespace std;
+#endif
+
 #include <hapi.h>
 using namespace hapi;
 
