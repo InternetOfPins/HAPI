@@ -9,7 +9,11 @@ namespace hapi {
     struct Part:O {
       template<typename... OO> constexpr Part(OO... oo):O{oo...}{}
       static constexpr const T get() {return data;}
-      template<typename Out> Out& operator<<(Out& out) const {::operator<<(out,data);O::operator<<(out);return out;}
+      template<typename Out> Out& operator<<(Out& out) const {
+        out<<get();
+        out<<*reinterpret_cast<const O*>(this);
+        return out;
+      }
     };
   };
 

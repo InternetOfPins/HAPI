@@ -53,7 +53,6 @@ Out& operator<<(Out& out,const StaticBody<OO...>& o) {return o.operator<<(out);}
 //------------------------------------
 
 ItemDef<Text> i0{"ok"};
-using X=ItemDef<Text>::DataType;
 
 using Body=StaticBody<
   ItemDef<Text>,
@@ -62,6 +61,10 @@ using Body=StaticBody<
 >;
 
 Body body{"yes","No","Cancel"};
+
+int ano=1967;
+
+ItemDef<StaticData<int&,ano>> a;
 
 void run() {
   cout<<i0<<endl;
@@ -73,6 +76,8 @@ void run() {
   cout<<body.head()<<endl;
   cout<<body.tail().head()<<endl;
   cout<<body.tail().tail().head()<<endl;
+
+  cout<<a<<endl;
 }
 
 #ifdef ARDUINO
