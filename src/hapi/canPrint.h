@@ -1,6 +1,6 @@
 #pragma once
 
-#include "hapi/parts.h"
+#include "hapi/base.h"
 
 namespace hapi {
   template<typename T,bool> struct _CanPrint;

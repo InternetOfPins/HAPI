@@ -1,13 +1,3 @@
-#ifdef ARDUINO
-  #include <streamFlow.h>
-  using namespace StreamFlow;
-  #define cout Serial
-  #define endl "\n"
-#else
-  #include <iostream>
-  using namespace std;
-#endif
-
 #include <hapi.h>
 using namespace hapi;
 
@@ -16,7 +6,7 @@ using Year=Parts<StaticInt<1967>,Nil>;
 const char* label="label:";
 NilPart<StaticText<label>,ReflexOf,FieldValue<Int>> year{2025};
 
-int main() {
+void run() {
   cout<<Year::get()<<endl;
 
   cout<<year.changed()<<endl;
@@ -26,6 +16,20 @@ int main() {
   cout<<year.getValue()<<endl;
 
   cout<<year<<endl;
-  cout<<CanPrint<Year>::value<<endl;
-  return 0;
 }
+
+#ifdef ARDUINO
+  void setup() {
+    Serial.begin(115200);
+    while(!Serial);
+  }
+  void loop() {
+    run();
+    delay(500);
+  }
+#else
+  int main() {
+    run();
+    return 0;
+  }
+#endif
