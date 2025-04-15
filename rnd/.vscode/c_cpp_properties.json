@@ -1,0 +1,53 @@
+//
+// !!! WARNING !!! AUTO-GENERATED FILE!
+// PLEASE DO NOT MODIFY IT AND USE "platformio.ini":
+// https://docs.platformio.org/page/projectconf/section_env_build.html#build-flags
+//
+{
+    "configurations": [
+        {
+            "name": "PlatformIO",
+            "includePath": [
+                "/home/azevedo/Work/IOP/HAPI/rnd/include",
+                "/home/azevedo/Work/IOP/HAPI/rnd/src",
+                "/home/azevedo/Work/IOP/HAPI/include",
+                "/home/azevedo/Work/IOP/HAPI/src",
+                "/home/azevedo/Work/IOP/IOP/include",
+                "/home/azevedo/Work/IOP/IOP/src",
+                "/home/azevedo/Work/IOP/OneBit/include",
+                "/home/azevedo/Work/IOP/OneBit/src",
+                "/home/azevedo/Work/IOP/OneData",
+                "/home/azevedo/Work/IOP/OnePin/include",
+                "/home/azevedo/Work/IOP/OnePin/src",
+                ""
+            ],
+            "browse": {
+                "limitSymbolsToIncludedHeaders": true,
+                "path": [
+                    "/home/azevedo/Work/IOP/HAPI/rnd/include",
+                    "/home/azevedo/Work/IOP/HAPI/rnd/src",
+                    "/home/azevedo/Work/IOP/HAPI/include",
+                    "/home/azevedo/Work/IOP/HAPI/src",
+                    "/home/azevedo/Work/IOP/IOP/include",
+                    "/home/azevedo/Work/IOP/IOP/src",
+                    "/home/azevedo/Work/IOP/OneBit/include",
+                    "/home/azevedo/Work/IOP/OneBit/src",
+                    "/home/azevedo/Work/IOP/OneData",
+                    "/home/azevedo/Work/IOP/OnePin/include",
+                    "/home/azevedo/Work/IOP/OnePin/src",
+                    ""
+                ]
+            },
+            "defines": [
+                "PLATFORMIO=60118",
+                ""
+            ],
+            "cppStandard": "c++11",
+            "compilerPath": "/usr/bin/gcc",
+            "compilerArgs": [
+                ""
+            ]
+        }
+    ],
+    "version": 4
+}

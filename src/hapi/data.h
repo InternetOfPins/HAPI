@@ -59,6 +59,7 @@ namespace hapi {
   template<typename T>
   struct Data {
     using Watch=Parts<ReflexOf,Data<T>>;
+    // using DataType=T;
     template<typename O>
     struct Part:O {
       using DataType=T;
@@ -68,7 +69,11 @@ namespace hapi {
       constexpr Part(T t,OO... oo):O(oo...),data(t){}
       constexpr const T get() const {return data;}
       void set(const T o) {data=o;}
-      template<typename Out> Out& operator<<(Out& out) const {out<<data;out<<*reinterpret_cast<const O*>(this);return out;}
+      template<typename Out> Out& operator<<(Out& out) const {
+        out<<data;
+        // O::operator<<(out);
+        return out;
+      }
     };
   };
 

@@ -38,3 +38,10 @@
 
 template<bool chk,typename T=void> using When=typename enable_if<chk,T>::type;
 
+/// @brief force constexpr max
+/// @tparam T type of comparing values
+/// @tparam a first value
+/// @tparam b second value
+/// @return the larger of the value
+template<typename T,T a, T b> constexpr T cexMax() {return a>b?a:b;}
+

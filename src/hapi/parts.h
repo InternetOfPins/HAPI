@@ -16,7 +16,8 @@
  namespace hapi {
   /// @brief parts chain default termination
   struct Nil {};
-  template<typename Out> Out& operator<<(Out& out,const Nil&) {return out;}
+  template<typename Out>
+  Out& operator<<(Out& out,const Nil&) {return out;}
 
   /// @brief Parts
   /// @tparam ... composing parts list
