@@ -11,9 +11,12 @@
  * 
  */
 
- #include "hapi/base.h"
+#include "hapi/base.h"
 
- namespace hapi {
+#ifdef DEBUG
+  inline
+#endif
+namespace hapi {
   /// @brief parts chain default termination
   struct Nil {};
   template<typename Out>
@@ -51,4 +54,4 @@
     const O& obj() const {return *this;}
     Obj& obj() {return *reinterpret_cast<Obj*>(this);}
   };
- };
+};

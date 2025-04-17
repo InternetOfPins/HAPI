@@ -6,6 +6,11 @@ using Year=Parts<StaticInt<1967>,Nil>;
 const char* label="label:";
 NilPart<StaticText<label>,ReflexOf,FieldValue<Int>> year{2025};
 
+int ano=1911;
+
+//use StaticData to store a reference
+NilPart<StaticData<const int&,ano>> a;
+
 void run() {
   cout<<Year::get()<<endl;
 
@@ -16,6 +21,11 @@ void run() {
   cout<<year.getValue()<<endl;
 
   cout<<year<<endl;
+
+  cout<<a<<endl;
+  ano=1987;
+  cout<<a<<endl;
+
 }
 
 #ifdef ARDUINO
