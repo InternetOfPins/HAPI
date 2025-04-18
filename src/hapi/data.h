@@ -2,7 +2,9 @@
 
 #include "hapi/canPrint.h"
 
+#ifndef DEBUG
 namespace hapi {
+#endif
     template<typename T,T data>
   struct StaticData {
     template<typename O>
@@ -96,5 +98,6 @@ namespace hapi {
       void setValue(T o) {Base::set(o);}
     };
   };
-
+#ifndef DEBUG
 };
+#endif

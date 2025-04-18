@@ -1,5 +1,7 @@
 #include <hapi.h>
+#ifndef DEBUG
 using namespace hapi;
+#endif
 
 using Idx=int;
 using Sz=int;
@@ -88,24 +90,21 @@ template<typename Out,typename... OO>
 Out& operator<<(Out& out,const StaticList<OO...>& o) {return o.operator<<(out);}
 
 template<typename T,typename B>
-struct Menu:T {
-  // template<typename O>
-  // struct Part:T::template Part<O> {
-  //   using Base=typename T::template Part<O>;
-  //   using Title=Base;
-  using Base=T;
-  using Title=Base;
-  using Body=B;
-    // Body body;
-    Menu(T t,B b):T{t},B{b}{}
+struct Menu {
+  template<typename O>
+  struct Part:T::template Part<O> {
+    using Base=typename T::template Part<O>;
+    using Title=Base;
+    using Body=B;
     Body m_body;
     using Base::Base;
-    cex Menu(Base&&t,B&&b):Base{forward<Base>(t)},m_body{forward<B>(b)}{}
+    // constexpr Part(Base t,Body b):Base{t},m_body{b}{}
+    constexpr Part(Base&& t,Body&& b):Base{forward<Base>(t)},m_body{forward<Body>(b)}{}
     template<typename... OO>
-    cex Menu(Base&&t,OO&&... oo):Base{forward<Base>(t)},m_body{forward<OO>(oo)...}{}
+    constexpr Part(Base&&t,OO&&... oo):Base{forward<Base>(t)},m_body{forward<OO>(oo)...}{}
     static constexpr Idx depth() {return 1+Body::depth();}
     static constexpr Sz size() {return Body::sz();}
-  // };
+  };
 };
 
 //------------------------------------
@@ -118,14 +117,13 @@ using Body=StaticList<
   ItemDef<Text>
 >;
 
-Menu<
-  ItemDef<Text>,
-  ItemDef<Text>
-// ItemDef<StaticList<
-//     ItemDef<Text>,
-//     ItemDef<Text>
-//   >>
-> menu{"Sub-menu","zZz"};
+ItemDef<Menu<
+  Text,
+  StaticList<
+    ItemDef<Text>,
+    ItemDef<Text>
+  >
+>> menu{"Sub-menu",{"zZz","."}};
 
 Body body{"Yes","No","Cancel"};
 

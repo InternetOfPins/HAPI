@@ -13,10 +13,9 @@
 
 #include "hapi/base.h"
 
-#ifdef DEBUG
-  inline
-#endif
+#ifndef DEBUG
 namespace hapi {
+#endif
   /// @brief parts chain default termination
   struct Nil {};
   template<typename Out>
@@ -28,7 +27,7 @@ namespace hapi {
   struct Parts:O::template Part<Parts<OO...>>{
     using Base=typename O::template Part<Parts<OO...>>;
     using Base::Base;
-    template<typename P> using Part=hapi::Parts<O,OO...,P>;
+    template<typename P> using Part=::Parts<O,OO...,P>;
   };
   template<typename O> struct Parts<O>:O {using O::O;};
 
@@ -37,7 +36,7 @@ namespace hapi {
   template<typename API>
   struct APIOf {
     template<typename... OO>
-    using Parts=hapi::Parts<OO...,API>;
+    using Parts=::Parts<OO...,API>;
   };
 
   /// @brief make a Nil terminated part
@@ -54,4 +53,6 @@ namespace hapi {
     const O& obj() const {return *this;}
     Obj& obj() {return *reinterpret_cast<Obj*>(this);}
   };
+#ifndef DEBUG
 };
+#endif
