@@ -117,15 +117,35 @@ using Body=StaticList<
   ItemDef<Text>
 >;
 
+Body body{"Yes","No","Cancel"};
+
 ItemDef<Menu<
   Text,
   StaticList<
     ItemDef<Text>,
-    ItemDef<Text>
+    ItemDef<Text>,
+    ItemDef<Text>,
+    ItemDef<Menu<
+      Text,
+      StaticList<
+        ItemDef<Text>,
+        ItemDef<Text>
+      >
+    >>
   >
->> menu{"Sub-menu",{"zZz","."}};
+>> menu {
+  "Main menu",{
+    "Yes",
+    "No",
+    "Cancel",{
+      "Sub-menu",{
+        "zZz",
+        "."
+      }
+    }
+  }
+};
 
-Body body{"Yes","No","Cancel"};
 
 void run() {
   cout<<i0<<endl;
@@ -143,7 +163,7 @@ void run() {
   cout<<body.template call<Get,1>()<<endl;
   cout<<body.template call<Get,0>()<<endl;
 
-  // cout<<"path="<<body.template call<Walk<Get,3,1>>()<<endl;
+  cout<<"path="<<menu.template call<Walk<Get,2,1>>()<<endl;
 }
 
 #ifdef ARDUINO
