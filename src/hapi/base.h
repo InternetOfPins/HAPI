@@ -16,6 +16,7 @@
 #endif
 
 #ifdef __AVR__
+  #include <assert.h>
   #include "hapi/platform/avr/avr_std.h"
   using avr_std::enable_if;
   using avr_std::true_type;
