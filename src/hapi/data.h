@@ -16,6 +16,7 @@ namespace hapi {
         out<<*reinterpret_cast<const O*>(this);
         return out;
       }
+      static constexpr const char* className() {return "StaticData";}
     };
   };
 

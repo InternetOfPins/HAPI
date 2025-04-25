@@ -30,5 +30,5 @@ namespace hapi {
 #endif
 
 template<typename Out,typename T>
-When<CanPrint<T>::value ,Out>& operator<<(Out& out,const T o) {return o.operator<<(out);}
+When<CanPrint<T>::value ,Out>& operator<<(Out& out,const T& o) {return o.operator<<(out);}
 
