@@ -11,3 +11,4 @@
 #include "hapi/parts.h"
 #include "hapi/canPrint.h"
 #include "hapi/data.h"
+#include "hapi/staticList.h"

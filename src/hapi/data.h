@@ -76,6 +76,7 @@ namespace hapi {
       constexpr Part(T t,OO... oo):O(oo...),data(t){}
       constexpr const T get() const {return data;}
       void set(const T o) {data=o;}
+      static constexpr const char* className() {return "Data";}
       template<typename Out> Out& operator<<(Out& out) const {
         out<<data;
         // O::operator<<(out);

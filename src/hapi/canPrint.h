@@ -9,7 +9,7 @@ namespace hapi {
     template<typename T,bool> struct _CanPrint;
     template<typename T> 
     struct _CanPrint<T,true> {
-      template<typename C> static true_type chk(decltype(C{}.operator<<(declval<const Nil>())));
+      template<typename C> static true_type chk(const decltype(C{}.operator<<(Nil{}))&);
       template<typename C> static false_type chk(...);
       using type=decltype(chk<T>(T{}));
       static const bool value=type::value;

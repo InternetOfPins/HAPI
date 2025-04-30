@@ -51,3 +51,19 @@ template<bool chk,typename T=void> using When=typename enable_if<chk,T>::type;
 /// @return the larger of the value
 template<typename T,T a, T b> constexpr T cexMax() {return a>b?a:b;}
 
+//TODO: put this defs into a user given type
+using Idx=int;
+using Sz=int;
+
+template<Sz...> struct StaticPath {
+  template<typename Out> Out& operator<<(Out& out) const {return out;}
+};
+
+template<Sz o,Sz... oo> struct StaticPath<o,oo...> {
+  template<typename Out>
+  Out& operator<<(Out& out) const 
+    {return out<<"/"<<o<<StaticPath<oo...>{};}
+};
+
+template<typename Out,Sz... oo>
+Out& operator<<(Out& out, const StaticPath<oo...>& p) {return p.operator<<(out);}
