@@ -13,12 +13,14 @@ struct ItemAPI:I {
   static constexpr int getId() {return -1;}
   template<int> using HasId=false_type;
   template<int> using WithId=ItemAPI<CRTP<ItemAPI<Nil>>>;
+  template<typename Out> Out& operator<<(Out& out) {return out;}
 };
 
 template<typename... OO>
 struct ItemDef:APIOf<ItemAPI<CRTP<ItemDef<OO...>>>>::template Parts<OO...> {
   using Base=typename APIOf<ItemAPI<CRTP<ItemDef<OO...>>>>::template Parts<OO...>;
   using Base::Base;
+  using Base::operator<<;
 };
 
 // agents ---------------------------------------------
@@ -37,7 +39,7 @@ template<typename Out,Out& out>
 struct Put {
   using Res=Out;
   template<typename O>
-  static Res& act(const O& o) {return out<<o.head();}
+  static Res& act(const O& o) {return out<<"put "<<o.head().className()<<":"<<o.head();}
 };
 
 template<typename A,Sz,Sz... oo> struct Walk;
@@ -152,7 +154,7 @@ ItemDef<Menu<
 
 template<typename Out,typename...OO>
 Out& operator<<(Out& out,const ItemDef<OO...>& o)
-  {return out<<"ItemDef{"<<o.className()<<"}:"<<((const typename ItemDef<OO...>::Obj::Base&)o)<<" ";}
+  {out<<"ItemDef{"<<o.className()<<"}:";return o.operator<<(out);}//((const typename ItemDef<OO...>::Obj::Base&)o)<<" ";}
 
   void run() {
   // cout<<i0<<endl;
@@ -174,6 +176,7 @@ Out& operator<<(Out& out,const ItemDef<OO...>& o)
   // cout<<body<<endl;
   // body.template call<Out,3>();
   // cout<<body<<endl;
+  cout<<ItemDef<Data<int>>(1967)<<endl;
   body.template call<Walk<Out,3,1>>();
   cout<<endl;
   // menu.template call<Walk<Out,3,1>>();

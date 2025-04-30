@@ -100,6 +100,7 @@ namespace hapi {
       void setValue(T o) {Base::set(o);}
     };
   };
+
 #ifndef DEBUG
 };
 #endif
