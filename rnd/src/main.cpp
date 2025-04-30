@@ -83,6 +83,7 @@ struct Menu {
     Body m_body;
     static constexpr const char* className() {return "Menu";}
     using Base::Base;
+    using Base::operator<<;
     Body& body() {return m_body;}
     const Body& body() const {return m_body;}
     auto head() const ->decltype(body().head()) {return body().head();}
@@ -95,18 +96,27 @@ struct Menu {
     constexpr Part(Base&&t,OO&&... oo):Base{forward<Base>(t)},m_body{forward<OO>(oo)...}{}
     static constexpr Idx depth() {return 1+Body::depth();}
     static constexpr Sz size() {return Body::size();}
+
     template<typename A>
     auto call() ->decltype(A::act(body()))
       {cout<<"Menu@";return A::act(body());}
+
     template<typename A,Sz n>
     auto call() ->decltype(m_body.template call<A,n>())
       {cout<<"Menu&"<<n;return m_body.template call<A,n>();}
+      
+    // template<typename A,Sz n>
+    // auto call() ->decltype(A::act(*this))
+    //   {cout<<"§"<<n<<"|";return A::act(*this);}
+    // };
+
     template<typename Out,char sep=' '>
-    Out& operator<<(Out& out) const {out<<reinterpret_cast<const Base&>(*this);body().template operator<< <Out,sep>(out);return out;}
-    template<typename A,Sz n>
-    auto call() ->decltype(A::act(*this))
-      {cout<<"§"<<n<<"|";return A::act(*this);}
-    };
+    Out& operator<<(Out& out) const {
+      out<<reinterpret_cast<const Base&>(*this);
+      body().template operator<< <Out,sep>(out);
+      return out;
+    }
+  };
 };
 
 //------------------------------------
@@ -179,7 +189,12 @@ Out& operator<<(Out& out,const ItemDef<OO...>& o)
   cout<<ItemDef<Data<int>>(1967)<<endl;
   body.template call<Walk<Out,3,1>>();
   cout<<endl;
-  // menu.template call<Walk<Out,3,1>>();
+  menu.template call<Walk<Out,3>>();
+  cout<<endl;
+  menu.template call<Walk<Out,3,0>>();
+  cout<<endl;
+  menu.template call<Walk<Out,3,1>>();
+  cout<<endl;
   cout<<"-------------------"<<endl;
   // cout<<menu<<endl;
   // cout<<"#3 ";
