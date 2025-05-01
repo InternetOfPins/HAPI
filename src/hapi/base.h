@@ -40,8 +40,12 @@
   using std::operator<<;
 #endif
 
+/// @brief C++11 sugar for `std::enable_if<...>::type`
+/// @tparam T result type
+/// @tparam chk boolean check
 template<bool chk,typename T=void> using When=typename enable_if<chk,T>::type;
 
+/// `constexpre` abreviation
 #define cex constexpr
 
 /// @brief force constexpr max
@@ -67,3 +71,36 @@ template<Sz o,Sz... oo> struct StaticPath<o,oo...> {
 
 template<typename Out,Sz... oo>
 Out& operator<<(Out& out, const StaticPath<oo...>& p) {return p.operator<<(out);}
+
+struct Path {
+  const Idx len;
+  const Sz* data;
+  const Path parent() const {return Path{(Idx)(len-1),data};}
+  const Path next() const {return {(Idx)(len-1),&data[1]};}
+  Sz operator[](Idx i) const {return data[i];}
+  operator bool() const {return len;}
+};
+
+template<Idx len>
+struct PathData {
+  Sz data[len];
+  operator const Path() const {return Path{len,data};}
+  Sz operator[](Idx i) const {return data[i];}
+  Sz& operator[](Idx i) {return data[i];}
+  operator Sz*() {return data;}
+  const Path parent() const {return {len-1,data};}
+  const Path next() const {return {len-1,&data[1]};}
+  PathData<len> operator ++(int) {data[0]+=1;return *this;}
+  PathData<len> operator --(int) {return data[0]-=1;return *this;}
+};
+
+template<typename Out>
+Out& operator<<(Out& out,const Path& o) {
+  out<<"{";
+  for(Sz i=0;i<o.len;i++) {
+    if(i) out<<",";
+    out<<o.data[i];
+  }
+  return out<<"}";
+}
+

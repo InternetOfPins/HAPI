@@ -161,6 +161,10 @@ void run() {
   cout<<endl;
   // menu.template call<Walk<Out>>(3,1);
   cout<<endl;
+  const PathData<2> path{3,1};
+  cout<<path[1]<<endl;
+  const Path x(PathData<2>{3,0});
+  cout<<x[0]<<endl;
 }
 
 #ifdef ARDUINO
