@@ -39,7 +39,7 @@ template<typename Out,Out& out>
 struct Put {
   using Res=Out;
   template<typename O>
-  static Res& act(const O& o) {return out<<"put "<<o.head().className()<<":"<<o.head();}
+  static Res& act(const O& o) {return out<<o.head();}
 };
 
 template<typename A,Sz,Sz... oo> struct Walk;
@@ -49,14 +49,14 @@ template<typename A>
 struct _Walk<A> {
   template<typename O>
   static auto act(O& o)->decltype(A::act(o)) 
-    {cout<<o.className()<<"!";return A::act(o);}
+    {return A::act(o);}
 };
 
 template<typename A,Sz i,Sz... path>
 struct _Walk<A,i,path...> {
   template<typename O>
   static auto act(O& o) ->decltype(o.head().template call<_Walk<A,path...>,i>()) 
-    {cout<<o.className()<<"->"<<o.head().className()<<"*";return o.head().template call<_Walk<A,path...>,i>();}
+    {return o.head().template call<_Walk<A,path...>,i>();}
 };
 
 /// @brief meta agent to traverse a static tree structure
@@ -66,10 +66,8 @@ struct _Walk<A,i,path...> {
 /// @tparam path... indexes for next levels
 template<typename A,Sz i,Sz... oo> struct Walk:_Walk<A,i,oo...> {
   template<typename O>
-  static auto act(O& o) ->decltype(o.template call<_Walk<A,oo...>,i>()) {
-    cout<<"Walk@"<<StaticPath<i,oo...>{}<<" ";
-    return o.template call<_Walk<A,oo...>,i>();
-  }
+  static auto act(O& o) ->decltype(o.template call<_Walk<A,oo...>,i>()) 
+    {return o.template call<_Walk<A,oo...>,i>();}
 };
 
 //wrap a StaticList as an Item so that we can build trees
@@ -98,18 +96,12 @@ struct Menu {
     static constexpr Sz size() {return Body::size();}
 
     template<typename A>
-    auto call() ->decltype(A::act(body()))
-      {cout<<"Menu@";return A::act(body());}
+    auto call() ->decltype(A::act(body())) {return A::act(body());}
 
     template<typename A,Sz n>
     auto call() ->decltype(m_body.template call<A,n>())
-      {cout<<"Menu&"<<n;return m_body.template call<A,n>();}
+      {return m_body.template call<A,n>();}
       
-    // template<typename A,Sz n>
-    // auto call() ->decltype(A::act(*this))
-    //   {cout<<"§"<<n<<"|";return A::act(*this);}
-    // };
-
     template<typename Out,char sep=' '>
     Out& operator<<(Out& out) const {
       out<<reinterpret_cast<const Base&>(*this);
@@ -133,7 +125,7 @@ using Body=StaticList<
   >
 >;
 
-Body body{"Yes","No","Cancel",{"A!","B!"}};
+Body body{"Yes","No","Cancel",{"Item A","Item B"}};
 
 ItemDef<Menu<
   Text,//main menu
@@ -164,7 +156,7 @@ ItemDef<Menu<
 
 template<typename Out,typename...OO>
 Out& operator<<(Out& out,const ItemDef<OO...>& o)
-  {out<<"ItemDef{"<<o.className()<<"}:";return o.operator<<(out);}//((const typename ItemDef<OO...>::Obj::Base&)o)<<" ";}
+  {return o.operator<<(out);}
 
   void run() {
   // cout<<i0<<endl;
@@ -196,14 +188,14 @@ Out& operator<<(Out& out,const ItemDef<OO...>& o)
   menu.template call<Walk<Out,3,1>>();
   cout<<endl;
   cout<<"-------------------"<<endl;
-  // cout<<menu<<endl;
-  // cout<<"#3 ";
-  // menu.template call<Out,3>();
-  // cout<<endl;
-  // menu.template call<Walk<Out,3,1>>();
+  cout<<menu<<endl;
+  cout<<"#3 ";
+  menu.template call<Out,3>();
   cout<<endl;
-  // menu.template call<Walk<Out,3,1>>();
-  // cout<<endl;
+  menu.template call<Walk<Out,3,0>>();
+  cout<<endl;
+  menu.template call<Walk<Out,3,1>>();
+  cout<<endl;
 
   // cout<<body.template call<Get>(2)<<endl;
   // cout<<body.template call<Get>(1)<<endl;

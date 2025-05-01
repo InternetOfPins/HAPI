@@ -21,7 +21,7 @@ struct StaticList<O> {
   // Out& operator<<(Out& out) const {return out;}
   template<typename Out,char sep=' '>
   Out& operator<<(Out& out) const
-    {out<<"[";out<<head();return out<<"]";}
+    {return out<<head()<<sep;}
   constexpr StaticList(){}
   constexpr StaticList(StaticList&o):m_head(o.head()) {}
   constexpr StaticList(Head&i):m_head{i}{}
@@ -34,7 +34,7 @@ struct StaticList<O> {
   // template<typename A> static void call(int i) {assert(i==0);}
   template<typename A,Sz n>
   auto call() ->decltype(A::act(*this))
-    {cout<<"#"<<n<<"|";return A::act(*this);}
+    {return A::act(*this);}
 };
 
 template<typename O,typename... OO> 
@@ -73,10 +73,10 @@ struct StaticList:StaticList<O> {
   /// @return target function result type
   template<typename A,Sz n>
   auto call() ->When<!!n,decltype(tail().template call<A,n-1>())>
-    {cout<<"."<<n;return tail().template call<A,n-1>();}
+    {return tail().template call<A,n-1>();}
   template<typename A,Sz n>
   auto call() ->When<!n,decltype(A::act(*this))>
-    {cout<<"%"<<n;return A::act(*this);}
+    {return A::act(*this);}
 
   /// @brief runtime index step
   /// @tparam A agent type
@@ -96,5 +96,5 @@ struct StaticList:StaticList<O> {
 
 template<typename Out,typename... OO>
 Out& operator<<(Out& out,const StaticList<OO...>& o)
-  {out<<"|";return o.operator<<(out);}
+  {return o.operator<<(out);}
 
