@@ -42,34 +42,6 @@ struct Put {
   static Res& act(const O& o) {return out<<o.head();}
 };
 
-template<typename A,Sz,Sz... oo> struct Walk;
-  template<typename A,Sz...> struct _Walk;
-
-template<typename A>
-struct _Walk<A> {
-  template<typename O>
-  static auto act(O& o)->decltype(A::act(o)) 
-    {return A::act(o);}
-};
-
-template<typename A,Sz i,Sz... path>
-struct _Walk<A,i,path...> {
-  template<typename O>
-  static auto act(O& o) ->decltype(o.head().template call<_Walk<A,path...>,i>()) 
-    {return o.head().template call<_Walk<A,path...>,i>();}
-};
-
-/// @brief meta agent to traverse a static tree structure
-/// with given static path indexes
-/// @tparam A call agent
-/// @tparam i index for current level
-/// @tparam path... indexes for next levels
-template<typename A,Sz i,Sz... oo> struct Walk:_Walk<A,i,oo...> {
-  template<typename O>
-  static auto act(O& o) ->decltype(o.template call<_Walk<A,oo...>,i>()) 
-    {return o.template call<_Walk<A,oo...>,i>();}
-};
-
 //wrap a StaticList as an Item so that we can build trees
 template<typename T,typename B>
 struct Menu {

@@ -1,7 +1,5 @@
 #pragma once
 
-#include "hapi/canPrint.h"
-
 #ifndef DEBUG
 namespace hapi {
 #endif
