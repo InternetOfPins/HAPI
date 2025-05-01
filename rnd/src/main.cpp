@@ -37,7 +37,7 @@ struct Get {
 
 template<typename Out,Out& out>
 struct Put {
-  using Res=Out;
+  using Res=Out&;
   template<typename O>
   static Res& act(const O& o) {return out<<o.head();}
 };
@@ -73,8 +73,12 @@ struct Menu {
     template<typename A,Sz n>
     auto call() ->decltype(m_body.template call<A,n>())
       {return m_body.template call<A,n>();}
-      
-    template<typename Out>
+          
+    template<typename A>
+    typename A::Res call(Sz n)
+      {return m_body.template call<A>(n);}
+            
+      template<typename Out>
     Out& operator<<(Out& out) const {
       Base::operator<<(out);
       // body().operator<<(out);
@@ -132,23 +136,31 @@ Out& operator<<(Out& out,const ItemDef<OO...>& o)
 using Out=Put<decltype(cout),cout>;
 
 void run() {
-  body.template call<Walk<Out,3,1>>();
+  // body.template call<Walk<Out,3,1>>();
+  // cout<<endl;
+  // menu.template call<Walk<Out,3>>();
+  // cout<<endl;
+  // menu.template call<Walk<Out,3,0>>();
+  // cout<<endl;
+  // menu.template call<Walk<Out,3,1>>();
+  // cout<<endl;
+  // cout<<"-------------------"<<endl;
+  // cout<<menu<<endl;
+  // menu.template call<Out,3>();
+  // cout<<endl;
+  // menu.template call<Walk<Out,3,0>>();
+  // cout<<endl;
+  // menu.template call<Walk<Out,3,1>>();
+  menu.template call<Out>(0);
   cout<<endl;
-  menu.template call<Walk<Out,3>>();
+  menu.template call<Out>(1);
   cout<<endl;
-  menu.template call<Walk<Out,3,0>>();
+  menu.template call<Out>(2);
   cout<<endl;
-  menu.template call<Walk<Out,3,1>>();
+  menu.template call<Out>(3);
   cout<<endl;
-  cout<<"-------------------"<<endl;
-  cout<<menu<<endl;
-  menu.template call<Out,3>();
+  // menu.template call<Walk<Out>>(3,1);
   cout<<endl;
-  menu.template call<Walk<Out,3,0>>();
-  cout<<endl;
-  menu.template call<Walk<Out,3,1>>();
-  cout<<endl;
-
 }
 
 #ifdef ARDUINO

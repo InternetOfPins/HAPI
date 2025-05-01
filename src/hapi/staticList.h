@@ -13,6 +13,7 @@ struct StaticList<> {
   static constexpr Idx depth() {return 1;}
   static constexpr Sz size() {return 0;}/// size of item
   static constexpr const char* className() {return "StaticList";}
+  template<typename A> typename A::Res call(Sz n) {assert(false);}
 };
 
 template<typename O,typename... OO> 
@@ -56,7 +57,11 @@ struct StaticList<O,OO...>:StaticList<> {
   typename A::Res call(Sz n)
     {return n?tail().template call<A>(n-1):A::act(*this);}
 
-  /// @brief call the agent
+  template<typename A,typename... Ps>
+  typename A::Res call(Sz n,Ps... oo)
+    {return n?tail().template call<A>(n-1,oo...):call<A>(oo...);}
+  
+    /// @brief call the agent
   /// @tparam A agent type
   /// @return agent given result
   template<typename A>
@@ -73,7 +78,7 @@ Out& operator<<(Out& out,const StaticList<OO...>& o)
 /// @tparam A call agent
 /// @tparam i index for current level
 /// @tparam path... indexes for next levels
-template<typename A,Sz,Sz... oo> struct Walk;
+template<typename A,Sz...> struct Walk;
 template<typename A,Sz...> struct _Walk;
 
 template<typename A>
@@ -90,7 +95,18 @@ struct _Walk<A,i,path...> {
     {return o.head().template call<_Walk<A,path...>,i>();}
 };
 
-template<typename A,Sz i,Sz... oo> struct Walk:_Walk<A,i,oo...> {
+template<typename A>
+struct Walk<A>:_Walk<A> {
+  using Res=typename A::Res;
+  using _Walk<A>::act;
+  template<typename O,typename... P>
+  static typename A::Res act(O& o,Sz i,P... oo)
+    {return o.template call<_Walk<A>>(i,oo...);}
+};
+
+template<typename A,Sz i,Sz... oo>
+struct Walk<A,i,oo...>:_Walk<A,i,oo...> {
+  using Res=typename A::Res;
   template<typename O>
   static auto act(O& o) ->decltype(o.template call<_Walk<A,oo...>,i>()) 
     {return o.template call<_Walk<A,oo...>,i>();}
