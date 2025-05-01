@@ -53,7 +53,7 @@ struct Menu {
     Body m_body;
     static constexpr const char* className() {return "Menu";}
     using Base::Base;
-    using Base::operator<<;
+    // using Base::operator<<;
     Body& body() {return m_body;}
     const Body& body() const {return m_body;}
     auto head() const ->decltype(body().head()) {return body().head();}
@@ -74,18 +74,16 @@ struct Menu {
     auto call() ->decltype(m_body.template call<A,n>())
       {return m_body.template call<A,n>();}
       
-    template<typename Out,char sep=' '>
+    template<typename Out>
     Out& operator<<(Out& out) const {
-      out<<reinterpret_cast<const Base&>(*this);
-      body().template operator<< <Out,sep>(out);
+      Base::operator<<(out);
+      // body().operator<<(out);
       return out;
     }
   };
 };
 
 //------------------------------------
-
-ItemDef<Text> i0{"ok"};
 
 using Body=StaticList<
   ItemDef<Text>,
@@ -130,27 +128,10 @@ template<typename Out,typename...OO>
 Out& operator<<(Out& out,const ItemDef<OO...>& o)
   {return o.operator<<(out);}
 
-  void run() {
-  // cout<<i0<<endl;
-  // cout<<StaticList<ItemDef<Text>>::depth()<<endl;
-  // cout<<Body::size()<<endl;
-  // cout<<body<<endl;
-  // // body.operator<< <decltype(cout),'+'>(cout)<<endl;
-  //
-  // cout<<body.head()<<endl;
-  // cout<<body.tail().head()<<endl;
-  // cout<<body.tail().tail().head()<<endl;
+  //output agent for `cout`
+using Out=Put<decltype(cout),cout>;
 
-  //use agent on static index item
-  // cout<<body.template call<Get,2>()<<endl;
-  // cout<<body.template call<Get,1>()<<endl;
-  // cout<<body.template call<Get,0>()<<endl;
-
-  using Out=Put<decltype(cout),cout>;
-  // cout<<body<<endl;
-  // body.template call<Out,3>();
-  // cout<<body<<endl;
-  cout<<ItemDef<Data<int>>(1967)<<endl;
+void run() {
   body.template call<Walk<Out,3,1>>();
   cout<<endl;
   menu.template call<Walk<Out,3>>();
@@ -161,7 +142,6 @@ Out& operator<<(Out& out,const ItemDef<OO...>& o)
   cout<<endl;
   cout<<"-------------------"<<endl;
   cout<<menu<<endl;
-  cout<<"#3 ";
   menu.template call<Out,3>();
   cout<<endl;
   menu.template call<Walk<Out,3,0>>();
@@ -169,12 +149,6 @@ Out& operator<<(Out& out,const ItemDef<OO...>& o)
   menu.template call<Walk<Out,3,1>>();
   cout<<endl;
 
-  // cout<<body.template call<Get>(2)<<endl;
-  // cout<<body.template call<Get>(1)<<endl;
-  // cout<<body.template call<Get>(0)<<endl;
-  //
-  // cout<<"path /0 ="<<menu.template call<Walk<Get,0>>()<<endl;
-  // cout<<"path /2/1/1 ="<<menu.template call<Walk<Get,2,1,0>>()<<endl;
 }
 
 #ifdef ARDUINO
