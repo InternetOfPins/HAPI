@@ -16,7 +16,7 @@ struct StaticList<> {
 };
 
 template<typename O,typename... OO> 
-struct StaticList<O,OO...> {
+struct StaticList<O,OO...>:StaticList<> {
   using Head=O;
   using Tail=StaticList<OO...>;
   Head m_head;
@@ -25,7 +25,6 @@ struct StaticList<O,OO...> {
   Head& head() {return m_head;}
   const Tail& tail() const {return m_tail;}
   Tail& tail() {return m_tail;}
-  static constexpr const char* className() {return "StaticList";}
   constexpr StaticList(){}
   constexpr StaticList(StaticList&o):m_head(o.m_head),m_tail(o.m_tail) {}
   constexpr StaticList(Head&i,OO&...ii):m_head{i},m_tail{ii...}{}
