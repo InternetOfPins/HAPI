@@ -75,10 +75,20 @@ Out& operator<<(Out& out, const StaticPath<oo...>& p) {return p.operator<<(out);
 struct Path {
   const Idx len;
   const Sz* data;
+  Sz head() const {assert(len);return data[0];}
   const Path parent() const {return Path{(Idx)(len-1),data};}
   const Path next() const {return {(Idx)(len-1),&data[1]};}
   Sz operator[](Idx i) const {return data[i];}
   operator bool() const {return len;}
+};
+
+template<typename A>
+struct PathAgent:Path {
+  using Path::Path;
+  using Res=typename A::Res;
+  template<typename O>
+  typename A::Res act(O& o) const 
+    {return o.template call<PathAgent>(head());}
 };
 
 template<Idx len>
@@ -86,8 +96,8 @@ struct PathData {
   Sz data[len];
   operator const Path() const {return Path{len,data};}
   Sz operator[](Idx i) const {return data[i];}
-  Sz& operator[](Idx i) {return data[i];}
-  operator Sz*() {return data;}
+  // operator Sz() const {return len?data[0]:0;}
+  operator const Sz*() const {return data;}
   const Path parent() const {return {len-1,data};}
   const Path next() const {return {len-1,&data[1]};}
   PathData<len> operator ++(int) {data[0]+=1;return *this;}

@@ -27,7 +27,7 @@ namespace hapi {
   struct Parts:O::template Part<Parts<OO...>>{
     using Base=typename O::template Part<Parts<OO...>>;
     using Base::Base;
-    template<typename P> using Part=::Parts<O,OO...,P>;
+    template<typename P> using Part=hapi::Parts<O,OO...,P>;
   };
   template<typename O> struct Parts<O>:O {using O::O;};
 
@@ -36,7 +36,7 @@ namespace hapi {
   template<typename API>
   struct APIOf {
     template<typename... OO>
-    using Parts=::Parts<OO...,API>;
+    using Parts=hapi::Parts<OO...,API>;
   };
 
   /// @brief make a Nil terminated part

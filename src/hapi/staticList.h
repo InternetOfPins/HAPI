@@ -5,6 +5,14 @@
 // static list ----------------------------------------------
 template<typename...> struct StaticList;
 
+/// @brief meta agent to traverse a static tree structure
+/// with given static path indexes
+/// @tparam A call agent
+/// @tparam i index for current level
+/// @tparam path... indexes for next levels
+template<typename A,Sz...> struct Walk;
+template<typename A,Sz...> struct _Walk;
+
 template<typename Out,typename... OO>
 Out& operator<<(Out& out,const StaticList<OO...>& o);
 
@@ -14,6 +22,8 @@ struct StaticList<> {
   static constexpr Sz size() {return 0;}/// size of item
   static constexpr const char* className() {return "StaticList";}
   template<typename A> typename A::Res call(Sz n) {assert(false);}
+  template<typename Out>
+  Out& operator<<(Out& out) const {return out<<"[]";}
 };
 
 template<typename O,typename... OO> 
@@ -45,6 +55,7 @@ struct StaticList<O,OO...>:StaticList<> {
   template<typename A,Sz n>
   auto call() ->When<!!n,decltype(tail().template call<A,n-1>())>
     {return tail().template call<A,n-1>();}
+
   template<typename A,Sz n>
   auto call() ->When<!n,decltype(A::act(*this))>
     {return A::act(*this);}
@@ -57,9 +68,9 @@ struct StaticList<O,OO...>:StaticList<> {
   typename A::Res call(Sz n)
     {return n?tail().template call<A>(n-1):A::act(*this);}
 
-  template<typename A,typename... Ps>
-  typename A::Res call(Sz n,Ps... oo)
-    {return n?tail().template call<A>(n-1,oo...):call<A>(oo...);}
+  template<typename A>
+  typename A::Res call(const Path& path)
+    {return path?call<Walk<A>>(path[0]):call<A>();}
   
     /// @brief call the agent
   /// @tparam A agent type
@@ -73,20 +84,17 @@ template<typename Out,typename... OO>
 Out& operator<<(Out& out,const StaticList<OO...>& o)
   {return o.operator<<(out);}
 
-/// @brief meta agent to traverse a static tree structure
-/// with given static path indexes
-/// @tparam A call agent
-/// @tparam i index for current level
-/// @tparam path... indexes for next levels
-template<typename A,Sz...> struct Walk;
-template<typename A,Sz...> struct _Walk;
-
+// Walkers ---------------------
 template<typename A>
 struct _Walk<A> {
   template<typename O>
+  static typename A::Res act(O& o,const Path& path)
+    {return path?o.head().template call<_Walk<A>>(path.next()):A::act(o);}
+
+  template<typename O>
   static auto act(O& o)->decltype(A::act(o)) 
     {return A::act(o);}
-};
+  };
 
 template<typename A,Sz i,Sz... path>
 struct _Walk<A,i,path...> {
@@ -99,9 +107,12 @@ template<typename A>
 struct Walk<A>:_Walk<A> {
   using Res=typename A::Res;
   using _Walk<A>::act;
-  template<typename O,typename... P>
-  static typename A::Res act(O& o,Sz i,P... oo)
-    {return o.template call<_Walk<A>>(i,oo...);}
+  template<typename O>
+  static typename A::Res act(O& o,Sz i)
+    {return i?o.template call<_Walk<A>>(i-1):o.head().template call<A>();}
+  template<typename O>
+  static typename A::Res act(O& o,const Path& path)
+    {return o.template call<_Walk<A>>(path);}
 };
 
 template<typename A,Sz i,Sz... oo>
