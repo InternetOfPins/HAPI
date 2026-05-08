@@ -1,4 +1,3 @@
-#pragma once
 /**
  * @file hapi.h
  * @brief The Happy API - Composition API build tools.
