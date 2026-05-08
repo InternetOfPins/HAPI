@@ -23,6 +23,7 @@
 #include <hapi.h>
 using namespace hapi;
 
+//the fall-back API code erasure
 struct Item {
   static void api(const char*o) {cout<<o;}
 };
@@ -46,7 +47,7 @@ using Bars    =WrapWith<'|','|'>;
 using Tag     =WrapWith<'<','>'>;
 
 template<typename... OO>
-struct ItemDef:APIOf<Item>::template Parts<OO...> {};
+using ItemDef=APIOf<Item>::Parts<OO...>;
 
 ItemDef<Bars,Parens,SqBracks,Bracks,Tag> testItem;
 

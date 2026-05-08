@@ -1,123 +1,156 @@
-# HAPI
+# Happy API (HAPI)
 
-**The happy API**
+**Build modular, zero-overhead, highly composable output and UI stacks in C++.**
 
-is a generic and minimalistic composition API to support further development of modular API's
+A powerful **static composition engine** for embedded systems, Arduino, and modern C++.
 
-## building an API
+---
 
-### we can
+## Why Happy API?
 
->provide functionality with each part and have compile time errors if the functionality is not present/available in the composition.
+Most embedded UI libraries lock you into rigid hierarchies or expensive virtual calls.  
+**Happy API** lets you compose features like Lego blocks — at compile time — with full type safety and minimal overhead.
 
-or
+---
 
->Have fallback methods that usually do nothing. This will erase all calls.  
->No compile time errors, but also no runtime code, unless an override with some functionality is provided.
+## Features
 
-also
+- Fully static composition using CRTP + Mixins
+- Powerful feature chaining and reordering
+- Dependency validation (`Requires` / `Excludes`)
+- Marker-based introspection (`Has<...>`)
+- Optional virtual interface layer
+- Designed for performance-critical and resource-constrained environments
 
->support CRTP style calls without infinite recursion, attempts are compile time errors.
+---
 
->Provide a virtual methods cap to encapsulate different composition under the same type for generic container storage.  
->A virtual (pure or fallback) interface must be provided along with a cap to redirect calls (virtual to static definition).
+## Quick Start
 
->Automate creation of items parts for a specific API
+a real API composition example:
 
-## Parts
+```cpp
+using ScrollPrinter=Chain<//change the order here to change the printing order
+  ViewPrinter,// outermost format envelope
+  MenuPrinter<// calls printMenu
+    TitlePrinter,// just print the title
+    ScrollBodyPrinter,//scroll till focus is visible
+    ItemPrinter<//calls printItem:
+      IndexPrinter,// print item index 1-9
+      NavCursorPrinter,// use a text cursor on selected item.
+      ItemBodyPrinter//→ printItem → Item::print
+    >
+  >
+>;
 
-composition parts are expected to have this structure
+using MyParser=Chain<
+  DataParser<>,//put all data into characters
+  CtrlChars,//catch special characters like \n
+  UTF8,//bypass UTF8 surrogate codes
+  TextWrap,//long texts continue next line
+  Clip,//keep content inside area
+  ColorTrack<int>,//track color setting for device resume...
+  Cursor,//track cursor position for resume...
+  Gate// locking, measuring, partial updates
+>;
 
-```c++
-struct MyPart {
-  template<typename O> struct Part:O {
-    // some API implementation 
-  };
+using MyOutput = OutDef<
+  ScrollPrinter,//output selection and disposition
+  TextFmt,//optional format handler
+  MyParser,//control data flow to output device
+  MyRenderer<>,// your hardware driver
+  StaticPos<20,10>,//complementary info
+  StaticArea<30,8>
+>
+MyOutput out;
+out.put("Hello from Happy API! 🎉");
+```
+
+---
+
+## Technical Overview
+
+Happy API is built around a **custom static composition engine** based on CRTP (Curiously Recurring Template Pattern) and chained mixins.
+
+### Core Concepts
+
+- **`Chain<>`** — The heart of the composition system. It builds a linear inheritance chain from the features you provide.
+- **`APIOf<Base, Feature1, Feature2...>`** — The main composition template.
+- **`OutDef<Features...>`** — User-friendly alias that creates a complete output stack.
+- **`Part<T>`** — Every feature implements a `template<typename T> struct Part` that receives the next type in the chain.
+
+### Feature Anatomy
+
+```cpp
+struct Gate {
+    template<typename O>
+    struct Part : O {
+        using Base = O;
+        using HasGate = std::true_type;
+
+        void put(auto o) {
+            if (unlocked()) Base::put(o);
+        }
+    };
 };
 ```
 
-a part setup can be a template with arbitrary parameters.
+### Key Mechanisms
 
-```c++
-template<int defVal=30>
-struct Power {
-  template<typename O> struct Part:O {
-    // some API implementation 
-  };
-};
-```
+| Mechanism          | Purpose                              | Example |
+|--------------------|--------------------------------------|--------|
+| `Requires<>`       | Declare dependencies                 | `Cursor` requires `DataParser` |
+| `Excludes<>`       | Declare incompatibilities            | Mutual exclusions |
+| `Has<Tag>`         | Query composition at compile time    | `Has<HasGate>` |
+| `Ins<>` / `App<>`  | Dynamic reordering                   | Insert features anywhere |
 
-## Nil
+### Performance Characteristics
 
-`Nil` is the default part chain terminator
-```c++
-struct Nil {};
-```
+Happy API is designed with **performance and code size as first-class citizens**:
 
-### combining parts with C++
+- **Zero runtime overhead** on the hot path when using the pure static version (`OutDef<...>`). All calls are resolved at compile time via static dispatch (inlining-friendly).
+- **Very small binary size** — no vtables unless you explicitly use the virtual facade (`IOutDef<...>`).
+- **Excellent inlining potential** — the compiler sees the entire composed stack.
+- **Conditional features** (like `Gate`) add minimal cost because checks are usually compile-time constant or easily optimized away.
+- **Scalability notes**:
+  - 4–8 features: Excellent compile times and code size.
+  - 10–15 features: Still very good on modern compilers.
+  - 20+ complex features: Compile times and debug symbols can grow significantly (typical for heavy template metaprogramming).
 
-this parts can be combined like this using c++ (tedious)
+**Comparison**:
+- Much faster and smaller than traditional virtual inheritance or runtime plugin systems.
+- Comparable (or better) than hand-written monolithic classes, while being far more flexible.
 
-```c++
-Power::Part<MyPart::Part<Nil>> example;
-```
+**Pro Tip**: Use the static `OutDef<...>` for performance-critical code. Use `IOutDef<...>` only when you need to store different output types in containers or arrays.
 
-the `example` object now has api functions from `MyPart::Part<Nil>`
-override with `Power::Part`.
+### Static Validation
 
-### using sugar to bind the parts
+All dependency rules are enforced at compile time.
 
-Or chained with **Parts** tool: `Parts<Power,MyPart>`.
+---
 
-## How it works
+## Philosophy
 
-```c++
-template<typename... OO> struct Parts<OO...>;
-```
+> "Make the common case **blazing fast** and the advanced case **still possible and clean**."
 
-combines a list of parts (`OO...`) into a single part.
+Happy API was created as the next evolution of [ArduinoMenu](https://github.com/neu-rah/ArduinoMenu).
 
->`Parts<A,B,C>` = `A::Part<B::Part<C>>`  
-> with advantage of future expansion if `C` is a `Part`
+---
 
-example:
-```c++
-//flat composition
-using Example=Parts<Power,MyPart,Nil>;
-```
+## Current Status
 
-compiles as a class derivation  
-```
-Power::Part
- +MyPart::Part
-  +Nil
-```
+Early but functional stage. Focused on correctness, performance, and extensibility.
 
-defining new parts
-```c++
-//flat composition with no terminator
-using Example=Parts<Power,MyPart>;
-Parts<Example,Nil> example;//Example is a valid part
-```
+---
 
-## Examples
+## Contributing
 
-### free
+Highly welcome! Especially:
+- New hardware drivers
+- Useful features
+- Improving compile-time diagnostics and error messages
 
-free use of parts, a composition of parts is also a valid part.
+---
 
-### flat
+**Made with obsession in the Azores** 🇵🇹  
+By [Rui Azevedo](https://github.com/neu-rah) • [@ruihfazevedo](https://x.com/ruihfazevedo)
 
-static and non-recursive API interface
-
-### crtp
-
-static, recursive and cycle safe API calls
-
-### virt
-
-composing items with common virtual interface
-
-### std
-
-store virtual interface items in std container

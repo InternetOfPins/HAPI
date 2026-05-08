@@ -31,10 +31,10 @@ template<char oc, char cc>
 struct WrapWith {
   template<typename I>
   struct Part:I {
-    static void api(const char*o) {
-      cout<<oc;
-      I::api(o);
-      cout<<cc;
+    static void api(const char*o) {//override base component I::api call
+      cout<<oc;//do some stuff
+      I::api(o);//decide if,when and how the base I::api is called
+      cout<<cc;//do some more stuff
     }
   };
 };
@@ -47,10 +47,11 @@ using Tag     =WrapWith<'<','>'>;
 
 //a composition of parts is also a part
 //until it is closed with a terminator
-using All=Parts<Parens,SqBracks,Bracks,Bars,Tag>;
+using All=Chain<Parens,SqBracks,Bracks,Bars,Tag>;
 
 //using terminator `Item`
-Parts<All,Item> testItem;
+// All::template Part<Item> testItem;
+APIOf<Item>::Parts<All> testItem;
 
 #ifdef ARDUINO
   void setup() {
