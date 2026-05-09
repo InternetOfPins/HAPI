@@ -26,41 +26,15 @@ Most embedded UI libraries lock you into rigid hierarchies or expensive virtual 
 
 ## Quick Start
 
-a real API composition example:
-
 ```cpp
-using ScrollPrinter=Chain<//change the order here to change the printing order
-  ViewPrinter,// outermost format envelope
-  MenuPrinter<// calls printMenu
-    TitlePrinter,// just print the title
-    ScrollBodyPrinter,//scroll till focus is visible
-    ItemPrinter<//calls printItem:
-      IndexPrinter,// print item index 1-9
-      NavCursorPrinter,// use a text cursor on selected item.
-      ItemBodyPrinter//→ printItem → Item::print
-    >
-  >
->;
-
-using MyParser=Chain<
-  DataParser<>,//put all data into characters
-  CtrlChars,//catch special characters like \n
-  UTF8,//bypass UTF8 surrogate codes
-  TextWrap,//long texts continue next line
-  Clip,//keep content inside area
-  ColorTrack<int>,//track color setting for device resume...
-  Cursor,//track cursor position for resume...
-  Gate// locking, measuring, partial updates
->;
-
 using MyOutput = OutDef<
-  ScrollPrinter,//output selection and disposition
-  TextFmt,//optional format handler
-  MyParser,//control data flow to output device
-  MyRenderer<>,// your hardware driver
-  StaticPos<20,10>,//complementary info
-  StaticArea<30,8>
->
+    Gate<>,           // locking, measuring, partial updates
+    UTF8<>, 
+    TextWrap<>,
+    Cursor<>,
+    MyRenderer<>      // your hardware driver
+>;
+
 MyOutput out;
 out.put("Hello from Happy API! 🎉");
 ```

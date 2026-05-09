@@ -23,13 +23,25 @@
 #include <hapi.h>
 using namespace hapi;
 
+/// @brief a mini CRTP for a part
+/// with this, 
+/// @tparam Component : part component type 
+template<typename Component>
+struct HAPI {
+  template<typename... XX> using Ins=typename hapi::Chain<XX...,Component>;
+  template<typename... XX> using App=typename hapi::Chain<Component,XX...>;
+  template<typename C> using Join=typename C::Ins<Component>;
+  template<template<typename> class M> using Map=M<Component>;
+};
+
+
 //the fall-back API code erasure
 struct Item {
   static void api(const char*o) {cout<<o;}
 };
 
 template<char oc, char cc>
-struct WrapWith {
+struct WrapWith:HAPI<WrapWith<oc,cc>> {
   template<typename I>
   struct Part:I {
     static void api(const char*o) {
