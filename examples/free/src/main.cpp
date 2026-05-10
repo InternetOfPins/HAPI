@@ -51,7 +51,7 @@ using All=Chain<Parens,SqBracks,Bracks,Bars,Tag>;
 
 //using terminator `Item`
 // All::template Part<Item> testItem;
-APIOf<Item>::Parts<All> testItem;
+APIOf<Item,All> testItem;
 
 #ifdef ARDUINO
   void setup() {

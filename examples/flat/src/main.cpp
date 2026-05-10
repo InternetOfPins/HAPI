@@ -59,7 +59,7 @@ using Bars    =WrapWith<'|','|'>;
 using Tag     =WrapWith<'<','>'>;
 
 template<typename... OO>
-using ItemDef=APIOf<Item>::Parts<OO...>;
+using ItemDef=APIOf<Item,OO...>;
 
 ItemDef<Bars,Parens,SqBracks,Bracks,Tag> testItem;
 

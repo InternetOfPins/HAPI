@@ -58,7 +58,7 @@ struct IItemOf:IItem,ItemDef<OO...> {
 };
 
 template<typename... OO>
-struct ItemDef:APIOf<Item>::template Parts<OO...> {};
+struct ItemDef:APIOf<Item,OO...> {};
 
 ItemDef<Bars,Parens,SqBracks,Bracks,Tag> testItem;
 

@@ -1,8 +1,19 @@
+/**
+ * @file main.cpp
+ * @author Rui Azevedo (neu-rah) (ruihfazevedo@gmail.com)
+ * @brief DEPRECATED, will split this code somewhere else
+ * @version 5
+ * @date 2026-05-10
+ * 
+ * @copyright Copyright (c) 2026
+ * 
+*/
+
 #include <hapi.h>
 using namespace hapi;
 
 ///////////////////////////////////////////////////--
-using Year=Parts<StaticInt<1967>,Nil>;
+using Year=Chain<StaticInt<1967>,Nil>;
 const char* label="label:";
 NilPart<StaticText<label>,ReflexOf,FieldValue<Int>> year{2025};
 
