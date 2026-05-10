@@ -71,11 +71,8 @@ struct IItemOf:IItem,ItemDef<OO...> {
 
 //non virtual item type
 template<typename... OO>
-struct ItemDef:APIOf<
-  Item<
-    CRTP<APIOf<Item<>>::template Parts<OO...>>
-  >
->::template Parts<OO...> {};
+//notice that we do not give ItemDef<OO...> to CRTP, instead we give the inner class to escape recursion
+struct ItemDef:APIOf<Item<CRTP<APIOf<Item<>,OO...>>>,OO...> {};
 
 ///////////////////////////////////////////////////////////////////////
 
