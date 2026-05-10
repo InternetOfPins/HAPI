@@ -1,7 +1,7 @@
 /**
  * @file main.cpp
  * @author Rui Azevedo (ruihfazevedo@gamil.com)
- * @brief flat modular API, free use of parts, a composition of parts is also a valid part.
+ * @brief dree modular API, free use of parts, a composition of parts is also a valid part.
  * @version 1
  * @date 2025-04-10
  * 

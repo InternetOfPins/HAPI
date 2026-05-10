@@ -10,6 +10,8 @@
 
 #pragma once
 
+#include "rules.h"
+
 namespace hapi {
 
   //HAPI-- a chain is a part of chains of parts... basically ;)
@@ -95,15 +97,13 @@ namespace hapi {
   template<typename... OO> using NilPart=Chain<OO...,Nil>;
 
   //-----------------------------------------------------------
+
   /// @brief syntax sugar for API append as base of all derivations
   /// @tparam API : API class
   /// should be a single class or template with direct methods, 
   /// usually fallbacks, but not required
-  template<typename API>
-  struct APIOf {
-    template<typename... OO>
-    using Parts=hapi::Chain<OO...,API>;
-  };
+  template<typename API,typename... OO>
+  using APIOf =Chain<OO...,API>;
 
   //-----------------------------------------------------------
   /// @brief convenience class to form a link to the full object type

@@ -4,24 +4,12 @@
 			"path": "."
 		},
 		{
-			"name": "flat",
-			"path": "examples/flat"
+			"name": "neurs",
+			"path": "RnD/neurs"
 		},
 		{
-			"name": "virt",
-			"path": "examples/virt"
-		},
-		{
-			"name": "std",
-			"path": "examples/std"
-		},
-		{
-			"name": "crtp",
-			"path": "examples/crtp"
-		},
-		{
-			"name": "free",
-			"path": "examples/free"
+			"name": "type list",
+			"path": "RnD/type list"
 		}
 	],
 	"settings": {
