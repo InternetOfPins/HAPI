@@ -38,7 +38,7 @@ namespace hapi {
   */
 
   //-----------------------------------------------------------
-  /// @brief Form a chain pr part, that is also a part
+  /// @brief Form a chain of parts, that is also a part
   /// chains can not be empty
   /// @tparam O : first part
   /// @tparam ...OO : next parts
