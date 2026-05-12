@@ -40,8 +40,10 @@ namespace hapi {
 template<typename Comp,typename Chk>
   struct Has {static constexpr bool value = false;};
 
-template<typename Comp,typename T>
-  struct Same {static constexpr bool value = false;};
+//this will silently fail if the type is unknown, but later be am APIOf specialization
+// a bit too late
+// template<typename Comp,typename T>
+//   struct Same {static constexpr bool value = false;};
 
 // too much boiler-plate?, negate locally?
 // template<typename O, typename Tag> 

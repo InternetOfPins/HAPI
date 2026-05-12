@@ -58,7 +58,7 @@ struct ItemDef : APIOf<ItemAPI, OO...> {
 
 struct Tag;
 struct Bars;
-struct Dots;
+// struct Dots;
 
 template<char oc, char cc=oc>
 struct WrapWith:HAPI<WrapWith<oc,cc>> {
@@ -88,9 +88,9 @@ struct SqBracks:WrapWith<'[',']'>{};
 struct Bracks  :WrapWith<'{','}'>{};
 struct Bars    :WrapWith<'|'>{};
 struct Tag     :WrapWith<'<','>'>{};
-struct Dots    :WrapWith<'.'>{};
+using Dots    =WrapWith<'.'>;
 
-ItemDef<Tag,SqBracks,Bracks,Parens,WrapWith<'_'>> testItem;
+ItemDef<Tag,Dots,SqBracks,Bracks,Parens,WrapWith<'_'>> testItem;
 
 #ifdef ARDUINO
   void setup() {
