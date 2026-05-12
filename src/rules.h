@@ -1,45 +1,49 @@
-// hapi/rules.h
 #pragma once
 
 namespace hapi {
+  // Lightweight AndAll
+  template<bool... Bs> struct AndAll {static constexpr bool value = true;};
 
-  // Put this in your core (Chain or a traits file)
-  // template<typename Comp, typename Tag>
-  // struct Has {
-  //     static constexpr bool value = false;
-  // };
+  template<bool H, bool... T> struct AndAll<H, T...> 
+    {static constexpr bool value = H && AndAll<T...>::value;};
 
-  #define REQUIRE_FEATURE(Comp, Feature) \
-    static_assert(Has<Comp, Feature>::value, "Missing required feature: " #Feature)
+  // Logical OR - returns true if ANY is true
+  template<bool... Bs> 
+  struct OrAny { static constexpr bool value = false;};
 
-  #define INCOMPATIBLE_WITH(Comp, Feature) \
-    static_assert(!Has<Comp, Feature>::value, "Incompatible feature: " #Feature)
-    
-  // Very lightweight AndAll - works since C++11
-  template<bool... Bs>
-  struct AndAll {
-    static constexpr bool value = true;
+  template<bool H, bool... T> 
+  struct OrAny<H, T...> 
+    {static constexpr bool value = H || OrAny<T...>::value;};
+
+  //type list, compile time, can be empty--
+  template<typename... Ts>
+  struct TypeList {
+    static constexpr size_t size = sizeof...(Ts);
+
+    template<typename T>
+    static constexpr bool Has = (std::is_same_v<T, Ts> || ...);
+
+    //prefix/suffix or insert/append, Grok?
+    template<typename... OO>
+    using Append = TypeList<Ts..., OO...>;
+
+    template<typename... OO>
+    using Prepend = TypeList<OO..., Ts...>;
+
+    template<typename O> struct Join:TypeList<Ts...,O>{};
+    template<typename... OO> struct Join<TypeList<OO...>>:TypeList<Ts...,OO...>{};
   };
 
-  template<bool Head, bool... Tail>
-  struct AndAll<Head, Tail...> {
-    static constexpr bool value = Head && AndAll<Tail...>::value;
-  };
+}//namespace hapi
 
-  // ====================== VALIDATION ENGINE ======================
+// Has<> at global namespace so that it can be specialized anywhere (at global)
+template<typename Comp,typename Chk>
+  struct Has {static constexpr bool value = false;};
 
-  // Primary template - features will specialize this
-  template<typename Comp>
-  struct CheckRules {
-    static constexpr bool value = true;   // default = ok
-  };
+template<typename Comp,typename T>
+  struct Same {static constexpr bool value = false;};
 
-  // Top-level validation runner
-  template<typename Composition>
-  struct Validate {
-    static constexpr bool run() {
-      return CheckRules<Composition>::value;
-    }
-  };
+// too much boiler-plate?, negate locally?
+// template<typename O, typename Tag> 
+// struct Deny {static constexpr bool value =!Has<O, Tag>::value;};
 
-};//namespace hapi
