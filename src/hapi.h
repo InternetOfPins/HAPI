@@ -67,6 +67,7 @@ namespace hapi {
     template<typename... XX> using App=typename hapi::Chain<O,OO...,XX...>;
     template<typename C> using Join=typename C::Ins<O,OO...>;
     template<template<typename> class M> using Map=Chain<M<O>,M<OO>...>;
+
   };
 
   /// @brief last part of the chain
@@ -82,6 +83,7 @@ namespace hapi {
     template<typename... XX> using App=typename hapi::Chain<O,XX...>;
     template<typename C> using Join=typename C::Ins<O>;
     template<template<typename> class M> using Map=M<O>;
+
   };
 
   //-----------------------------------------------------------

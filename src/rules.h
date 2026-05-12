@@ -3,8 +3,11 @@
 
 namespace hapi {
 
-  template<typename Comp, typename Tag>
-  inline constexpr bool Has = Comp::template HasFeature<Tag>::value;
+  // Put this in your core (Chain or a traits file)
+  // template<typename Comp, typename Tag>
+  // struct Has {
+  //     static constexpr bool value = false;
+  // };
 
   #define REQUIRE_FEATURE(Comp, Feature) \
     static_assert(Has<Comp, Feature>::value, "Missing required feature: " #Feature)
@@ -38,4 +41,5 @@ namespace hapi {
       return CheckRules<Composition>::value;
     }
   };
+
 };//namespace hapi
