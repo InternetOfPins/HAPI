@@ -23,74 +23,46 @@
 #include <hapi.h>
 using namespace hapi;
 
-/// @brief a mini CRTP for a part
-/// with this, 
-/// @tparam Component : part component type 
-template<typename Component>
-struct HAPI {
-  template<typename... XX> using Ins=typename hapi::Chain<XX...,Component>;
-  template<typename... XX> using App=typename hapi::Chain<Component,XX...>;
-  template<typename C> using Join=typename C::Ins<Component>;
-  template<template<typename> class M> using Map=M<Component>;
-
-  template<typename Comp,typename Ahead,typename Behind=TypeList<>>
-  struct Rules {static constexpr const bool value{false};};
-};
-
-//the fall-back API code erasure
 struct ItemAPI {
-  static void api(const char*o) {cout<<o;}
+  void put() {cout<<'*';}
 };
 
-template<typename... OO>
-struct ItemDef : APIOf<ItemAPI, OO...> {
-  using Base = APIOf<ItemAPI, OO...>;
-
-  template<typename Comp>
-  struct CheckRules {
-    static constexpr bool value = AndAll<OO::template Rules<Comp>::check()...>::value;
+template<typename O,typename... OO>
+struct ItemDef:APIOf<ItemAPI,O,OO...> {
+  using Base=APIOf<ItemAPI,O,OO...>;
+  template<template<typename...> class Predicate,typename Comp>
+  bool query() {return Predicate<O,Base>::value||(Query<Predicate,OO,Base>::value||...);}
+  static constexpr bool check(){
+    static_assert(query<IsSame,Base>(),"Wtf!");
+    return true;
   };
-
-  static_assert(CheckRules<Base>::value, "HAPI Item: validation failed");
-
-  using Base::Base;
+  static_assert(check(),"fail");
 };
 
-struct Tag;
-struct Bars;
-// struct Dots;
-
-template<char oc, char cc=oc>
-struct WrapWith:HAPI<WrapWith<oc,cc>> {
-  template<typename I>
-  struct Part:I {
-    static void api(const char*o) {
-      cout<<oc;
-      I::api(o);
-      cout<<cc;
-    }
+struct Yawn {
+  template<typename O>
+  struct Part:O {
+    using Base=O;
   };
-  // Rules at feature level (cleaner)
-  template<typename Comp>
-  struct Rules {
-    // using Comp=typename Before::Join<After>;
-    static constexpr bool check() {
-      static_assert(Same<Comp,class Tag>::value, "WrapWith likes to have a tag please.");
-      static_assert(!Same<Comp,class Bars>::value, "WrapWith is allergic to bars!");
-      static_assert(!Same<Comp,class Dots>::value, "no dots please");
-      return true;
-    }
+  // template<typename Ahead,typename Behind=hapi::Chain<>>
+};
+
+struct Zzz {
+  template<typename O>
+  struct Part:O {
+    using Base=O;
   };
 };
 
-struct Parens  :WrapWith<'(',')'>{};
-struct SqBracks:WrapWith<'[',']'>{};
-struct Bracks  :WrapWith<'{','}'>{};
-struct Bars    :WrapWith<'|'>{};
-struct Tag     :WrapWith<'<','>'>{};
-using Dots    =WrapWith<'.'>;
+struct Snore {
+  template<typename O>
+  struct Part:O {
+    using Base=O;
+    using This=Part<O>;
+  };
+};
 
-ItemDef<Tag,Dots,SqBracks,Bracks,Parens,WrapWith<'_'>> testItem;
+Chain<Yawn,Yawn>::Append<Zzz> ok;
 
 #ifdef ARDUINO
   void setup() {
@@ -104,8 +76,11 @@ ItemDef<Tag,Dots,SqBracks,Bracks,Parens,WrapWith<'_'>> testItem;
   }
 #else
   int main() {
-    testItem.api("*");
+    cout<<IsSame<Zzz>::value<Zzz,Chain<>><<endl;
+    cout<<ok.size<<endl;
+    cout<<ok.Has<Snore><<endl;
     cout<<endl;
     return 0;
   }
 #endif
+ 

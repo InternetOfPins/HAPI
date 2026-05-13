@@ -11,48 +11,78 @@
 #pragma once
 #include "rules.h"
 
+using Sz=int;//size_t;
+
+namespace hapi {template<typename...> struct Chain;};
+
+//TODO: silent fail risk! check!
+template<template<typename...> class Predicate,typename Target,typename... OO>
+struct Query {static constexpr const bool checks{false};};
+
 namespace hapi {
   // ====================== CORE ======================
 
-  template<typename O, typename... OO> struct Chain;
-  template<typename O> struct Chain<O> {
-    template<typename T> struct Part : O::template Part<T> {
-      using Base = typename O::template Part<T>;
-      using Base::Base;
-    };
+  template<>
+  struct Chain<> {
+    static constexpr const Sz size{0};
+    template<template<typename...> class T> using Build=T<>;
+    template<typename O> using Part=O;
+    template<typename... XX> using Append = Chain<XX...>;
+    template<typename... XX> using Prepend = Chain<XX...>;
+    template<typename X> struct Join:Chain<X>{};
+    template<typename... XX> struct Join<Chain<XX...>>:Chain<XX...>{};
   };
 
-  template<typename O, typename... OO> struct Chain {
-    template<typename T> struct Part : O::template Part<typename Chain<OO...>::template Part<T>> {
-      using Base = typename O::template Part<typename Chain<OO...>::template Part<T>>;
-      using Base::Base;
+  template<typename O,typename... OO>
+  struct Chain<O,OO...>:O::template Part<Chain<OO...>> {
+
+    static constexpr const Sz size{1+sizeof...(OO)};
+
+    template<template<typename...> class T> using Build=T<O,OO...>;
+
+    template<template<typename...> class Predicate,typename Comp>
+    static constexpr const bool query() {return Query<Predicate,O,Comp>::value||(Query<Predicate,OO,Comp>::value||...);}
+
+    template<typename T>
+    static constexpr const bool Has = std::is_same_v<T, O> || (std::is_same_v<T, OO> || ...);
+
+    template<typename... XX> using Append = Chain<O,OO...,XX...>;
+    template<typename... XX> using Prepend = Chain<XX...,O,OO...>;
+    template<typename X> struct Join:Chain<O,OO...,X>{};
+    template<typename... XX> struct Join<Chain<XX...>>:Chain<O,OO...,XX...>{};
+
+    template<typename T>
+    struct Part:Chain<O,OO...,T> {
+      using Base=Chain<O,OO...,T>;
     };
   };
 
   // ====================== MAIN API ======================
 
-  template<typename API, typename... OO> struct APIOf;
-
-  template<typename API, typename O, typename... OO>
-  struct APIOf<API,O,OO...> : Chain<O,OO...>::template Part<API> {
-    using Base = typename Chain<O,OO...>::template Part<API>;
+  template<typename API, typename... OO>
+  struct APIOf : Chain<OO...>::template Part<API> {
+    using Base = typename Chain<OO...>::template Part<API>;
     using Base::Base;
     // template<typename T> static constexpr const bool same=std::is_same_v<O,T>||OrAny<std::is_same_v<OO,T>...>::value;
   };
 
-  template<typename API>
-  struct APIOf<API> : API { using Base=API; using Base::Base; };
-
 }; //namespace hapi 
 
-// Has specialization for APIOf<...>
-template<typename API, typename... Fs, typename Tag>
-struct Same<hapi::APIOf<API, Fs...>,Tag> 
-  {static constexpr bool value = hapi::TypeList<Fs...>::template Has<Tag>;};
+template<typename Crit>
+struct IsSame {
+  template<typename Target,typename Ahead,typename Behind=hapi::Chain<>>
+  static constexpr const bool value{std::is_same_v<Crit,Target>};
+};
 
-// template<template<typename> class Chk,typename API,typename... OO>
-// struct Has<Chk,hapi::APIOf<API, OO...>> {
-//   using Comp=hapi::TypeList<OO...>;
-//   static constexpr bool value = hapi::OrAny<Chk<Comp>>::value;
+//generic query
+// template<template<typename...> class Predicate,typename Target,typename API,typename... OO>
+// struct Query<Predicate,Target,hapi::APIOf<API,OO...>> {
+//   typename Target::template Chk<hapi::Chain<OO...>>
+//   // static constexpr const bool checks{(OO::check<Target,typename Chain<OO...>::Tail,Chain<Chain<OO...>::Head>>()||...);};
 // };
 
+template<template<typename...> class Predicate,typename Target,typename API,typename... OO>
+struct Query<Predicate,Target,hapi::APIOf<API,OO...>> {
+  static constexpr const bool value{Predicate<Target,hapi::Chain<OO...>>::value};
+  // static constexpr const bool checks{(OO::check<Target,typename Chain<OO...>::Tail,Chain<Chain<OO...>::Head>>()||...);};
+};
