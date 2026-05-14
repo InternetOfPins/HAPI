@@ -40,7 +40,7 @@ struct ItemDef:APIOf<ItemAPI,OO...> {
     return Chain<OO...>::Head::template _check<Chain<OO...>>();
   }
 
-  static_assert((check(),true),"fail!");
+  static_assert((check(),true),"fail!");//will never fail here
 };
 
 class Yawn;
@@ -62,6 +62,7 @@ struct Zzz:Item {
 
 };
 
+//no rules
 struct Yawn:Item {
   template<typename O>
   struct Part:O {
@@ -85,14 +86,7 @@ struct Snore:Item {
 
 };
 
-struct Wtf:Item {
-  template<typename O>
-  struct Part:O {
-    using Base=O;
-    using This=Part<O>;
-  };
-};
-
+//you can omit some parts, but changing the order is against the rules
 ItemDef<Yawn,Zzz,Snore> testItem;
 
 #ifdef ARDUINO
