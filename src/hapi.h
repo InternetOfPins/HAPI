@@ -2,9 +2,8 @@
  * @file hapi.h
  * @brief The Happy API - Composition API build tools.
  * @author Rui Azevedo (ruihfazevedo@gmail.com)
- * @version 2
- * @date 2025-04-09 v1
- * @date 2026-04-14 v2
+ * @version beta
+ * @date 2025-04-09
  * @copyright MIT licence
 */
 
@@ -81,27 +80,27 @@ struct IsSame {
 template<typename Predicate>
 struct Has {
   template<typename Ahead,typename Behind=hapi::Chain<>>
-  static constexpr const std::enable_if_t<Ahead::size==0,bool> check() {return true;}
+  static constexpr const std::enable_if_t<Ahead::size==0,bool> check() {return false;}
   
   template<typename Ahead,typename Behind=hapi::Chain<>>
   static constexpr const std::enable_if_t<Ahead::size!=0,bool> check() 
     {return Ahead::template Join<Behind>::template require<Predicate>;}
 
   struct Before {
-  template<typename Ahead,typename Behind=hapi::Chain<>>
-  static constexpr const std::enable_if_t<Ahead::size==0,bool> check() {return true;}
+    // template<typename Ahead,typename Behind=hapi::Chain<>>
+    // static constexpr const std::enable_if_t<Ahead::size==0,bool> check() {return false;}
 
-  template<typename Ahead,typename Behind=hapi::Chain<>>
-    static constexpr const std::enable_if_t<Ahead::size!=0,bool> check()
+    template<typename Ahead,typename Behind=hapi::Chain<>>
+    static constexpr const bool check()
       {return Ahead::template require<Predicate>;}
   };
 
   struct After {
-  template<typename Ahead,typename Behind=hapi::Chain<>>
-  static constexpr const std::enable_if_t<Ahead::size==0,bool> check() {return true;}
+    // template<typename Ahead,typename Behind=hapi::Chain<>>
+    // static constexpr const std::enable_if_t<Ahead::size==0,bool> check() {return false;}
 
-  template<typename Ahead,typename Behind=hapi::Chain<>>
-    static constexpr const std::enable_if_t<Ahead::size!=0,bool> check()
+    template<typename Ahead,typename Behind=hapi::Chain<>>
+    static constexpr const bool check()
       {return Behind::template require<Predicate>;}
   };
 };
