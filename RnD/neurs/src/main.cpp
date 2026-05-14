@@ -35,7 +35,7 @@ struct Item {
   template<typename Ahead,typename Behind=Chain<>>
   static constexpr const std::enable_if_t<Ahead::size!=0,bool> _check() {
     return Ahead::Head::template check<typename Ahead::Head,typename Ahead::Tail,Behind>
-      || _check<typename Ahead::Tail,typename Behind::Append<typename Ahead::Head>>;
+      || Item::_check<typename Ahead::Tail,typename Behind::Append<typename Ahead::Head>>;
   }
 };
 
@@ -51,6 +51,18 @@ struct ItemDef:APIOf<ItemAPI,OO...> {
   static_assert(check(),"fail!");
 };
 
+struct Zzz:Item {
+  template<typename O>
+  struct Part:O {
+    using Base=O;
+  };
+  template<typename Target, typename Ahead=Chain<>,typename Behind=Chain<>>
+  static constexpr const bool check() {
+    static_assert(!Has<IsSame<class Snore>>::Before::template check<Ahead,Behind>(),"No snore before Zzz");
+    return true;
+  }
+};
+
 struct Yawn:Item {
   template<typename O>
   struct Part:O {
@@ -59,16 +71,9 @@ struct Yawn:Item {
   };
   template<typename Target, typename Ahead=Chain<>,typename Behind=Chain<>>
   static constexpr const bool check() {
-    static_assert(Has<IsSame<class Zzz>>::template value<Ahead>,"No yawns after Zzz");
+    static_assert(!Has<IsSame<Zzz>>::After::template check<Ahead,Behind>(),"No yawns after Zzz");
     return true;
   }
-};
-
-struct Zzz:Item {
-  template<typename O>
-  struct Part:O {
-    using Base=O;
-  };
 };
 
 struct Snore:Item {
@@ -76,10 +81,15 @@ struct Snore:Item {
   struct Part:O {
     using Base=O;
     using This=Part<O>;
+    template<typename Target, typename Ahead=Chain<>,typename Behind=Chain<>>
+    static constexpr const bool check() {
+      static_assert(Has<IsSame<Zzz>>::Before::template check<Ahead,Behind>(),"Zzz before Snore");
+      return true;
+    }
   };
 };
 
-ItemDef<Snore,Zzz> ok;
+ItemDef<Zzz,Zzz,Snore> ok;
 
 #ifdef ARDUINO
   void setup() {
