@@ -6,20 +6,6 @@
  * @date 2025-04-10
  * 
  */
-#ifdef ARDUINO
-  #include <Arduino.h>
-#endif
-
-#ifdef __AVR__
-  #include "platform/avr/avr_std.h"
-  #include "streamFlow.h"
-  using namespace StreamFlow;
-  #define endl "\n"
-  #define cout Serial
-#else
-  #include <iostream>
-  using namespace std;
-#endif
 
 #include <hapi.h>
 using namespace hapi;

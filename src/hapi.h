@@ -9,6 +9,25 @@
 
 #pragma once
 
+#ifdef ARDUINO
+  #include <Arduino.h>
+#endif
+
+#ifdef __AVR__
+  #include "platform/avr/avr_std.h"
+  #include "streamFlow.h"
+  using namespace StreamFlow;
+  #define endl "\n"
+  #define cout Serial
+#elif defined(__XTENSA__) 
+  #include "platform/xtensa/xtensa_std.h"
+  #include <iostream>
+  using namespace std;
+#else
+  #include <iostream>
+  using namespace std;
+#endif
+
 using Sz=int;//size_t;
 
 namespace hapi {

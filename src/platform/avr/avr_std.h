@@ -1,7 +1,7 @@
 /**
  * @file avr_std.h
  * @author Rui Azevedo (ruihfazevedo@gamil.com)
- * @brief AVR helper file, introducing some C++17 into C++11
+ * @brief AVR helper file, patching C++17 for AVRs
  * sourcing from GNU ISO C++ Library.
  * with minimal changes to make it compile on AVR's
  * we also took only the needed parts as to convert all the library would be overwhelming.
