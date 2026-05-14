@@ -11,6 +11,7 @@
 #endif
 
 #ifdef __AVR__
+  #include "platform/avr/avr_std.h"
   #include "streamFlow.h"
   using namespace StreamFlow;
   #define endl "\n"
@@ -34,8 +35,8 @@ struct Item {
   static constexpr const std::enable_if_t<Ahead::size==0,bool> _check() {return true;}
   template<typename Ahead,typename Behind=Chain<>>
   static constexpr const std::enable_if_t<Ahead::size!=0,bool> _check() {
-    return Ahead::Head::template check<typename Ahead::Head,typename Ahead::Tail,Behind>
-      || Item::_check<typename Ahead::Tail,typename Behind::Append<typename Ahead::Head>>;
+    return Ahead::Head::template check<typename Ahead::Head,typename Ahead::Tail,Behind>()
+      || Item::_check<typename Ahead::Tail,typename Behind::template Append<typename Ahead::Head>>();
   }
 };
 
