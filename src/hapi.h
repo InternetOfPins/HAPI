@@ -56,8 +56,6 @@ namespace hapi {
 
   };
 
-  // ====================== MAIN API ======================
-
   template<typename API, typename... OO>
   struct APIOf : Chain<OO...>::template Part<API> {
     using Base = typename Chain<OO...>::template Part<API>;
