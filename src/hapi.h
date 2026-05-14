@@ -16,8 +16,8 @@ using Sz=int;//size_t;
 namespace hapi {template<typename...> struct Chain;};
 
 //TODO: silent fail risk! check!
-template<template<typename...> class Predicate,typename Target,typename... OO>
-struct Query {static constexpr const bool checks{false};};
+// template<typename Predicate,typename Target,typename... OO>
+// struct Query {static constexpr const bool checks{false};};
 
 namespace hapi {
   // ====================== CORE ======================
@@ -34,17 +34,21 @@ namespace hapi {
   };
 
   template<typename O,typename... OO>
-  struct Chain<O,OO...>:O::template Part<Chain<OO...>> {
+  struct Chain<O,OO...> {
+
+    using Head=O;
+    using Tail=Chain<OO...>;
 
     static constexpr const Sz size{1+sizeof...(OO)};
 
     template<template<typename...> class T> using Build=T<O,OO...>;
 
-    template<template<typename...> class Predicate,typename Comp>
-    static constexpr const bool query() {return Query<Predicate,O,Comp>::value||(Query<Predicate,OO,Comp>::value||...);}
+    // template<typename Predicate,typename Comp>
+    // static constexpr const bool query() {return Query<Predicate,O,Comp>::value||(Query<Predicate,OO,Comp>::value||...);}
 
-    template<typename T>
-    static constexpr const bool Has = std::is_same_v<T, O> || (std::is_same_v<T, OO> || ...);
+    //here we only check the Chain remaining...
+    // template<typename T>
+    // static constexpr const bool Has = std::is_same_v<T, O> || (std::is_same_v<T, OO> || ...);
 
     template<typename... XX> using Append = Chain<O,OO...,XX...>;
     template<typename... XX> using Prepend = Chain<XX...,O,OO...>;
@@ -70,8 +74,22 @@ namespace hapi {
 
 template<typename Crit>
 struct IsSame {
-  template<typename Target,typename Ahead,typename Behind=hapi::Chain<>>
+  template<typename Target,typename Comp=hapi::Chain<>>
   static constexpr const bool value{std::is_same_v<Crit,Target>};
+};
+
+template<typename Predicate>
+struct Has {
+  template<typename Ahead,typename Behind=hapi::Chain<>>
+  static constexpr const bool value{Predicate::template value<typename Ahead::Head,typename Ahead::template Join<Behind>>};
+  struct Before {
+    template<typename Ahead,typename Behind=hapi::Chain<>>
+    static constexpr const bool value{Predicate::template value<typename Ahead::Head,Ahead>};
+  };
+  struct After {
+    template<typename Ahead,typename Behind=hapi::Chain<>>
+    static constexpr const bool value{Predicate::template value<typename Ahead::Head,Behind>};
+  };
 };
 
 //generic query
@@ -81,8 +99,8 @@ struct IsSame {
 //   // static constexpr const bool checks{(OO::check<Target,typename Chain<OO...>::Tail,Chain<Chain<OO...>::Head>>()||...);};
 // };
 
-template<template<typename...> class Predicate,typename Target,typename API,typename... OO>
-struct Query<Predicate,Target,hapi::APIOf<API,OO...>> {
-  static constexpr const bool value{Predicate<Target,hapi::Chain<OO...>>::value};
-  // static constexpr const bool checks{(OO::check<Target,typename Chain<OO...>::Tail,Chain<Chain<OO...>::Head>>()||...);};
-};
+// template<typename Predicate,typename API,typename... OO>
+// struct Query<Predicate,Target,hapi::APIOf<API,OO...>> {
+//   static constexpr const bool value{Predicate::template value<Target,hapi::Chain<OO...>>};
+//   // static constexpr const bool checks{(OO::check<Target,typename Chain<OO...>::Tail,Chain<Chain<OO...>::Head>>()||...);};
+// };

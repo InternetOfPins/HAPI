@@ -37,8 +37,8 @@ namespace hapi {
 }//namespace hapi
 
 // Has<> at global namespace so that it can be specialized anywhere (at global)
-template<typename Comp,typename Chk>
-  struct Has {static constexpr bool value = false;};
+// template<typename Comp,typename Chk>
+//   struct Has {static constexpr bool value = false;};
 
 //this will silently fail if the type is unknown, but later be am APIOf specialization
 // a bit too late

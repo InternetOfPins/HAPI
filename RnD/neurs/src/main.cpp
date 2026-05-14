@@ -27,34 +27,51 @@ struct ItemAPI {
   void put() {cout<<'*';}
 };
 
-template<typename O,typename... OO>
-struct ItemDef:APIOf<ItemAPI,O,OO...> {
-  using Base=APIOf<ItemAPI,O,OO...>;
-  template<template<typename...> class Predicate,typename Comp>
-  bool query() {return Predicate<O,Base>::value||(Query<Predicate,OO,Base>::value||...);}
-  static constexpr bool check(){
-    static_assert(query<IsSame,Base>(),"Wtf!");
+struct Item {
+  template<typename Target,typename Ahead,typename Behind=Chain<>>
+  static constexpr const bool check() {return true;}
+  template<typename Ahead,typename Behind=Chain<>>
+  static constexpr const std::enable_if_t<Ahead::size==0,bool> _check() {return true;}
+  template<typename Ahead,typename Behind=Chain<>>
+  static constexpr const std::enable_if_t<Ahead::size!=0,bool> _check() {
+    return Ahead::Head::template check<typename Ahead::Head,typename Ahead::Tail,Behind>
+      || _check<typename Ahead::Tail,typename Behind::Append<typename Ahead::Head>>;
+  }
+};
+
+template<typename... OO>
+struct ItemDef:APIOf<ItemAPI,OO...> {
+  using Base=APIOf<ItemAPI,OO...>;
+
+  //Ahead and Behind can only come from here, start the members walk here
+  static constexpr const bool check() {
+    return Chain<OO...>::Head::template _check<Chain<OO...>>();
+  }
+
+  static_assert(check(),"fail!");
+};
+
+struct Yawn:Item {
+  template<typename O>
+  struct Part:O {
+    using Base=O;
+
+  };
+  template<typename Target, typename Ahead=Chain<>,typename Behind=Chain<>>
+  static constexpr const bool check() {
+    static_assert(Has<IsSame<class Zzz>>::template value<Ahead>,"No yawns after Zzz");
     return true;
-  };
-  static_assert(check(),"fail");
+  }
 };
 
-struct Yawn {
-  template<typename O>
-  struct Part:O {
-    using Base=O;
-  };
-  // template<typename Ahead,typename Behind=hapi::Chain<>>
-};
-
-struct Zzz {
+struct Zzz:Item {
   template<typename O>
   struct Part:O {
     using Base=O;
   };
 };
 
-struct Snore {
+struct Snore:Item {
   template<typename O>
   struct Part:O {
     using Base=O;
@@ -62,7 +79,7 @@ struct Snore {
   };
 };
 
-Chain<Yawn,Yawn>::Append<Zzz> ok;
+ItemDef<Snore,Zzz> ok;
 
 #ifdef ARDUINO
   void setup() {
@@ -76,9 +93,6 @@ Chain<Yawn,Yawn>::Append<Zzz> ok;
   }
 #else
   int main() {
-    cout<<IsSame<Zzz>::value<Zzz,Chain<>><<endl;
-    cout<<ok.size<<endl;
-    cout<<ok.Has<Snore><<endl;
     cout<<endl;
     return 0;
   }
