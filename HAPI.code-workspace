@@ -6,6 +6,26 @@
 		{
 			"name": "neurs",
 			"path": "RnD/neurs"
+		},
+		{
+			"name": "crtp",
+			"path": "examples/crtp"
+		},
+		{
+			"name": "virt",
+			"path": "examples/virt"
+		},
+		{
+			"name": "flat",
+			"path": "examples/flat"
+		},
+		{
+			"name": "free",
+			"path": "examples/free"
+		},
+		{
+			"name": "std",
+			"path": "examples/std"
 		}
 	],
 	"settings": {

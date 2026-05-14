@@ -22,6 +22,8 @@
 #include <hapi.h>
 using namespace hapi;
 
+struct Nil{};
+
 //item api
 template<typename I=Nil>
 struct Item:I {

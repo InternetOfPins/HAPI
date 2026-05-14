@@ -9,18 +9,12 @@
 */
 
 #pragma once
-#include "rules.h"
 
 using Sz=int;//size_t;
 
-namespace hapi {template<typename...> struct Chain;};
-
-//TODO: silent fail risk! check!
-// template<typename Predicate,typename Target,typename... OO>
-// struct Query {static constexpr const bool checks{false};};
-
 namespace hapi {
-  // ====================== CORE ======================
+
+  template<typename...> struct Chain;
 
   template<>
   struct Chain<> {
@@ -47,8 +41,8 @@ namespace hapi {
       ||(Predicate::template check<OO>()||...);
 
     template<typename T>
-    struct Part:Chain<O,OO...,T> {
-      using Base=Chain<O,OO...,T>;
+    struct Part:O::template Part<typename Chain<OO...>::template Part<T>> {
+      using Base=typename O::template Part<typename Chain<OO...>::template Part<T>>;
     };
 
     static constexpr const Sz size{1+sizeof...(OO)};
@@ -68,6 +62,14 @@ namespace hapi {
   struct APIOf : Chain<OO...>::template Part<API> {
     using Base = typename Chain<OO...>::template Part<API>;
     using Base::Base;
+  };
+
+  template<typename O>
+  struct CRTP {//optional
+    static constexpr const bool hasCRTP=true;
+    using Obj=O;
+    const O& obj() const {return *this;}
+    Obj& obj() {return *reinterpret_cast<Obj*>(this);}
   };
 
 }; //namespace hapi 
