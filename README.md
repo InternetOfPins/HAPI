@@ -50,7 +50,7 @@ HAPI can be used for **any** kind of API: output layers, menu systems, data pipe
 
 ## Philosophy
 
-- Make invalid states unrepresentable
+- Make invalid states unpresentable
 - Keep it compact and minimal
 - Zero runtime overhead by default
 - Compile-time safety where it matters
