@@ -13,22 +13,7 @@
   #include <Arduino.h>
 #endif
 
-#ifdef __AVR__
-  #include "platform/avr/avr_std.h"
-  #include "streamFlow.h"
-  using namespace StreamFlow;
-  #define endl "\n"
-  #define cout Serial
-#elif defined(__XTENSA__) 
-  #include "platform/xtensa/xtensa_std.h"
-  #include <iostream>
-  using namespace std;
-#else
-  #include <iostream>
-  using namespace std;
-#endif
-
-using Sz=int;//size_t;
+#include <oneList.h>
 
 namespace hapi {
 
@@ -37,10 +22,9 @@ namespace hapi {
   template<>
   struct Chain<> {
     static constexpr const Sz size{0};
-    template<template<typename...> class T> using Build=T<>;
     template<typename O> using Part=O;
-    template<typename... XX> using Append = Chain<XX...>;
-    template<typename... XX> using Prepend = Chain<XX...>;
+    template<typename... XX> using App = Chain<XX...>;
+    template<typename... XX> using Ins = Chain<XX...>;
     template<typename X> struct Join:Chain<X>{};
     template<typename... XX> struct Join<Chain<XX...>>:Chain<XX...>{};
     template<typename Predicate>
@@ -65,14 +49,13 @@ namespace hapi {
 
     static constexpr const Sz size{1+sizeof...(OO)};
 
-    template<template<typename...> class T> using Build=T<O,OO...>;
-
-    template<typename... XX> using Append = Chain<O,OO...,XX...>;
-    template<typename... XX> using Prepend = Chain<XX...,O,OO...>;
+    template<typename... XX> using App = Chain<O,OO...,XX...>;
+    template<typename... XX> using Ins = Chain<XX...,O,OO...>;
     template<typename X> struct Join:Chain<O,OO...,X>{};
     template<typename... XX> struct Join<Chain<XX...>>:Chain<O,OO...,XX...>{};
 
-  };
+    template<template<typename> class M> using Map=Chain<M<O>,M<OO>...>;
+};
 
   template<typename API, typename... OO>
   struct APIOf : Chain<OO...>::template Part<API> {
@@ -89,37 +72,3 @@ namespace hapi {
   };
 
 }; //namespace hapi 
-
-template<typename Crit>
-struct IsSame {
-  template<typename... OO>
-  static constexpr const bool check() {return (std::is_same_v<Crit,OO>||...);}
-};
-
-template<typename Predicate>
-struct Has {
-  template<typename Ahead,typename Behind=hapi::Chain<>>
-  static constexpr const std::enable_if_t<Ahead::size==0,bool> check() {return false;}
-  
-  template<typename Ahead,typename Behind=hapi::Chain<>>
-  static constexpr const std::enable_if_t<Ahead::size!=0,bool> check() 
-    {return Ahead::template Join<Behind>::template require<Predicate>;}
-
-  struct Before {
-    // template<typename Ahead,typename Behind=hapi::Chain<>>
-    // static constexpr const std::enable_if_t<Ahead::size==0,bool> check() {return false;}
-
-    template<typename Ahead,typename Behind=hapi::Chain<>>
-    static constexpr const bool check()
-      {return Ahead::template require<Predicate>;}
-  };
-
-  struct After {
-    // template<typename Ahead,typename Behind=hapi::Chain<>>
-    // static constexpr const std::enable_if_t<Ahead::size==0,bool> check() {return false;}
-
-    template<typename Ahead,typename Behind=hapi::Chain<>>
-    static constexpr const bool check()
-      {return Behind::template require<Predicate>;}
-  };
-};
