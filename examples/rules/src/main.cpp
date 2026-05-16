@@ -8,8 +8,11 @@
  */
 
 #include <hapi.h>
-#include 
+#include <hapi/rules.h>
 using namespace hapi;
+
+#include <iostream>
+using namespace std;
 
 struct ItemAPI {
   void put() {cout<<'*';}
@@ -44,10 +47,10 @@ struct ItemDef:APIOf<ItemAPI,OO...> {
   static_assert((check(),true),"fail!");//will never fail here
 };
 
-// class Yawn;
-// class Zzz;
-// class Snore;
-// class Wtf;
+class Yawn;
+class Zzz;
+class Snore;
+class Wtf;
 
 struct Zzz:Item {
   template<typename O>
@@ -102,7 +105,7 @@ ItemDef<Yawn,Zzz,Snore> testItem;
   }
 #else
   int main() {
-    cout<<testItem.check()<<endl;
+    // cout<<testItem.check()<<endl;
     cout<<endl;
     return 0;
   }

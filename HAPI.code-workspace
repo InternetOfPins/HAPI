@@ -6,6 +6,13 @@
 		{
 			"name": "neurs",
 			"path": "RnD/neurs"
+		},
+		{
+			"path": "../OneList"
+		},
+		{
+			"name": "rules",
+			"path": "examples/rules"
 		}
 	],
 	"settings": {

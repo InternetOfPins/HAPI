@@ -14,84 +14,11 @@ using namespace hapi;
 #include <iostream>
 using namespace std;
 
-struct ItemAPI {
-  void put() {cout<<'*';}
-};
+struct A {static void put(){cout<<"A";}};
+struct B {static void put(){cout<<"B";}};
+struct C {static void put(){cout<<"C";}};
 
-struct Rules {static constexpr const bool value{false};};
-
-struct Item {
-  template<typename Target,typename Ahead,typename Behind=Chain<>>
-  static constexpr const bool check() {return true;}
-
-  template<typename Ahead,typename Behind=Chain<>>
-  static constexpr const std::enable_if_t<Ahead::size==0,bool> _check() {return false;}
-
-  template<typename Ahead,typename Behind=Chain<>>
-  static constexpr const std::enable_if_t<Ahead::size!=0,bool> _check() {
-    return Ahead::Head::template Check<typename Ahead::Head,typename Ahead::Tail,Behind>::value
-      || Item::_check<typename Ahead::Tail,typename Behind::template App<typename Ahead::Head>>();
-  }
-
-  template<typename Target, typename Ahead=Chain<>,typename Behind=Chain<>> using Check=Rules;
-};
-
-template<typename... OO>
-struct ItemDef:APIOf<ItemAPI,OO...> {
-  using Base=APIOf<ItemAPI,OO...>;
-
-  static constexpr const bool check() {
-    return Chain<OO...>::Head::template _check<Chain<OO...>>();
-  }
-
-  static_assert((check(),true),"fail!");//will never fail here
-};
-
-class Yawn;
-class Zzz;
-class Snore;
-class Wtf;
-
-struct Zzz:Item {
-  template<typename O>
-  struct Part:O {
-    using Base=O;
-  };
-
-  template<typename Target, typename Ahead,typename Behind=Chain<>>
-  struct Check:Rules {
-    static_assert(!Has<IsSame<class Snore>>::Before::template check<Behind,Ahead>(),"No Snore before Zzz");
-    static_assert(!Has<IsSame<Yawn>>::After::template check<Behind,Ahead>(),"No Yawn after Zzz");
-  };
-
-};
-
-//no rules
-struct Yawn:Item {
-  template<typename O>
-  struct Part:O {
-    using Base=O;
-  };
-};
-
-struct Snore:Item {
-
-  template<typename O>
-  struct Part:O {
-    using Base=O;
-    using This=Part<O>;
-  };
-
-  template<typename Target, typename Ahead=Chain<>,typename Behind=Chain<>>
-  struct Check:Rules {
-    static_assert(Has<IsSame<Zzz>>::Before::template check<Behind,Ahead>(),"Zzz before Snore");
-    static_assert(!Has<IsSame<Zzz>>::After::template check<Behind,Ahead>(),"No Zzz after Snore");
-  };
-
-};
-
-//you can omit some parts, but changing the order is against the rules
-ItemDef<Yawn,Zzz,Snore> testItem;
+using Test=Chain<A,B>;
 
 #ifdef ARDUINO
   void setup() {
@@ -105,7 +32,8 @@ ItemDef<Yawn,Zzz,Snore> testItem;
   }
 #else
   int main() {
-    cout<<testItem.check()<<endl;
+    Test::Tail::Head::put();
+    // Test::Tail::Tail::Head::put();//compile time error for out of range access
     cout<<endl;
     return 0;
   }
