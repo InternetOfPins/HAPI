@@ -5,14 +5,13 @@
 #pragma once
 
 namespace hapi {
-  using Sz=size_t;
 
   template<template<typename...> class Interface, typename... Ts>
   struct Composite;
 
   template<template<typename...> class Interface, typename T,typename... Ts>
   struct Composite<Interface,T,Ts...> {
-    static constexpr Sz size = sizeof...(Ts)+1;
+    static constexpr size_t size = sizeof...(Ts)+1;
 
     using Head=T;
     using Tail=Interface<Ts...>;
@@ -35,7 +34,7 @@ namespace hapi {
 
   template<template<typename...> class Interface>
   struct Composite<Interface> {
-    static constexpr Sz size = 0;
+    static constexpr size_t size = 0;
     template<typename T> static constexpr bool Has = false;
     template<template<typename...> class Template>
     using Build = Template<>;
