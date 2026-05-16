@@ -8,7 +8,6 @@
  */
 
 #include <hapi.h>
-#include <rules.h>
 using namespace hapi;
 
 #include <iostream>
