@@ -11,8 +11,14 @@
 #include <hapi/rules.h>
 using namespace hapi;
 
-#include <iostream>
-using namespace std;
+#ifdef __AVR__
+  #include <streamFlow.h>
+  using namespace StreamFlow;
+  #define cout Serial
+#else
+  #include <iostream>
+  using namespace std;
+#endif
 
 struct ItemAPI {
   void put() {cout<<'*';}
