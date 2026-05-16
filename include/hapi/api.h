@@ -46,4 +46,14 @@ namespace hapi {
     using Base::Base;
   };
 
+
+  template<typename O>
+  struct CRTP {
+    O& obj() { return static_cast<O&>(*this); }
+    const O& obj() const { return static_cast<const O&>(*this); }
+    
+    O*  operator->() { return static_cast<O*>(this); }
+    const O* operator->() const { return static_cast<const O*>(this); }
+  };
+
 }; //namespace hapi 
