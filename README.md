@@ -1,69 +1,117 @@
 # Happy API (HAPI)
 
-**A lightweight, zero-overhead, generic static composition engine for C++.**
+**Build modular, zero-overhead, highly composable output and UI stacks in C++.**
 
-Build modular, type-safe, and highly composable APIs using advanced CRTP + mixin chains with compile-time validation.
+A powerful **static composition engine** for embedded systems, Arduino, and modern C++.
 
 ---
 
-## Why HAPI?
+## Why Happy API?
 
-Most C++ codebases end up with rigid class hierarchies or expensive runtime polymorphism.  
-**HAPI** offers a different approach: true **Lego-style composition at compile time**.
-
-It gives you maximum flexibility while maintaining near-zero runtime cost and excellent compatibility with constrained environments (including ATTiny13).
+Most embedded UI/output libraries force rigid hierarchies or expensive virtual calls.  
+**HAPI** lets you compose features like Lego blocks — **at compile time** — with full type safety and virtually zero overhead.
 
 ---
 
 ## Features
 
-- Very compact `Chain` + `APIOf` composition system
-- Support for partial/reusable compositions
-- Powerful per-feature compile-time validation (`Rules<>`)
-- Introspection with `Has<>` / `Lacks<>`
-- Classic `Requires` / `Excludes` support
-- Clean core engine — not tied to any specific domain
-- Easy to add virtual facades when dynamic polymorphism is needed
+- Fully static CRTP mixin composition
+- Powerful chaining + reordering (`Ins<>`, `App<>`, `Join<>`)
+- Strong dependency validation (`Requires<>`, `Excludes<>`)
+- Rich compile-time introspection (`Has<>`)
+- Optional virtual facade (`IOutDef<>`)
+- Designed from the ground up for tiny devices (AVR, ESP, etc.)
 
 ---
 
 ## Quick Start
 
 ```cpp
-// Reusable partial composition
-using BaseParsers = Chain<UTF8, TextWrap, Clip>;
-
-// Final composition
-using MyStack = OutDef<
-  BaseParsers,
-  Gate,
-  MyCustomDevice
+using MyOutput = OutDef<
+    Gate<>,           // locking, measuring, partial updates
+    UTF8<>, 
+    TextWrap<>,
+    Cursor<>,
+    MyRenderer<>      // your hardware driver
 >;
 
-MyStack s;
-s.put("Hello from HAPI!");
+MyOutput out;
+out.put("Hello from Happy API! 🎉");
 ```
 
-HAPI can be used for **any** kind of API: output layers, menu systems, data pipelines, state machines, drivers, etc.
+---
+
+## Core Concepts
+
+- **`Chain<>`** — Linear CRTP mixin chain (the engine heart)
+- **`APIOf<Base, Features...>`** — Main composition template
+- **`OutDef<Features...>`** — Convenient alias for output stacks
+- **`Part<O>`** — Every feature provides a `template<typename O> struct Part : O`
+
+### Feature Example
+
+```cpp
+struct Gate {
+    template<typename O>
+    struct Part : O {
+        using Base = O;
+        using HasGate = std::true_type;
+
+        void put(auto o) {
+            if (unlocked()) Base::put(o);
+        }
+    };
+};
+```
+
+---
+
+## Key Mechanisms
+
+| Mechanism       | Purpose                        | Example                     |
+|-----------------|--------------------------------|-----------------------------|
+| `Requires<>`    | Dependencies                   | `Cursor` needs `DataParser` |
+| `Excludes<>`    | Incompatibilities              | Mutual exclusions           |
+| `Has<Tag>`      | Introspection                  | `Has<HasGate>`              |
+| `Ins<>/App<>`   | Reordering                     | Insert features anywhere    |
+
+---
+
+## Performance
+
+- **Zero runtime overhead** on hot path (pure static `OutDef`)
+- Excellent inlining
+- Minimal code size (no vtables unless using virtual facade)
+- Scales well up to ~10-12 features on embedded compilers
+
+**Pro Tip**: Use static `OutDef<...>` for performance-critical code. Use `IOutDef<...>` only when you need polymorphism.
 
 ---
 
 ## Philosophy
 
-- Make invalid states unpresentable
-- Keep it compact and minimal
-- Zero runtime overhead by default
-- Compile-time safety where it matters
+> "Make the common case **blazing fast**  
+> and the advanced case **still possible and clean**."
+
+HAPI is the next evolution of the ArduinoMenu lineage.
 
 ---
 
 ## Current Status
 
-**Active RnD / Early Stage**  
-Core engine is functional. Examples are working.  
-Still evolving quickly.
+Early but functional. Focused on correctness, performance, and tiny-device compatibility.
+
+---
+
+## Contributing
+
+Highly welcome! Especially:
+- New hardware drivers / renderers
+- Useful features (input, protocols, menus...)
+- Better compile-time diagnostics
 
 ---
 
 **Made with obsession in the Azores** 🇵🇹  
+
 By [Rui Azevedo](https://github.com/neu-rah) • [@ruihfazevedo](https://x.com/ruihfazevedo)
