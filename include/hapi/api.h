@@ -32,7 +32,7 @@ namespace hapi {
     template<typename T>
     struct Part:Head::template Part<typename Tail::template Part<T>> {
       using Base=typename Head::template Part<typename Tail::template Part<T>>;
-      template<typename... OO> Part(OO&&... oo):Base{std::forward<OO>(oo)...}{}
+      using Base::Base;
     };
   };
 
@@ -57,7 +57,6 @@ namespace hapi {
   struct APIOf : Chain<OO...>::template Part<API> {
     using Base = typename Chain<OO...>::template Part<API>;
     using Base::Base;
-    template<typename... QQ> APIOf(QQ&&... qq):Base{std::forward<QQ>(qq)...}{}
   };
 
 
