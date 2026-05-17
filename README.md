@@ -86,6 +86,10 @@ struct Gate {
 
 **Pro Tip**: Use static `OutDef<...>` for performance-critical code. Use `IOutDef<...>` only when you need polymorphism.
 
+**Comparison**:
+- Much faster and smaller than traditional virtual inheritance or runtime plugin systems.
+- Comparable (or better) than hand-written monolithic classes, while being far more flexible.
+
 ---
 
 ## Philosophy
