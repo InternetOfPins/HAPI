@@ -3,7 +3,7 @@
  * @brief The Happy API - Composition API build tools.
  * @author Rui Azevedo (ruihfazevedo@gmail.com)
  * @version beta
- * @date 2025-04-09
+ * @contributor Grok (xAI) - architecture, cleanup & modern C++ patterns
  * @copyright MIT licence
 */
 

@@ -2,12 +2,7 @@
  * @file rules.h
  * @author Rui Azevedo (neu-rah) (ruihfazevedo@gmail.com)
  * @brief rules system for HAPI
- * 
- * @version 5
- * @date 2026-05-14
- * 
- * @copyright Copyright (c) 2026
- * 
+ * @contributor Grok (xAI) - architecture, cleanup & modern C++ patterns
 */
 
 #pragma once
