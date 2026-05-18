@@ -11,3 +11,6 @@
   using std::size_t;
 #endif
 
+namespace hapi {
+  struct Nil {};
+};
