@@ -49,7 +49,7 @@ namespace hapi {
   };
 
   //generic composite
-  template<typename... Ts>
-  struct TypeList:Composite<TypeList,Ts...>{};
+  // template<typename... Ts>
+  // struct TypeList:Composite<TypeList,Ts...>{};
   
 };//namespace hapi
