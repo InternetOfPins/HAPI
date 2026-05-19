@@ -17,7 +17,7 @@ namespace hapi {
     using Tail=Interface<Ts...>;
 
     template<typename O>
-    static constexpr bool Has = std::is_same_v<O, T> ||(std::is_same_v<O, Ts> || ...);
+    static constexpr bool has = std::is_same_v<O, T> ||(std::is_same_v<O, Ts> || ...);
 
     //this is a cargo transfer, overkill?
     template<template<typename...> class Template>
@@ -35,7 +35,7 @@ namespace hapi {
   template<template<typename...> class Interface>
   struct Composite<Interface> {
     static constexpr size_t size = 0;
-    template<typename T> static constexpr bool Has = false;
+    template<typename T> static constexpr bool has = false;
     template<template<typename...> class Template>
     using Build = Template<>;
 

@@ -66,9 +66,9 @@ using TestStack = OutDef<
 >;
 
 // Core introspection
-static_assert(TestStack::template Has<FeatureA>, "Has<> failed");
-static_assert(TestStack::template Has<FeatureB>, "Has<> failed");
-static_assert(!TestStack::template Has<FeatureC>, "Has<> should be false here?"); // adjust as needed
+static_assert(TestStack::template has<FeatureA>, "has<> failed");
+static_assert(TestStack::template has<FeatureB>, "has<> failed");
+static_assert(!TestStack::template has<FeatureC>, "has<> should be false here?"); // adjust as needed
 
 // Rules validation
 // static_assert(TestStack::template check<NeedsA>(), "Requires rule failed");

@@ -19,9 +19,8 @@ namespace hapi {
   //API specific composite assembler
   template<typename... Ts>
   struct Chain : Composite<Chain, Ts...> {
-
+    
     using Base=Composite<Chain, Ts...>;
-    // using Base::Base;
     using Head=typename Base::Head;
     using Tail=typename Base::Tail;
 
@@ -33,6 +32,8 @@ namespace hapi {
     struct Part:Head::template Part<typename Tail::template Part<T>> {
       using Base=typename Head::template Part<typename Tail::template Part<T>>;
       using Base::Base;
+      template<typename Q>
+      static constexpr const bool has{Chain::template has<Q>};
     };
   };
 
