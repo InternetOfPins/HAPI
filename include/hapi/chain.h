@@ -15,7 +15,10 @@ template<> struct Chain<>:RulesAPI {
   template<typename... XX> using App=Chain<XX...>;
   template<typename... XX> using Ins=Chain<XX...>;
   template<template<typename> class M> using Map=Chain<>;
-  template<typename T> struct Part:T {using Types=Chain<T>;};
+  template<typename T> struct Part:T {
+    using T::T;
+    using Types=Chain<T>;
+  };
 };
 
 template<typename O,typename... OO>
