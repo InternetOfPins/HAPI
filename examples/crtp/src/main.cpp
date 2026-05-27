@@ -22,7 +22,7 @@
 #include <hapi.h>
 using namespace hapi;
 
-struct Nil{};
+// struct Nil{};
 
 //item api
 template<typename I=Nil>

@@ -1,6 +1,6 @@
 {
   "name": "HAPI",
-  "version": "0.3.8",
+  "version": "0.3.9",
   "description": "The Happy API - compositional API tools",
   "keywords": "API, static, compositional, zero-cost abstractions, modern C++",
   "headers": "hapi.h",
@@ -8,10 +8,6 @@
   {
     "type": "git",
     "url": "https://github.com/InternetOfPins/HAPI.git"
-  },
-  "build": {
-    "srcDir": "include",
-    "srcFilter": "+<*> -<examples> -<test>"
   },
   "authors":
   [

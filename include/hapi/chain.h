@@ -53,3 +53,14 @@ template<typename Q,typename A,typename... OO>
 constexpr const bool query<Q,APIOf<A,OO...>>{(query<Q,OO>||...)};
 
 
+//optional, use only if your API needs it --
+template<typename O>
+struct CRTP {
+  using Obj=O;
+  O& obj() {return static_cast<O&>(*this);}
+  const O& obj() const {return static_cast<const O&>(*this);}
+  
+  O* operator->() {return static_cast<O*>(this);}
+  const O* operator->() const {return static_cast<const O*>(this);}
+};
+

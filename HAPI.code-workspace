@@ -2,6 +2,30 @@
 	"folders": [
 		{
 			"path": "."
+		},
+		{
+			"name": "flat",
+			"path": "examples/flat"
+		},
+		{
+			"name": "free",
+			"path": "examples/free"
+		},
+		{
+			"name": "crtp",
+			"path": "examples/crtp"
+		},
+		{
+			"name": "std",
+			"path": "examples/std"
+		},
+		{
+			"name": "virt",
+			"path": "examples/virt"
+		},
+		{
+			"name": "rules",
+			"path": "examples/rules"
 		}
 	],
 	"settings": {

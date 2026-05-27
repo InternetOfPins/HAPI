@@ -24,8 +24,10 @@
 #ifndef HAPI_DEBUG
   namespace hapi {
 #endif
-  #include "rules.h"
-  #include "chain.h"
+  #include "hapi/rules.h"
+  #include "hapi/chain.h"
+
+  struct Nil {};
 #ifndef HAPI_DEBUG
   };//namespace hapi
 #endif
