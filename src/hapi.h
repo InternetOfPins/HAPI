@@ -5,6 +5,8 @@
  * 
 */
 
+#pragma once
+
 #ifdef __AVR__
   #include "platform/avr/avr_std.h"
   using size_t=unsigned int;

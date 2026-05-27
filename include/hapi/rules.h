@@ -5,6 +5,8 @@
  * 
 */
 
+#pragma once
+
 template<typename...> struct Chain;
 
 //query --
