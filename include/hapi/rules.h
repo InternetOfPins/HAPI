@@ -1,54 +1,46 @@
 /**
  * @file rules.h
  * @author Rui Azevedo (neu-rah) (ruihfazevedo@gmail.com)
- * @brief rules system for HAPI
- * @contributor Grok (xAI) - architecture, cleanup & modern C++ patterns
+ * @brief 
+ * 
 */
 
-#pragma once
+template<typename...> struct Chain;
 
-#include "hapi/api.h"
+//query --
+template<typename Q,typename O>
+constexpr const bool query{Q::template Check<O>::value};
 
-#ifdef __AVR__
-  #include "platform/avr/avr_std.h"
-#elif defined(__XTENSA__) 
-  #include "platform/xtensa/xtensa_std.h"
-#else
-  #include <type_traits>
-#endif
-
-namespace hapi {
-  template<typename Crit>
-  struct IsSame {
-    template<typename... OO>
-    static constexpr const bool check() {return (std::is_same_v<Crit,OO>||...);}
+//predicates --
+template<typename Q> struct SameAs {
+  template<typename O> struct Check{
+    static constexpr const bool value{std::is_same_v<O,Q>};
   };
+};
 
-  template<typename Predicate>
-  struct Has {
-    template<typename Ahead,typename Behind=Chain<>>
-    static constexpr const std::enable_if_t<Ahead::size==0,bool> check() {return false;}
-    
-    template<typename Ahead,typename Behind=Chain<>>
-    static constexpr const std::enable_if_t<Ahead::size!=0,bool> check() 
-      {return Ahead::template Join<Behind>::template require<Predicate>;}
+//sugar predicates--
+template<typename T,typename O,typename... OO>
+constexpr const bool has{query<SameAs<T>,O,OO...>};
 
-    struct Before {
-      // template<typename Ahead,typename Behind=hapi::Chain<>>
-      // static constexpr const std::enable_if_t<Ahead::size==0,bool> check() {return false;}
+template<typename T>
+constexpr const bool has<T,Chain<>>{false};
 
-      template<typename Ahead,typename Behind=Chain<>>
-      static constexpr const bool check()
-        {return Ahead::template require<Predicate>;}
-    };
+struct RulesAPI {
+  template<typename Before,typename After=Chain<>>
+  static constexpr bool rules() {return true;}
 
-    struct After {
-      // template<typename Ahead,typename Behind=hapi::Chain<>>
-      // static constexpr const std::enable_if_t<Ahead::size==0,bool> check() {return false;}
+};
 
-      template<typename Ahead,typename Behind=Chain<>>
-      static constexpr const bool check()
-        {return Behind::template require<Predicate>;}
-    };
-  };
-};//namespace hapi
+template<typename T,typename Ahead,typename Behind=Chain<>>
+struct CheckRules {
+  static constexpr bool check() {
+    return T::template rules<Behind,Ahead>()&&
+      CheckRules<typename Ahead::Head,typename Ahead::Tail,typename Behind::template App<T>>::check();
+  }
+};
+
+template<typename T,typename Behind>
+struct CheckRules<T,Chain<>,Behind> {
+  static constexpr bool check()
+    {return T::template rules<Behind,Chain<>>();}
+};
