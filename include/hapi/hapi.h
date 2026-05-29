@@ -9,12 +9,12 @@
 
 #ifdef __AVR__
   #include "platform/avr/avr_std.h"
-  using Sz=unsigned int;
+  using SizeT=unsigned int;
 #else
   #include <cstddef>
   #include <type_traits>
   #include <utility>
-  using Sz=size_t;
+  using SizeT=size_t;
 #endif
 
 #ifdef HAPI_DEBUG
@@ -40,7 +40,7 @@
 
   template<> struct Chain<> {
     using Types=Chain<>;
-    static constexpr const Sz size{0};
+    static constexpr const SizeT size{0};
     template<typename... XX> using App=Chain<XX...>;
     template<typename... XX> using Ins=Chain<XX...>;
     template<template<typename> class M> using Map=Chain<>;
@@ -55,7 +55,7 @@
     using Types=Chain<O,OO...>;
     using Head=O;
     using Tail=Chain<OO...>;
-    static constexpr const Sz size{1+sizeof...(OO)};
+    static constexpr const SizeT size{1+sizeof...(OO)};
     template<typename... XX> using App=Chain<XX...,O,OO...>;
     template<typename... XX> using Ins=Chain<O,OO...,XX...>;
     template<template<typename> class M> using Map=Chain<M<O>,M<OO>...>;
