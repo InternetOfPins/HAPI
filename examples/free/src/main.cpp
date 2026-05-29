@@ -1,7 +1,7 @@
 /**
  * @file main.cpp
  * @author Rui Azevedo (ruihfazevedo@gamil.com)
- * @brief dree modular API, free use of parts, a composition of parts is also a valid part.
+ * @brief free modular API, free use of parts, a composition of parts is also a valid part.
  * @version 1
  * @date 2025-04-10
  * 
@@ -20,7 +20,7 @@
   using namespace std;
 #endif
 
-#include <hapi.h>
+#include <hapi/hapi.h>
 using namespace hapi;
 
 struct Item {
@@ -47,7 +47,7 @@ using Tag     =WrapWith<'<','>'>;
 
 //a composition of parts is also a part
 //until it is closed with a terminator
-using All=Chain<Parens,SqBracks,Bracks,Bars,Tag>;
+using All=Chain<Parens>;//,SqBracks,Bracks,Bars,Tag>;
 
 //using terminator `Item`
 // All::template Part<Item> testItem;

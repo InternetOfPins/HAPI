@@ -19,7 +19,7 @@
   using namespace std;
 #endif
 
-#include <hapi.h>
+#include <hapi/hapi.h>
 using namespace hapi;
 
 // struct Nil{};

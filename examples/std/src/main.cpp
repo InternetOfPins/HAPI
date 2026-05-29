@@ -13,7 +13,7 @@
 #include <vector>
 using namespace std;
 
-#include <hapi.h>
+#include <hapi/hapi.h>
 using namespace hapi;
 
 struct Item {

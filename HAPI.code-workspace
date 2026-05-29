@@ -4,10 +4,6 @@
 			"path": "."
 		},
 		{
-			"name": "flat",
-			"path": "examples/flat"
-		},
-		{
 			"name": "free",
 			"path": "examples/free"
 		},

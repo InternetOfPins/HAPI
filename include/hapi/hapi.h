@@ -9,11 +9,12 @@
 
 #ifdef __AVR__
   #include "platform/avr/avr_std.h"
-  using size_t=unsigned int;
+  using Sz=unsigned int;
 #else
   #include <cstddef>
   #include <type_traits>
   #include <utility>
+  using Sz=size_t;
 #endif
 
 #ifdef HAPI_DEBUG
@@ -29,21 +30,53 @@
 
   struct Nil {};
 
+  //query --
+  template<typename Q,typename O>
+  constexpr const bool query{Q::template Check<O>::value};
+
   // ====================== CHAIN ======================--
 
-  template<typename... Ts>
-  struct Chain {
-    static constexpr Sz size = sizeof...(Ts);
+  template<typename...> struct Chain;
+
+  template<> struct Chain<> {
+    using Types=Chain<>;
+    static constexpr const size_t size{0};
+    template<typename... XX> using App=Chain<XX...>;
+    template<typename... XX> using Ins=Chain<XX...>;
+    template<template<typename> class M> using Map=Chain<>;
+    template<typename T> struct Part:T {
+      using T::T;
+      using Types=Chain<T>;
+    };
+  };
+
+  template<typename O,typename... OO>
+  struct Chain<O,OO...> {
+    using Types=Chain<O,OO...>;
+    using Head=O;
+    using Tail=Chain<OO...>;
+    static constexpr const size_t size{1+sizeof...(OO)};
+    template<typename... XX> using App=Chain<XX...,O,OO...>;
+    template<typename... XX> using Ins=Chain<O,OO...,XX...>;
+    template<template<typename> class M> using Map=Chain<M<O>,M<OO>...>;
 
     template<typename T>
-    static constexpr bool has = (std::is_same_v<T, Ts> || ...);
+    struct Part:          O::template Part<typename Chain<OO...>::template Part<T>> {
+      using Base=typename O::template Part<typename Chain<OO...>::template Part<T>>;
+      using Base::Base;
+      using Types=Chain<O,OO...>;
+    };
+  };
 
-    template<template<typename...> class Template>
-    using Build = Template<Ts...>;
+  //rules Chain query specialization --
+  template<typename Q,typename... OO>
+  constexpr const bool query<Q,Chain<OO...>>{(query<Q,OO>||...)};
 
-    template<typename T> using App = Chain<Ts..., T>;
-    template<typename T> using Ins = Chain<T, Ts...>;
-    template<typename... Us> using Concat = Chain<Ts..., Us...>;
+  //predicates --
+  template<typename Q> struct SameAs {
+    template<typename O> struct Check {
+      static constexpr const bool value{std::is_same_v<O,Q>};
+    };
   };
 
   // ====================== RULES DETECTION ======================--
@@ -57,62 +90,60 @@
 
   // ====================== BEFORE / AFTER WALK ======================--
 
-  template<typename... Before, typename Current, typename... After>
+  template<typename Before, typename Current, typename After>
   struct RuleLayer {
     template<typename O>
     struct Part : O {
-      using Base = O;
+      static constexpr bool rules() {
+        if constexpr(HasRules<Current>::value)
+          return Current::template rules<Before, After>()&&O::rules();
+        else return O::rules();
+      }
+      // static constexpr bool rules(int){return rules();}
+      // // using O::rules;
+      // static constexpr std::enable_if_t<HasRules<Current>::value,bool> rules()
+      //   {return T::template rules<Before, After>()&&O::rules();}
+      // static constexpr std::enable_if_t<!HasRules<Current>::value,bool> rules()
+      //   {return O::rules();}
     };
-
-    template<typename B, typename A>
-    static constexpr bool rules() {
-      return Current::template rules<Chain<Before...>, Chain<After...>>();
-    }
   };
 
-  template<typename... Before, typename... Ts>
-  struct BuildRules;
+  template<typename Before, typename After>
+  struct BuildRules:
+    RuleLayer<Before,typename After::Head,typename After::Tail>::template Part<
+      hapi::BuildRules<typename Before::template App<typename After::Head>, typename After::Tail>
+    >
+  {};
 
-  template<typename... Before, typename Current, typename... Rest>
-  struct BuildRules<Chain<Before...>, Current, Rest...> {
-    using type = typename RuleLayer<Before..., Current, Rest...>::template Part<
-                  typename BuildRules<Chain<Before..., Current>, Rest...>::type
-                >;
-  };
-
-  template<typename... Before>
-  struct BuildRules<Chain<Before...>> {
-    using type = void;
+  template<typename Before>
+  struct BuildRules<Before,Chain<>> {
+    static constexpr bool rules() {return true;}
   };
 
   // ====================== APIOf ======================--
 
-  template<typename API, typename... OO> struct APIOf;
-
   template<typename API, typename... OO>
-  struct APIOf<API, OO...> 
-    : Chain<OO...>::template Build<APIOf<API, OO...>> 
-  {
-      using Base = typename Chain<OO...>::template Build<APIOf<API, OO...>>;
-      using Base::Base;
-
-      // Rules system with Before/After
-      template<typename Comp>
-      struct CheckRules {
-        static constexpr bool value = AndAll<
-          std::conditional_t<HasRules<OO>::value,
-                            RuleLayer<Chain<>, OO, Comp>::rules<Chain<>, Comp>,
-                            true>...
-        >::value;
-      };
-
-      static_assert(CheckRules<Base>::value, "HAPI: validation failed");
+  struct APIOf : Chain<OO...>::template Part<API> {
+    using Base = typename Chain<OO...>::template Part<API>;
+    using Base::Base;
+    static_assert((BuildRules<Chain<>,Chain<OO...>>::rules(),true), "HAPI: validation failed");//will never fail here
   };
 
   template<typename API>
   struct APIOf<API> : API { 
-      using Base = API; 
-      using Base::Base; 
+    using Base = API; 
+    using Base::Base; 
+  };
+
+  //optional, use only if your API needs it --
+  template<typename O>
+  struct CRTP {
+    using Obj=O;
+    O& obj() {return static_cast<O&>(*this);}
+    const O& obj() const {return static_cast<const O&>(*this);}
+    
+    O* operator->() {return static_cast<O*>(this);}
+    const O* operator->() const {return static_cast<const O*>(this);}
   };
 
 #ifndef HAPI_DEBUG

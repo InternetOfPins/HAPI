@@ -7,7 +7,7 @@
  * 
  */
 
-#include <hapi.h>
+#include <hapi/hapi.h>
 using namespace hapi;
 
 #ifdef __AVR__
@@ -20,7 +20,7 @@ using namespace hapi;
 #endif
 
 template<typename Cfg=Nil>
-struct ItemAPI:RulesAPI,Cfg{
+struct ItemAPI:Cfg{
   template<typename Out>
   static constexpr void print(Out& out) {out<<"/";}
 };
@@ -29,10 +29,7 @@ template<typename... OO>
 struct ItemDef:APIOf<ItemAPI<>,OO...>{
   using Base=APIOf<ItemAPI<>,OO...>;
   using Base::Base;
-  using Types=typename Base::Types;
   static constexpr const size_t size{sizeof...(OO)};
-  static constexpr bool rules() {return CheckRules<typename Types::Head,typename Types::Tail,Chain<>>::check();}
-  static_assert(rules(),"fail!");
 };
 
 //stream output for items --
@@ -43,7 +40,7 @@ Out& operator<<(Out& out,const ItemDef<OO...>& o) {o.print(out);return out;}
 template<typename Q,typename... OO>
 constexpr const bool query<Q,ItemDef<OO...>>{(query<Q,OO>||...)};
 
-struct A:RulesAPI {
+struct A {
   template<typename O>
   struct Part:O {
     using Base=O;
@@ -59,7 +56,7 @@ struct A:RulesAPI {
 template<typename Q,typename At> constexpr const bool requires{query<Q,At>};
 template<typename Q,typename At> constexpr const bool excludes{!query<Q,At>};
 
-struct B:RulesAPI {
+struct B {
   template<typename O>
   struct Part:O {
     using Base=O;
@@ -79,7 +76,7 @@ struct B:RulesAPI {
   }
 };
 
-constexpr ItemDef<A,A,B> ok{};
+constexpr ItemDef<A,B> ok{};
 // constexpr ItemDef<B> fail_requireA{};//will fail with compile error 
 // constexpr ItemDef<B,A> fail_order{};//will fail with compile error "error: static assertion failed: A must be before B"
 // constexpr ItemDef<A,B,B> fail_unicity{};//will fail with compile error "error: static assertion failed: do not repeat B!""
@@ -95,6 +92,9 @@ constexpr ItemDef<A,A,B> ok{};
   }
 #else
   int main() {
+    cout<<HasRules<A>::value<<endl;
+    cout<<HasRules<B>::value<<endl;
+    cout<<query<SameAs<A>,Chain<A>><<endl;
     cout<<endl;
     return 0;
   }
