@@ -40,7 +40,7 @@
 
   template<> struct Chain<> {
     using Types=Chain<>;
-    static constexpr const size_t size{0};
+    static constexpr const Sz size{0};
     template<typename... XX> using App=Chain<XX...>;
     template<typename... XX> using Ins=Chain<XX...>;
     template<template<typename> class M> using Map=Chain<>;
@@ -55,7 +55,7 @@
     using Types=Chain<O,OO...>;
     using Head=O;
     using Tail=Chain<OO...>;
-    static constexpr const size_t size{1+sizeof...(OO)};
+    static constexpr const Sz size{1+sizeof...(OO)};
     template<typename... XX> using App=Chain<XX...,O,OO...>;
     template<typename... XX> using Ins=Chain<O,OO...,XX...>;
     template<template<typename> class M> using Map=Chain<M<O>,M<OO>...>;
@@ -90,27 +90,24 @@
 
   // ====================== BEFORE / AFTER WALK ======================--
 
-  template<typename Before, typename Current, typename After>
+  template<typename Current, typename Before, typename After, bool=HasRules<Current>::value>
   struct RuleLayer {
+    template<typename O> struct Part : O {using O::rules;};
+  };
+
+  template<typename Current, typename Before, typename After>
+  struct RuleLayer<Current, Before, After, true> {
     template<typename O>
     struct Part : O {
       static constexpr bool rules() {
-        if constexpr(HasRules<Current>::value)
-          return Current::template rules<Before, After>()&&O::rules();
-        else return O::rules();
+        return Current::template rules<Before,After>() && O::rules();
       }
-      // static constexpr bool rules(int){return rules();}
-      // // using O::rules;
-      // static constexpr std::enable_if_t<HasRules<Current>::value,bool> rules()
-      //   {return T::template rules<Before, After>()&&O::rules();}
-      // static constexpr std::enable_if_t<!HasRules<Current>::value,bool> rules()
-      //   {return O::rules();}
     };
   };
 
   template<typename Before, typename After>
   struct BuildRules:
-    RuleLayer<Before,typename After::Head,typename After::Tail>::template Part<
+    RuleLayer<typename After::Head,Before,typename After::Tail>::template Part<
       hapi::BuildRules<typename Before::template App<typename After::Head>, typename After::Tail>
     >
   {};

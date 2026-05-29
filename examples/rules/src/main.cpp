@@ -94,6 +94,7 @@ constexpr ItemDef<A,B> ok{};
   int main() {
     cout<<HasRules<A>::value<<endl;
     cout<<HasRules<B>::value<<endl;
+    cout<<query<SameAs<A>,A><<endl;
     cout<<query<SameAs<A>,Chain<A>><<endl;
     cout<<endl;
     return 0;

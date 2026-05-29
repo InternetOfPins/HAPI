@@ -7,7 +7,7 @@
  * 
  */
 
-#include <hapi.h>
+#include <hapi/hapi.h>
 using namespace hapi;
 
 #include <iostream>
