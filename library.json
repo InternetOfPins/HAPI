@@ -1,6 +1,6 @@
 {
   "name": "HAPI",
-  "version": "0.3.16",
+  "version": "0.3.17",
   "description": "The Happy API - compositional API tools",
   "keywords": "API, static, compositional, zero-cost abstractions, modern C++",
   "headers": "include/hapi.h",
