@@ -77,7 +77,7 @@ struct B {
 };
 
 constexpr ItemDef<A,B> ok{};
-constexpr ItemDef<B> fail_requireA{};//will fail with compile error "error: static assertion failed: B only makes sense after A somehow :D"
+// constexpr ItemDef<B> fail_requireA{};//will fail with compile error "error: static assertion failed: B only makes sense after A somehow :D"
 // constexpr ItemDef<B,A> fail_order{};//will fail with compile error "error: static assertion failed: A must be before B"
 // constexpr ItemDef<A,B,B> fail_unicity{};//will fail with compile error "error: static assertion failed: do not repeat B!""
 
@@ -87,6 +87,7 @@ void run() {
   cout<<"HasRules<B>:"<<HasRules<B>::value<<endl;
   cout<<"query<SameAs<A>,A>:"<<query<SameAs<A>,A><<endl;
   cout<<"query<SameAs<A>,Chain<A>>:"<<query<SameAs<A>,Chain<A>><<endl;
+  cout<<ok<<endl;
   cout<<endl;
 }
 
