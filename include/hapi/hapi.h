@@ -24,9 +24,7 @@
   namespace hapi{};
 #endif
 
-#ifndef HAPI_DEBUG
-  namespace hapi {
-#endif
+namespace hapi {
 
   /// @brief sentinel empty type
   struct Nil {};
@@ -186,7 +184,5 @@
     const O* operator->() const {return static_cast<const O*>(this);}
   };
 
-#ifndef HAPI_DEBUG
-  };//namespace hapi
-#endif
+};//namespace hapi
 
