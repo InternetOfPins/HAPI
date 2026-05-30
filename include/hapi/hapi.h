@@ -1,7 +1,7 @@
 /**
  * @file hapi.h
  * @author Rui Azevedo (neu-rah) (ruihfazevedo@gmail.com)
- * @brief 
+ * @brief A powerful modular, zero-overhead, static composition engine for embedded systems and modern C++.
  * 
 */
 
@@ -28,9 +28,12 @@
   namespace hapi {
 #endif
 
+  /// @brief sentinel empty type
   struct Nil {};
 
-  //query --
+  /// @brief apply a predicate over an object
+  /// @tparam Q : predicate
+  /// @tparam O : target object
   template<typename Q,typename O>
   constexpr const bool query{Q::template Check<O>::value};
 
@@ -38,6 +41,7 @@
 
   template<typename...> struct Chain;
 
+  // empty chain
   template<> struct Chain<> {
     using Types=Chain<>;
     static constexpr const SizeT size{0};
@@ -50,16 +54,28 @@
     };
   };
 
+  /// @brief a chain of types
+  /// @tparam O : first types (head)
+  /// @tparam OO... : remaining types (for tail)
   template<typename O,typename... OO>
   struct Chain<O,OO...> {
+    /// introspection
     using Types=Chain<O,OO...>;
+    /// chain Head
     using Head=O;
+    /// chain tail
     using Tail=Chain<OO...>;
+    /// chain size
     static constexpr const SizeT size{1+sizeof...(OO)};
+    /// append
     template<typename... XX> using App=Chain<XX...,O,OO...>;
+    /// insert
     template<typename... XX> using Ins=Chain<O,OO...,XX...>;
+    /// map a transformation over the chain
     template<template<typename> class M> using Map=Chain<M<O>,M<OO>...>;
 
+    // @brief collapse types O,OO... into a single c++ object forming an inheritance chain overt it's internal class `Part<>`
+    // @tparam T : the termination object
     template<typename T>
     struct Part:          O::template Part<typename Chain<OO...>::template Part<T>> {
       using Base=typename O::template Part<typename Chain<OO...>::template Part<T>>;
@@ -68,15 +84,20 @@
     };
   };
 
-  //rules Chain query specialization --
+  /// @brief apply a predicate over a Chain (rules Chain query specialization)
+  /// @tparam Q : predicate
+  /// @tparam O : target object
   template<typename Q,typename... OO>
   constexpr const bool query<Q,Chain<OO...>>{(query<Q,OO>||...)};
 
-  //predicates --
+  /// @brief predicate to select elements by type
+  /// @tparam Q : the selector type
   template<typename Q> struct SameAs {
+    // match object O with predicate Q
     template<typename O> struct Check {
       static constexpr const bool value{std::is_same_v<O,Q>};
     };
+
   };
 
   // ====================== RULES DETECTION ======================--
@@ -90,11 +111,18 @@
 
   // ====================== BEFORE / AFTER WALK ======================--
 
+  // default case, target has no rules, call next valid rules, 
+  // in practice only the last level match this case (if not having rules itself)
   template<typename Current, typename Before, typename After, bool=HasRules<Current>::value>
   struct RuleLayer {
     template<typename O> struct Part : O {using O::rules;};
   };
 
+  /// @brief rules fold/collapse utility, compose all rules into a single object
+  /// @tparam Current : the target object for rule inspection
+  /// @tparam Before : chain of elements before the current
+  /// @tparam After : chain of elements after the current
+  /// @tparam bool 
   template<typename Current, typename Before, typename After>
   struct RuleLayer<Current, Before, After, true> {
     template<typename O>
@@ -105,6 +133,10 @@
     };
   };
 
+  /// @brief start the rules folding process and walk the list of types
+  /// to provide correct before/after elements to each target element in chain
+  /// @tparam Before : elements before, starts empty (usually)
+  /// @tparam After : elements after, starts with a complete set of all elements to be checked
   template<typename Before, typename After>
   struct BuildRules:
     RuleLayer<typename After::Head,Before,typename After::Tail>::template Part<
@@ -112,6 +144,7 @@
     >
   {};
 
+  //rules fold termination
   template<typename Before>
   struct BuildRules<Before,Chain<>> {
     static constexpr bool rules() {return true;}
@@ -119,20 +152,30 @@
 
   // ====================== APIOf ======================--
 
+  /// @brief Close chain composition with a fallback API, 
+  /// collapsing the chain into a single c++ class inheritance
+  /// that ultimately derive from the given API
+  /// @tparam API : fall-back API
+  /// @tparam OO... : the chain components 
   template<typename API, typename... OO>
   struct APIOf : Chain<OO...>::template Part<API> {
     using Base = typename Chain<OO...>::template Part<API>;
     using Base::Base;
-    static_assert((BuildRules<Chain<>,Chain<OO...>>::rules(),true), "HAPI: validation failed");//will never fail here
+    static_assert(BuildRules<Chain<>,Chain<OO...>>::rules(), "HAPI: validation failed");
   };
 
+  //empty case, just the fall-back
   template<typename API>
   struct APIOf<API> : API { 
     using Base = API; 
-    using Base::Base; 
+    using Base::Base;
   };
 
-  //optional, use only if your API needs it --
+  /// @brief provide circular reference to the whole chain if needed
+  /// optional, use only if your API needs that any component can 
+  /// call upper/derived object members.
+  /// @note: this will cause your error messages to be even bigger and can lead to loops if not properly used.
+  /// @tparam O the final collapsed object complete type
   template<typename O>
   struct CRTP {
     using Obj=O;

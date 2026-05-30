@@ -77,9 +77,18 @@ struct B {
 };
 
 constexpr ItemDef<A,B> ok{};
-// constexpr ItemDef<B> fail_requireA{};//will fail with compile error 
+constexpr ItemDef<B> fail_requireA{};//will fail with compile error "error: static assertion failed: B only makes sense after A somehow :D"
 // constexpr ItemDef<B,A> fail_order{};//will fail with compile error "error: static assertion failed: A must be before B"
 // constexpr ItemDef<A,B,B> fail_unicity{};//will fail with compile error "error: static assertion failed: do not repeat B!""
+
+void run() {
+  cout<<std::boolalpha;
+  cout<<"HasRules<A>:"<<HasRules<A>::value<<endl;
+  cout<<"HasRules<B>:"<<HasRules<B>::value<<endl;
+  cout<<"query<SameAs<A>,A>:"<<query<SameAs<A>,A><<endl;
+  cout<<"query<SameAs<A>,Chain<A>>:"<<query<SameAs<A>,Chain<A>><<endl;
+  cout<<endl;
+}
 
 #ifdef ARDUINO
   void setup() {
@@ -87,16 +96,12 @@ constexpr ItemDef<A,B> ok{};
     while(!Serial);
   }
   void loop() {
-    cout<<endl;
+    run();
     delay(1000);
   }
 #else
   int main() {
-    cout<<HasRules<A>::value<<endl;
-    cout<<HasRules<B>::value<<endl;
-    cout<<query<SameAs<A>,A><<endl;
-    cout<<query<SameAs<A>,Chain<A>><<endl;
-    cout<<endl;
+    run();
     return 0;
   }
 #endif

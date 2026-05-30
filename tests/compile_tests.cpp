@@ -6,98 +6,103 @@
  * Heavy use of static_assert + type traits.
  */
 
-#include "../src/hapi.h"
-// #include "oneList.h"
-// #include "oneData.h"     // when ready
+#include "../include/hapi/hapi.h"
+using namespace hapi;
 
-// ====================== Test Features ======================
+#ifdef __AVR__
+  #include <streamFlow.h>
+  using namespace StreamFlow;
+  #define cout Serial
+#else
+  #include <iostream>
+  using namespace std;
+#endif
 
-struct FeatureA {
-    template<typename O>
-    struct Part : O {
-        using HasA = std::true_type;
-        static constexpr int id = 1;
-    };
+template<typename Cfg=Nil>
+struct ItemAPI:Cfg{
+  template<typename Out>
+  static constexpr void print(Out& out) {out<<"/";}
 };
 
-struct FeatureB {
-    template<typename O>
-    struct Part : O {
-        using HasB = std::true_type;
-        static constexpr int id = 2;
-    };
+template<typename... OO>
+struct ItemDef:APIOf<ItemAPI<>,OO...>{
+  using Base=APIOf<ItemAPI<>,OO...>;
+  using Base::Base;
+  static constexpr const size_t size{sizeof...(OO)};
 };
 
-struct FeatureC {
-    template<typename O>
-    struct Part : O {
-        using HasC = std::true_type;
-        static constexpr int id = 3;
-    };
+//stream output for items --
+template<typename Out,typename... OO>
+Out& operator<<(Out& out,const ItemDef<OO...>& o) {o.print(out);return out;}
+
+//rules ItemDef query specialization --
+template<typename Q,typename... OO>
+constexpr const bool query<Q,ItemDef<OO...>>{(query<Q,OO>||...)};
+
+struct A {
+  template<typename O>
+  struct Part:O {
+    using Base=O;
+    using Base::Base;
+    template<typename Out> 
+    static constexpr void print(Out& out) {
+      out<<"/A";
+      Base::print(out);
+    }
+  };
 };
 
-// Requires / Excludes example
-struct NeedsA {
-    template<typename O>
-    struct Part : O {
-        using Requires = TypeList<FeatureA>;
-    };
+template<typename Q,typename At> constexpr const bool requires{query<Q,At>};
+template<typename Q,typename At> constexpr const bool excludes{!query<Q,At>};
+
+struct B {
+  template<typename O>
+  struct Part:O {
+    using Base=O;
+    using Base::Base;
+    template<typename Out>
+    static constexpr void print(Out& out) {
+      out<<"/B";
+      Base::print(out);
+    }
+  };
+  template<typename Before,typename After>
+  static constexpr bool rules() {
+    static_assert(query<SameAs<A>,Before>,"B only makes sense after A somehow :D");
+    static_assert(!query<SameAs<B>,After>,"do not repeat B!");
+    static_assert(!query<SameAs<A>,After>,"A must be before B");
+    return true;
+  }
 };
 
-struct ConflictsWithB {
-    template<typename O>
-    struct Part : O {
-        using Excludes = TypeList<FeatureB>;
-    };
-};
+constexpr ItemDef<A,B> ok{};
+constexpr ItemDef<A,A,B> ok{};
+// constexpr ItemDef<B> fail_requireA{};//will fail with compile error 
+// constexpr ItemDef<B,A> fail_order{};//will fail with compile error "error: static assertion failed: A must be before B"
+// constexpr ItemDef<A,B,B> fail_unicity{};//will fail with compile error "error: static assertion failed: do not repeat B!""
 
-// ====================== Actual Tests ======================
-
-static_assert(std::is_same_v<
-    decltype(Chain<FeatureA, FeatureB, FeatureC>{}),
-    Chain<FeatureA, FeatureB, FeatureC>
->, "Basic Chain failed");
-
-using TestStack = OutDef<
-    FeatureA,
-    FeatureB,
-    NeedsA,
-    FeatureC
->;
-
-// Core introspection
-static_assert(TestStack::template has<FeatureA>, "has<> failed");
-static_assert(TestStack::template has<FeatureB>, "has<> failed");
-static_assert(!TestStack::template has<FeatureC>, "has<> should be false here?"); // adjust as needed
-
-// Rules validation
-// static_assert(TestStack::template check<NeedsA>(), "Requires rule failed");
-
-// Reordering
-using Reordered = TestStack::template Ins<FeatureC, 1>::Type;
-
-// TypeList / OneList integration
-auto lst = staticBody(
-    item("test1", 42),
-    item("test2", "hello")
-);
-
-using TL = decltype(lst)::Types;
-static_assert(TL::size == 2, "OneList Types mirror failed");
-static_assert(TL::template Has<Item<const char*, int>>, "Item type detection failed");
-
-// ====================== Add more test sections here ======================
-
-// TODO:
-// - Excludes tests
-// - Ins / App / Join reordering tests
-// - Virtual facade tests
-// - Data components + Watch + NumRange
-// - Error message quality (deliberately trigger bad compositions)
-
-// Force compilation
-int main() {
-    TestStack stack;
-    (void)stack;        // silence unused warning
-    return 0;
+void run() {
+  cout<<"HasRules<A>:"<<HasRules<A>::value<<endl;
+  cout<<"HasRules<B>:"<<HasRules<B>::value<<endl;
+  cout<<"query<SameAs<A>,A>:"<<query<SameAs<A>,A><<endl;
+  cout<<"query<SameAs<A>,Chain<A>>:"<<query<SameAs<A>,Chain<A>><<endl;
+  cout<<endl;
 }
+
+#ifdef ARDUINO
+  void setup() {
+    Serial.begin(115200);
+    while(!Serial);
+  }
+  void loop() {
+    run();
+    delay(1000);
+  }
+#else
+  int main() {
+    cout<<std::boolalpha;
+    run();
+    return 0;
+  }
+#endif
+ 

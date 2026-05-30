@@ -1,5 +1,3 @@
-Here is a clean `docs/api.md` draft focused strictly on the contents of `hapi.h`.
-
 # HAPI API Reference
 
 > Header: `include/hapi/hapi.h`
@@ -49,7 +47,7 @@ template<typename Q,typename O>
 constexpr const bool query;
 ```
 
-Compile-time query predicate.
+Compile-time `Q` predicate checker over object `O`.
 
 Evaluates:
 
@@ -80,27 +78,6 @@ struct APIOf;
 
 Builds an API by composing `OO...` over `API`.
 
-### Members
-
-#### `Base`
-
-```cpp
-using Base = typename Chain<OO...>::template Part<API>;
-```
-
-#### Validation
-
-```cpp
-static_assert(
-  (BuildRules<Chain<>,Chain<OO...>>::rules(),true),
-  "HAPI: validation failed"
-);
-```
-
-Performs compile-time rule validation.
-
----
-
 ### Specialization
 
 ```cpp
@@ -112,35 +89,6 @@ Pass-through specialization when no layers are provided.
 
 ---
 
-## `BuildRules`
-
-### Declaration
-
-```cpp
-template<typename Before, typename After>
-struct BuildRules;
-```
-
-Builds recursive rule validation chains.
-
-### Base Specialization
-
-```cpp
-template<typename Before>
-struct BuildRules<Before,Chain<>>;
-```
-
-#### Functions
-
-##### `rules`
-
-```cpp
-static constexpr bool rules();
-```
-
-Always returns `true`, signaling the end of rules check without errors.
-
----
 
 ## `Chain`
 
