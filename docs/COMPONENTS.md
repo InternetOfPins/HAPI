@@ -76,7 +76,7 @@ constexpr const bool query<Q, ItemDef<OO...>>
 |---|---|---|---|
 | 1 | `APIOf<API, OO...>` | yes | Closes the chain, derives from all layers + API base |
 | 2 | `using Base` | no | Convenience alias |
-| 3 | `using Base::Base` | no | Forward constructors |
+| 3 | `using Base::Base` | yes | Forward constructors |
 | 4 | Extra members | no | `size`, helper methods, anything the composed type should expose directly |
 | 5 | `operator<<` | no | Ergonomic stream output |
 | 6 | `query` specialisation | no | Allows `query<Q, ItemDef<OO...>>` to search the wrapper's layer list |
