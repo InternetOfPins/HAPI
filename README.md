@@ -5,7 +5,7 @@
 ---
 
 ```cpp
-#include <hapi.hpp>
+#include <hapi/hapi.h>
 
 using namespace hapi;
 
