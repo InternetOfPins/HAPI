@@ -1,120 +1,73 @@
-# HAPI - Happy API
+# HAPI
 
-**Zero-overhead modular composition engine for embedded C++.**
-
-HAPI lets you build clean, highly composable, type-safe stacks (output, menus, drivers, protocols) using static CRTP mixin composition with virtually no runtime cost.
+**A powerful, zero-overhead, static composition engine for modern C++ and embedded systems.**
 
 ---
-
-## Philosophy
-
-> "Make the common case blazing fast and the advanced case still clean and possible."
-
-No virtual calls on hot paths. Full compile-time safety and introspection. Designed for constrained devices (AVR, ESP, ARM Cortex-M).
-
----
-
-## Current Status (May 2026)
-
-- Version: **0.3.x** (actively evolving)
-- Core engine stable
-- Strong integration with **OneData** and **OneList**
-
----
-
-## Key Features
-
-- `Chain<>` — Core linear CRTP mixin engine
-- `APIOf<Base, Features...>` — Main composition template
-- `OutDef<Features...>` — Convenient output stacks
-- Rules system: `Requires<>`, `Excludes<>`
-- Introspection: `Has<>`
-- Reordering: `Ins<>`, `App<>`, `Join<>`
-
----
-
-## Usage Examples
-
-### 1. Simple Output Stack
 
 ```cpp
-using MyOut = OutDef<
-    Gate<>,
-    UTF8<>,
-    TextWrap<>,
-    Cursor<>,
-    ANSIOut<>,
-    ConsoleOut
->;
+#include <hapi.hpp>
 
-MyOut out;
-out.put("Hello from HAPI!");
+using namespace hapi;
+
+// Building a structural compile-time Abstract Syntax Tree (AST)
+using MyMenu = Menu<Title, StaticBody<Action1, Action2, SubMenu>>;
+
+// The compiler validates and structures the entire layout in contiguous memory
+using System = system_bus<MyMenu>;
+
+int main() {
+    System::init();
+    // Zero pointer-chasing: compiled down to inline, contiguous execution
+    MyMenu::printMenu(SerialOut); 
+}
+
 ```
 
-### 2. Advanced Menu Rendering Pipeline
+## Why HAPI?
 
-```cpp
-using ScrollPrinter = Chain<
-    ViewPrinter,
-    MenuPrinter<
-        TitlePrinter,
-        ScrollBodyPrinter,
-        ItemPrinter<IndexPrinter, NavCursorPrinter, ItemBodyPrinter>
-    >
->;
+### The High-Performance Infrastructure Crisis
 
-using MainOutput = OutDef<
-    ScrollPrinter,
-    ANSIFmt<>,
-    ClearFreeFmt<>,
-    DataParser<>,
-    UTF8<>,
-    Clip<>,
-    ANSIOut<>,
-    ConsoleOut
->;
-```
+Embedded software is moving deeper into mission-critical environments—Automotive, Medical Devices, Edge AI, and Industrial IoT Automation. In these domains, sloppy abstractions and runtime bloat are a direct economic hazard.
 
-### 3. Data Components
+Companies building next-generation software-defined platforms or safety-certified hardware stacks are hitting a wall. They are caught between two bad options:
 
-```cpp
-using Volume = Chain<
-    DataPrint,
-    Data<int>,
-    Watch<>,
-    NumRange<int>
->;
+* **Legacy C Macros:** Highly efficient, but fragile, unscalable, type-unsafe, and notoriously difficult to maintain.
+* **Standard Object-Oriented C++:** Clean and modular, but bogged down by dynamic overhead, virtual function tables (v-tables), and unpredictable runtime memory fragmentation.
 
-Volume volume{75};
-volume.up(10);
-if (volume.changed()) { /* react */ }
-```
-
-### 4. Menu Item
-
-```cpp
-auto ledItem = ItemDef<
-    Id<"led">,
-    Text,
-    Action<toggleLed>
->("Toggle LED");
-```
+`HAPI` eliminates this compromise by serving as a **Zero-Overhead Static Composition Engine**. It allows architects to structure clean, high-level API contracts that the compiler collapses down into deterministic, lightning-fast machine instructions.
 
 ---
 
-## Ecosystem
+## Core Pillars & Architectural Blueprint
 
-- **HAPI** — Core composition engine
-- **OneData** — Data components
-- **OneList** — Heterogeneous lists
+`HAPI` treats software architecture through a functional lens: **Programs are types that run when instantiated.** By combining modern C++ template metaprogramming with strict functional paradigms, it introduces features previously absent in the embedded space:
+
+### 1. Heterogeneous Compile-Time Trees (`HLists`)
+
+Instead of nesting classes or chasing runtime pointers via object graphs, components (like UI Menus, DSP Pipelines, or Drivers) are composed as static, heterogeneous inductive chains (`StaticBody<O, OO...>`).
+
+* **Perfect Cache Locality:** The compiler flattens your nested layout into a single, contiguous struct in memory. No heap, no fragmentation, and zero pointer overhead.
+* **Full Loop Unrolling:** Recursive operations are completely resolved and flattened by the compiler, emitting linear, branchless machine code.
+
+### 2. Type-Level Pattern Matching
+
+Using highly optimized fold-expression engines, `HAPI` allows your software to execute structural queries directly on your type system at compile time:
+
+```cpp
+constexpr const bool has_parser = query<IsDataParser, MyComposition>;
+
+```
+
+The architecture evaluates its own capabilities during compilation. If a pipeline requires a parser, a driver, or a buffer, the engine validates its presence before generating a single line of assembly, turning structural errors into build-time halts.
+
+### 3. Absolute Determinism for Safety-Critical Systems
+
+Because execution paths and memory boundaries are declared as static invariants, your software's behavior is 100% reproducible and predictable. You gain the high-level expressiveness of a functional dataflow language (like Haskell) while maintaining the bare-metal performance profile of raw assembly.
 
 ---
 
-## Links
+## Architecture & Reference
 
-- Repository: https://github.com/InternetOfPins/HAPI
+* 📘 **[Component Architecture Guide](docs/COMPONENTS.md)** – Understand how `component`, `vpin`, and structural blocks isolate logic from physical hardware.
+* 📕 **[API Reference Manual](docs/REFERENCE.md)** – Detailed type definitions, static methodologies, and configuration trait options.
 
----
-
-**Author**: Rui Azevedo (neu-rah)  
-**Contributor**: Grok (xAI) - architecture, cleanup & modern C++ patterns
