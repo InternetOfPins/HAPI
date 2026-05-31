@@ -1,73 +1,58 @@
 # HAPI
 
-**A powerful, zero-overhead, static composition engine for modern C++ and embedded systems.**
+**A zero-overhead static composition engine for C++.**
+
+Enables modular, type-safe, and high-performance system design through advanced compile-time composition.
 
 ---
 
 ```cpp
 #include <hapi/hapi.h>
 
-using namespace hapi;
-
 // Building a structural compile-time Abstract Syntax Tree (AST)
-using MyMenu = Menu<Title, StaticBody<Action1, Action2, SubMenu>>;
-
-// The compiler validates and structures the entire layout in contiguous memory
-using System = system_bus<MyMenu>;
+using MyMenu = MenuDef<
+  Title<"Main">,
+  StaticBody<
+    ItemDef<Id<1>,Action<op1>>,
+    ItemDef<Id<2>,Action<op2>>,
+    MenuDef<...>>
+  >
+>;
 
 int main() {
-    System::init();
-    // Zero pointer-chasing: compiled down to inline, contiguous execution
-    MyMenu::printMenu(SerialOut); 
+    MyMenu::printMenu(SerialOut);
 }
-
 ```
+
+---
 
 ## Why HAPI?
 
-### The High-Performance Infrastructure Crisis
+Modern embedded and systems programming often faces a difficult choice:
 
-Embedded software is moving deeper into mission-critical environments—Automotive, Medical Devices, Edge AI, and Industrial IoT Automation. In these domains, sloppy abstractions and runtime bloat are a direct economic hazard.
+- Low-level C offers performance and predictability, but poor structure and maintainability.
+- Traditional C++ provides abstraction, but often at the cost of runtime overhead and complexity.
 
-Companies building next-generation software-defined platforms or safety-certified hardware stacks are hitting a wall. They are caught between two bad options:
-
-* **Legacy C Macros:** Highly efficient, but fragile, unscalable, type-unsafe, and notoriously difficult to maintain.
-* **Standard Object-Oriented C++:** Clean and modular, but bogged down by dynamic overhead, virtual function tables (v-tables), and unpredictable runtime memory fragmentation.
-
-`HAPI` eliminates this compromise by serving as a **Zero-Overhead Static Composition Engine**. It allows architects to structure clean, high-level API contracts that the compiler collapses down into deterministic, lightning-fast machine instructions.
+HAPI provides a third path: **zero-overhead static composition**. It lets developers build clean, composable, high-level APIs that the compiler transforms into highly efficient, deterministic code.
 
 ---
 
-## Core Pillars & Architectural Blueprint
+## Core Pillars
 
-`HAPI` treats software architecture through a functional lens: **Programs are types that run when instantiated.** By combining modern C++ template metaprogramming with strict functional paradigms, it introduces features previously absent in the embedded space:
-
-### 1. Heterogeneous Compile-Time Trees (`HLists`)
-
-Instead of nesting classes or chasing runtime pointers via object graphs, components (like UI Menus, DSP Pipelines, or Drivers) are composed as static, heterogeneous inductive chains (`StaticBody<O, OO...>`).
-
-* **Perfect Cache Locality:** The compiler flattens your nested layout into a single, contiguous struct in memory. No heap, no fragmentation, and zero pointer overhead.
-* **Full Loop Unrolling:** Recursive operations are completely resolved and flattened by the compiler, emitting linear, branchless machine code.
-
-### 2. Type-Level Pattern Matching
-
-Using highly optimized fold-expression engines, `HAPI` allows your software to execute structural queries directly on your type system at compile time:
-
-```cpp
-constexpr const bool has_parser = query<IsDataParser, MyComposition>;
-
-```
-
-The architecture evaluates its own capabilities during compilation. If a pipeline requires a parser, a driver, or a buffer, the engine validates its presence before generating a single line of assembly, turning structural errors into build-time halts.
-
-### 3. Absolute Determinism for Safety-Critical Systems
-
-Because execution paths and memory boundaries are declared as static invariants, your software's behavior is 100% reproducible and predictable. You gain the high-level expressiveness of a functional dataflow language (like Haskell) while maintaining the bare-metal performance profile of raw assembly.
+- **Static Composition** — Components are assembled at compile time into flat, cache-friendly structures with full inlining.
+- **Type-Level Validation** — Structural and semantic rules are verified during compilation using powerful predicates.
+- **Zero Runtime Cost** — All composition and validation happens statically. No vtables, minimal indirection, predictable memory layout.
+- **Functional Influence** — Strong emphasis on composition, immutability of structure, and making invalid states unpresentable.
 
 ---
 
-## Architecture & Reference
+## Documentation
 
-* 📘 **[Component Architecture Guide](docs/COMPONENTS.md)** – Understand how `component`, `vpin`, and structural blocks isolate logic from physical hardware.
-* 📕 **[API Reference Manual](docs/REFERENCE.md)** – Detailed type definitions, static methodologies, and configuration trait options.
+* **[Component Architecture](docs/COMPONENTS.md)** — How components, structural blocks, and hardware abstraction layers work.
+* **[API Reference](docs/REFERENCE.md)** — Core types, patterns, and advanced usage.
+
+---
+
+**Made with obsession in the Azores** 🇵🇹  
+By [Rui Azevedo](https://github.com/neu-rah) • [@ruihfazevedo](https://x.com/ruihfazevedo)
 
