@@ -31,7 +31,7 @@ namespace hapi {
 
   /// @brief apply a predicate over an object
   /// @tparam Q : predicate
-  /// @tparam O : target object
+  /// @tparam O : target object type
   template<typename Q,typename O>
   constexpr const bool query{Q::template Check<O>::value};
 
@@ -185,4 +185,3 @@ namespace hapi {
   };
 
 };//namespace hapi
-
