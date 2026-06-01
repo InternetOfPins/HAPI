@@ -76,7 +76,7 @@ struct B {
 };
 
 constexpr ItemDef<A,B> ok{};
-constexpr ItemDef<A,A,B> ok{};
+constexpr ItemDef<A,A,B> ok2{};
 // constexpr ItemDef<B> fail_requireA{};//will fail with compile error 
 // constexpr ItemDef<B,A> fail_order{};//will fail with compile error "error: static assertion failed: A must be before B"
 // constexpr ItemDef<A,B,B> fail_unicity{};//will fail with compile error "error: static assertion failed: do not repeat B!""
