@@ -1,457 +1,515 @@
-# HAPI API Reference
+# HAPI — Happy API
 
-> **File:** `include/hapi/hapi.h`  
-> **Author:** Rui Azevedo (neu-rah) · ruihfazevedo@gmail.com  
-> **Namespace:** `hapi`  
-> **Brief:** A powerful modular, zero-overhead, static composition engine for embedded systems and modern C++.
+> **Zero-overhead static composition for embedded systems and modern C++**  
+> Stack features like layers. Pay only for what you use. Catch mistakes at compile time.
+
+```cpp
+// Declare a full-featured TUI output device in one line
+OutDef<
+  ScrollPrinter, ANSIFmt, ClearFreeFmt,
+  DataParser<>, CtrlChars, UTF8, TextWrap, Clip,
+  ColorTrack<int>, Cursor, Gate, ANSIOut,
+  ConsoleOut, StaticPos<20,10>, StaticArea<30,8>
+> out;
+```
+
+No virtual dispatch. No heap allocation. Wrong layer order → **named compile error**.  
+The same pipeline compiles to AVR UART or POSIX stdout by swapping one layer.
+
+---
+
+## The Win-Win Architecture
+
+Embedded development traditionally forces a choice: clean, modular code *or* hardware performance. HAPI eliminates that tradeoff by shifting all structural complexity onto the compiler.
+
+- **The developer wins** — write highly expressive, modular, reusable code without coupling or architectural overhead. Composition is declared, not wired.
+- **The hardware wins** — the silicon receives a perfectly flat, optimised instruction block. No vtables, no dynamic allocation, no runtime indirection. Code runs at the physical limit of the target, whether an 8-bit AVR or a 32-bit ARM.
+- **The compiler pays the price** — all abstraction cost is paid in build-time seconds. The final binary contains none of it.
+
+Validation follows the same principle. If a composition violates a declared constraint — wrong layer order, missing dependency, duplicate component — the compiler refuses to produce a binary and reports a named error. There is no such thing as a structurally broken HAPI program that compiles.
 
 ---
 
 ## Contents
 
-- [Platform & Setup](#platform--setup)
-- [Core Types](#core-types)
-  - [Nil](#nil)
-  - [query](#query)
-- [Chain](#chain)
-  - [Chain\<O, OO...\>](#chaino-oo)
-  - [Chain\<O,OO...\>::Part\<T\>](#part)
-  - [query\<Q, Chain\<OO...\>\>](#chain-query-specialisation)
-- [Predicates](#predicates)
-  - [SameAs\<Q\>](#sameasq)
-- [Rules System](#rules-system)
-  - [HasRules\<T\>](#hasrulest)
-  - [RuleLayer\<Current, Before, After, true\>](#rulelayer)
-  - [BuildRules\<Before, After\>](#buildrules)
-- [Composition](#composition)
-  - [APIOf\<API, OO...\>](#apiofapi-oo)
-  - [CRTP\<O\>](#crtpo)
-- [Writing a Layer](#writing-a-layer)
-- [Writing a Predicate](#writing-a-predicate)
-- [Writing Rules](#writing-rules)
+- [What is HAPI?](#what-is-hapi)
+- [Core Concepts](#core-concepts)
+- [Quick Start](#quick-start)
+- [Examples](#examples)
+  - [Hello World — minimal output](#hello-world--minimal-output)
+  - [Composing features step by step](#composing-features-step-by-step)
+  - [Cross-platform output (AVR + desktop)](#cross-platform-output-avr--desktop)
+  - [Compile-time constraint enforcement](#compile-time-constraint-enforcement)
+  - [Runtime polymorphism bridge](#runtime-polymorphism-bridge)
+  - [Query the composition](#query-the-composition)
+- [Architecture](#architecture)
+- [Layer Reference](#layer-reference)
+- [Building Your Own Layer](#building-your-own-layer)
+- [Platform Support](#platform-support)
+- [Related Projects](#related-projects)
 
 ---
 
-## Platform & Setup
+## What is HAPI?
 
-```cpp
-#include <hapi/hapi.h>
-using namespace hapi;
-```
+HAPI is a **static composition engine**. You declare a stack of feature types; HAPI folds them into a single class via recursive CRTP mixin inheritance. The result:
 
-On AVR, `platform/avr/avr_std.h` is included automatically in place of the standard headers. Define `HAPI_DEBUG` before including to disable the `hapi` namespace and expose `std::cout` / `std::endl` for debugging output.
+- Every method call resolves at compile time — no vtable, no indirection
+- Unused features cost zero bytes of flash or RAM
+- Layer ordering is validated at compile time with human-readable error messages
+- The same feature stack compiles for AVR (2KB RAM), ESP32, ARM, or desktop
 
----
-
-## Core Types
-
-### `Nil`
-
-```cpp
-struct Nil {};
-```
-
-Sentinel empty type. Use as a neutral base or default template argument where "nothing" is a valid value.
+HAPI is the architectural foundation for [ArduinoMenu v5 (AM5)](https://github.com/neu-rah/AM5), a ground-up rewrite of the [ArduinoMenu](https://github.com/neu-rah/ArduinoMenu) library.
 
 ---
 
-### `query`
+## Core Concepts
+
+### `Chain<A, B, C, ...>`
+
+A compile-time type list. Knows its size, head, tail, and how to map or append types.
 
 ```cpp
-template<typename Q, typename O>
-constexpr const bool query{Q::template Check<O>::value};
+using MyChain = Chain<Alpha, Beta, Gamma>;
+// MyChain::size  == 3
+// MyChain::Head  == Alpha
+// MyChain::Tail  == Chain<Beta, Gamma>
 ```
 
-Applies predicate `Q` to type `O` at compile time.
+### `Chain<...>::Part<Base>`
 
-| Parameter | Description |
-|---|---|
-| `Q` | Predicate type. Must expose `template<typename O> struct Check { static constexpr bool value; }` |
-| `O` | Target type to test |
-
-**Returns:** `true` if `O` satisfies `Q`, `false` otherwise.
-
-**Usage:**
-```cpp
-// test a single type
-constexpr bool result = query<SameAs<MyLayer>, SomeType>;
-
-// test a chain — see Chain specialisation below
-constexpr bool result = query<SameAs<MyLayer>, Chain<A, B, C>>;
-
-// use inside a layer's rules() or static_assert
-static_assert(query<SameAs<Gate>, Before>, "Gate must come before this layer");
-```
-
----
-
-## Chain
-
-### `Chain<O, OO...>`
+The composition operator. Folds the type list into a single class by recursive inheritance:
 
 ```cpp
-template<typename O, typename... OO>
-struct Chain<O, OO...>;
+Chain<A, B, C>::Part<Base>
+// expands to:
+// A::Part< B::Part< C::Part<Base> > >
 ```
 
-A compile-time ordered type list. Provides list operations and the `Part<T>` mixin fold that collapses the list into a single C++ class.
+Each type `A`, `B`, `C` contributes a `Part<O>` template that wraps the layer below it. This is standard CRTP mixin — HAPI automates the fold.
 
-| Member | Kind | Description |
-|---|---|---|
-| `Types` | type alias | `Chain<O, OO...>` — the list itself, for introspection |
-| `Head` | type alias | First type in the list: `O` |
-| `Tail` | type alias | Remaining types: `Chain<OO...>` |
-| `size` | `constexpr SizeT` | Number of types in the list |
-| `App<XX...>` | alias template | Prepend `XX...` → `Chain<XX..., O, OO...>` |
-| `Ins<XX...>` | alias template | Append `XX...` → `Chain<O, OO..., XX...>` |
-| `Map<M>` | alias template | Apply `M<>` to each type → `Chain<M<O>, M<OO>...>` |
-| `Part<T>` | struct template | Collapse the chain into a mixin inheritance hierarchy over `T` |
+### `APIOf<API, A, B, C, ...>`
 
----
-
-### `Chain<O,OO...>::Part<T>` {#part}
+The public-facing composition entry point. Wraps `Chain<A,B,C>::Part<API>` with a clean name:
 
 ```cpp
-template<typename T>
-struct Part : O::template Part<typename Chain<OO...>::template Part<T>>;
+struct MyAPI { /* public interface */ };
+
+using MyDevice = APIOf<MyAPI, FeatureA, FeatureB, FeatureC>;
+MyDevice dev;
+dev.someMethod(); // resolves through the full feature stack
 ```
 
-Collapses `O, OO...` into a single C++ object by forming a recursive inheritance chain over the termination object `T`.
+### `query<Q, T>`
 
-| Parameter | Description |
-|---|---|
-| `T` | Termination object — the innermost base of the inheritance chain |
-
-**Expansion:** `Chain<A, B, C>::Part<Base>` expands to:
-
-```
-A::Part<
-  B::Part<
-    C::Part<Base>
-  >
->
-```
-
-`A` is outermost — it receives method calls first. `Base` is innermost. Each layer wraps the one below it via its own `Part<O>` template.
-
-**Members exposed on the result:**
-- `Base` — the immediate base type (one level down)
-- `Types` — `Chain<O, OO...>`, available on the composed object for introspection
-
----
-
-### `query<Q, Chain<OO...>>` — Chain query specialisation {#chain-query-specialisation}
+Compile-time introspection. Ask whether a type or chain satisfies a predicate:
 
 ```cpp
-template<typename Q, typename... OO>
-constexpr const bool query<Q, Chain<OO...>>{(query<Q, OO> || ...)};
-```
+// Does the stack contain a cursor tracker?
+static_assert(query<IsCursor, MyDevice>, "need a cursor");
 
-Folds predicate `Q` across all types in the chain. Returns `true` if **any** type in `Chain<OO...>` satisfies `Q`.
-
-**Usage:**
-```cpp
-// Does this chain contain Gate?
-constexpr bool has_gate = query<SameAs<Gate>, Chain<A, Gate, B>>;  // true
-
-// Use inside rules() to inspect Before or After
-static_assert(query<SameAs<DataParser>, Before>, "DataParser must precede this layer");
+// Sugar form:
+static_assert(has<IsCursor, FeatureA, FeatureB>, "...");
 ```
 
 ---
 
-## Predicates
+## Quick Start
 
-### `SameAs<Q>`
+### 1. Include
 
 ```cpp
-template<typename Q>
-struct SameAs {
-  template<typename O> struct Check {
-    static constexpr const bool value{std::is_same_v<O, Q>};
-  };
-};
+#include "hapi.h"   // pulls in rules.h and chain.h
+                    // namespace hapi:: unless HAPI_DEBUG is defined
 ```
 
-Built-in predicate. Matches when the target type `O` is exactly `Q`.
+### 2. Define feature layers
 
-| Parameter | Description |
-|---|---|
-| `Q` | The type to match against |
-
-**Usage:**
-```cpp
-query<SameAs<MyLayer>, SomeType>          // true if SomeType == MyLayer
-query<SameAs<MyLayer>, Chain<A, B, C>>    // true if any of A, B, C == MyLayer
-```
-
-Custom predicates follow the same `Check<O>::value` pattern — see [Writing a Predicate](#writing-a-predicate).
-
----
-
-## Rules System
-
-The rules system validates layer ordering at compile time. Layers opt in by declaring a `rules<Before, After>()` static method. HAPI detects its presence automatically via `HasRules` and calls it through `BuildRules` during `APIOf` instantiation.
-
-> **Note:** `HasRules`, `RuleLayer`, and `BuildRules` are advanced API — only needed when extending HAPI itself. Normal layer authoring only requires writing `rules<Before, After>()` on the layer struct.
-
----
-
-### `HasRules<T>`
+Each layer is a struct with an inner `Part<O>` template that extends `O`:
 
 ```cpp
-template<typename T>
-struct HasRules<T, std::void_t<decltype(T::template rules<void,void>())>>
-  : std::true_type {};
-```
-
-Detects whether type `T` exposes a `rules<Before, After>()` static method. No tag or marker required on the layer — detection is fully automatic via SFINAE.
-
-| `HasRules<T>::value` | Meaning |
-|---|---|
-| `false` | `T` has no `rules<>()` — skipped during validation |
-| `true` | `T` has `rules<>()` — called during validation |
-
----
-
-### `RuleLayer<Current, Before, After, true>` {#rulelayer}
-
-```cpp
-template<typename Current, typename Before, typename After>
-struct RuleLayer<Current, Before, After, true> {
+struct Logger {
   template<typename O>
   struct Part : O {
-    static constexpr bool rules() {
-      return Current::template rules<Before, After>() && O::rules();
+    void put(char c) {
+      log_char(c);       // add behavior
+      O::put(c);         // pass through
     }
   };
 };
 ```
 
-Composes `Current`'s rules with the rules chain below it. Only instantiated when `HasRules<Current>::value` is `true`.
-
-| Parameter | Description |
-|---|---|
-| `Current` | The layer whose `rules<>()` is being composed |
-| `Before` | `Chain<>` of all layers that appear before `Current` in the stack |
-| `After` | `Chain<>` of all layers that appear after `Current` in the stack |
-
----
-
-### `BuildRules<Before, After>`
+### 3. Compose and use
 
 ```cpp
-template<typename Before, typename After>
-struct BuildRules :
-  RuleLayer<typename After::Head, Before, typename After::Tail>::template Part<
-    BuildRules<typename Before::template App<typename After::Head>, typename After::Tail>
-  >
-{};
-```
-
-Walks `After` left to right, threading `Before` forward at each step. Provides each layer with the correct `Before`/`After` snapshot when its `rules<>()` is called.
-
-| Parameter | Description |
-|---|---|
-| `Before` | Types already processed — starts as `Chain<>` |
-| `After` | Types remaining — starts as the full layer list |
-
-**Threading for `Chain<A, B, C>`:**
-
-| Step | Current | Before | After |
-|---|---|---|---|
-| 1 | `A` | `Chain<>` | `Chain<B, C>` |
-| 2 | `B` | `Chain<A>` | `Chain<C>` |
-| 3 | `C` | `Chain<A, B>` | `Chain<>` |
-
-Triggered automatically by `APIOf` — never instantiate directly.
-
----
-
-## Composition
-
-### `APIOf<API, OO...>`
-
-```cpp
-template<typename API, typename... OO>
-struct APIOf : Chain<OO...>::template Part<API>;
-```
-
-Closes chain composition. Collapses `OO...` into a single C++ class that ultimately derives from `API`. Triggers `BuildRules` validation at instantiation time.
-
-| Parameter | Description |
-|---|---|
-| `API` | Fallback base — the innermost base of the composed class. Provides the public interface surface. |
-| `OO...` | Feature layers in stack order. First = outermost = first to receive method calls. |
-
-**Members exposed:**
-- `Base` — `Chain<OO...>::Part<API>`, the immediate base type
-
-**Rule validation:** if any layer's `rules<Before, After>()` fires a `static_assert`, the error is reported at the `APIOf` instantiation site with the message from the assert.
-
-**Usage:**
-```cpp
-struct MyAPI { /* public interface */ };
-
-using MyDevice = APIOf<MyAPI, LayerA, LayerB, LayerC, SinkLayer>;
-MyDevice dev;
-dev.someMethod();
-```
-
-With `CRTP`:
-```cpp
-struct MyAPI : CRTP<MyAPI> { /* ... */ };
-
-template<typename... OO>
-struct MyDef : APIOf<MyAPI, OO...> {};
+using MyOut = APIOf<OutputAPI, Logger, Formatter, PhysicalSink>;
+MyOut out;
+out.put('!');
 ```
 
 ---
 
-### `CRTP<O>`
+## Examples
+
+### Hello World — minimal output
 
 ```cpp
-template<typename O>
-struct CRTP {
-  using Obj = O;
-  O&       obj();
-  const O& obj() const;
-  O*       operator->();
-  const O* operator->() const;
+#include "hapi.h"
+using namespace hapi;
+
+// A sink: the bottom layer, actually writes characters
+struct StdoutSink {
+  template<typename O>
+  struct Part : O {
+    void put(char c) { putchar(c); }
+    void nl()        { putchar('\n'); }
+  };
 };
+
+// An empty API base
+struct BasicAPI {};
+
+// Compose: just a sink, nothing else
+using Out = APIOf<BasicAPI, StdoutSink>;
+Out out;
+
+int main() {
+  out.put('H'); out.put('i'); out.nl();
+  // prints: Hi
+}
 ```
 
-Optional. Provides circular reference from any layer back to the fully-composed object. Use when a layer deep in the stack needs to call methods defined on the outermost composed type.
+---
 
-| Parameter | Description |
-|---|---|
-| `O` | The final composed type — the `APIOf` or user-defined wrapper instantiation |
+### Composing features step by step
 
-| Member | Description |
-|---|---|
-| `Obj` | Type alias for `O` |
-| `obj()` | Downcast `*this` to `O&` |
-| `operator->()` | Pointer downcast to `O*` |
+Each layer you add wraps the one below. Layers higher in the list see output first.
 
-> **Note:** Using `CRTP` will make compiler error messages significantly larger. It can also lead to infinite loops if `obj()` is called in a context that re-enters the same method. Use only when strictly needed.
-
-**Usage:**
 ```cpp
-struct MyAPI : hapi::CRTP<MyAPI> {};
+// Layer 1: count characters written
+struct CharCounter {
+  template<typename O>
+  struct Part : O {
+    void put(char c) { m_count++; O::put(c); }
+    size_t count() const { return m_count; }
+  private:
+    size_t m_count{0};
+  };
+};
 
-// inside a layer:
+// Layer 2: convert lowercase to uppercase
+struct UpperCase {
+  template<typename O>
+  struct Part : O {
+    void put(char c) {
+      O::put(c >= 'a' && c <= 'z' ? c - 32 : c);
+    }
+  };
+};
+
+// Stack: UpperCase sees input first, then CharCounter, then StdoutSink
+using Out = APIOf<BasicAPI, UpperCase, CharCounter, StdoutSink>;
+Out out;
+
+out.put('h'); out.put('i'); out.nl();
+// prints: HI
+// out.count() == 3  (H, I, \n)
+```
+
+---
+
+### Cross-platform output (AVR + desktop)
+
+Swap only the sink layer. Everything above is identical.
+
+```cpp
+struct AVRSerialSink {
+  template<typename O>
+  struct Part : O {
+    void put(char c) { Serial.write(c); }
+    void nl()        { Serial.write('\n'); }
+  };
+};
+
+struct POSIXConsoleSink {
+  template<typename O>
+  struct Part : O {
+    void put(char c) { putchar(c); }
+    void nl()        { putchar('\n'); }
+  };
+};
+
+// Common feature stack
+template<typename Sink>
+using MyOut = APIOf<BasicAPI, UpperCase, CharCounter, Sink>;
+
+#ifdef __AVR__
+  MyOut<AVRSerialSink> out;
+#else
+  MyOut<POSIXConsoleSink> out;
+#endif
+
+// identical usage on both platforms:
+out.put('h'); out.put('i'); out.nl();
+```
+
+Or with the `#ifdef` inside the declaration, as in AM5:
+
+```cpp
+OutDef<
+  ScrollPrinter, DataParser<>, TextWrap, Clip, Cursor, Gate,
+  #ifdef __AVR__
+    SerialOut,
+  #else
+    ConsoleOut,
+  #endif
+  StaticPos<0,0>, StaticArea<80,24>
+> out;
+```
+
+---
+
+### Compile-time constraint enforcement
+
+Layers can declare what must (or must not) come above or below them using `query` and `static_assert`. Wrong stacking order produces a named error, not a runtime mystery.
+
+```cpp
+// Tag type: marks that DataParser is present in the stack
+struct IsDataParser { 
+  template<typename O> struct Check {
+    static constexpr bool value = std::is_same_v<typename O::IsDataParser, std::true_type>;
+  };
+};
+
+struct DataParser {
+  template<typename O>
+  struct Part : O {
+    using IsDataParser = std::true_type;  // publish tag
+    // ... implementation
+  };
+};
+
+struct Clip {
+  template<typename O>
+  struct Part : O {
+    // Clip needs DataParser somewhere below it in the stack
+    static_assert(
+      query<IsDataParser, O>,
+      "Clip requires DataParser<> to be placed below it in the stack"
+    );
+    void put(char c) {
+      if (freeX() > 0 && freeY() > 0) O::put(c);
+    }
+  };
+};
+
+// ✓ Correct order — DataParser is below Clip
+using Good = APIOf<MyAPI, Clip, DataParser, Cursor, Gate, ConsoleSink>;
+
+// ✗ Wrong order — static_assert fires with the message above
+using Bad  = APIOf<MyAPI, DataParser, Clip, Cursor, Gate, ConsoleSink>;
+//  error: "Clip requires DataParser<> to be placed below it in the stack"
+```
+
+The full AM5 output pipeline enforces:
+
+| Layer | Requires below | Requires above |
+|---|---|---|
+| `Clip` | `DataParser`, `Cursor`, `Gate` | — |
+| `TextWrap` | `DataParser` | — |
+| `UTF8` | `DataParser` | — |
+| `Cursor` | `DataParser` | — |
+| `Gate` | — | `DataParser`, all formatters |
+| `Buffer` | `Gate`, `Cursor` | `Clip`, `TextWrap` |
+
+---
+
+### Runtime polymorphism bridge
+
+Static composition is zero-overhead but can't cross a virtual boundary. `IOutDef` solves this: it inherits from both `IOut` (abstract interface) and the composed stack, bridging the two worlds.
+
+```cpp
+// Abstract interface — store and pass by pointer, no template needed
+struct IOut {
+  virtual void put(char c) = 0;
+  virtual void nl() = 0;
+  virtual ~IOut() = default;
+};
+
+// Concrete composed type that also satisfies IOut
+template<typename... OO>
+struct IOutDef : IOut, APIOf<BasicAPI, OO...> {
+  using Base = APIOf<BasicAPI, OO...>;
+  void put(char c) override { Base::put(c); }
+  void nl()        override { Base::nl(); }
+};
+
+// Concrete instance (zero-overhead on the hot path)
+IOutDef<UpperCase, CharCounter, ConsoleSink> concrete;
+
+// Store as abstract pointer (e.g. pass to a menu renderer)
+IOut* iout = &concrete;
+iout->put('x'); // virtual dispatch here only
+```
+
+This means a menu system can hold `IOut*` and work with any output device, while the device itself has no overhead in its own execution path.
+
+---
+
+### Query the composition
+
+Ask compile-time questions about what a stack contains:
+
+```cpp
+using MyStack = Chain<UpperCase, CharCounter, ConsoleSink>;
+
+// Does this stack contain CharCounter?
+constexpr bool has_counter = query<SameAs<CharCounter>, MyStack>;  // true
+
+// Sugar: has<T, types...>
+constexpr bool b = has<CharCounter, UpperCase, CharCounter, ConsoleSink>;  // true
+
+// Use in static_assert inside a layer:
 template<typename O>
 struct Part : O {
-  void someMethod() {
-    O::obj().put('x');  // calls put() on the fully-composed object
-  }
+  static_assert(query<SameAs<Gate>, O>, "Gate must be present below this layer");
 };
 ```
 
 ---
 
-## Writing a Layer
+## Architecture
 
-A layer is any struct with an inner `Part<O>` template. No base class required.
+```
+┌─────────────────────────────────────────────────────┐
+│  User code                                          │
+│  out.put("hello");  out << value << endl;           │
+└────────────────────┬────────────────────────────────┘
+                     │
+┌────────────────────▼────────────────────────────────┐
+│  APIOf<API, L1, L2, L3, ..., Sink>                  │
+│                                                     │
+│  expands to:                                        │
+│  L1::Part< L2::Part< L3::Part< ... Sink ... > > >  │
+│                                                     │
+│  Each Part<O> :                                     │
+│    • inherits O (the layer below)                   │
+│    • overrides/extends methods                      │
+│    • passes through via O::method()                 │
+│    • may assert on O's type tags                    │
+└────────────────────┬────────────────────────────────┘
+                     │  all resolved at compile time
+┌────────────────────▼────────────────────────────────┐
+│  Physical sink  (SerialOut / ConsoleOut / Buffer)   │
+└─────────────────────────────────────────────────────┘
+```
+
+The fold is right-to-left: `L1` is outermost (first to receive a call), `Sink` is innermost (last). Inserting a layer anywhere in the list changes behaviour at that point in the chain without touching anything else.
+
+---
+
+## Layer Reference
+
+Layers used in the AM5 output pipeline, in typical stack order (top = first to receive):
+
+| Layer | Purpose |
+|---|---|
+| `ScrollPrinter` | High-level scrolling menu/list API |
+| `ANSIFmt` | Semantic formatting intent (bold, colour names) |
+| `ClearFreeFmt` | Handles clear/erase so user code doesn't have to |
+| `DataParser<N>` | Serialises typed values (`int`, `double`, `char*`) → char stream. Buffer size `N` (default 16) |
+| `CtrlChars` | Interprets `\n` → `nl()`, `\t` → padding, etc. |
+| `UTF8` | Passes UTF-8 surrogate bytes directly to sink so cursor counts one character per glyph |
+| `TextWrap` | Inserts `nl()` when `free().x <= 0` |
+| `Clip` | Suppresses characters outside the declared area |
+| `ColorTrack<T>` | Remembers current fg/bg colours for resume/redraw |
+| `Cursor` | Tracks `(x, y)` position; provides `freeX()`, `freeY()`, `nl()` |
+| `Gate` | Conditional pass-through; supports `LockMode::None / Measure / Update` |
+| `ANSIOut` | Translates abstract format intent → ANSI escape codes |
+| `SerialOut` | AVR/Arduino UART sink |
+| `ConsoleOut` | POSIX stdout sink |
+| `Buffer<Scroll,Fill>` | Character panel buffer with optional scroll and change tracking |
+| `StaticPos<x,y>` | Compile-time origin — zero runtime cost |
+| `StaticArea<w,h>` | Compile-time bounds — zero runtime cost |
+| `DeviceCursor` | Records edit-cursor position for format-driven restoration |
+| `ColorTrack<T>` | Tracks colour state across resume cycles |
+| `PartialDraw` | Signals that the device supports partial update |
+| `Raw` | Direct pass-through to sink, bypasses all layers above |
+
+---
+
+## Building Your Own Layer
+
+A layer is any struct with an inner `Part<O>` template. `O` is the layer below.
 
 ```cpp
 struct MyLayer {
-  // Optional: validate stack ordering at composition time
-  template<typename Before, typename After>
-  static constexpr bool rules() {
-    static_assert(query<SameAs<RequiredLayer>, Before>,
-      "MyLayer requires RequiredLayer to be placed before it in the stack");
-    static_assert(!query<SameAs<MyLayer>, After>,
-      "MyLayer must not appear twice");
-    return true;
-  }
-
   template<typename O>
   struct Part : O {
     using Base = O;
 
-    // Optional: publish a tag so other layers can detect your presence
+    // Optional: publish a tag so other layers can query your presence
     using IsMyLayer = std::true_type;
 
-    // Override methods you care about — forward everything else
+    // Optional: assert on what must be below you
+    static_assert(
+      !query<SomePredicate, O> || query<SomeOtherPredicate, O>,
+      "MyLayer requires SomeOtherLayer to be placed below it"
+    );
+
+    // Override methods you care about; forward everything else via O::
     void put(char c) {
-      // transform or filter
-      Base::put(c);  // always forward unless intentionally suppressing
+      // do something
+      Base::put(c);  // pass through
     }
 
-    // Add new methods — they become part of the composed API
+    // Add new methods freely; they become part of the composed API
     void myMethod() { /* ... */ }
   };
 };
 ```
 
-**Rules of thumb:**
-- Always forward to `Base::method()` unless intentionally suppressing output
-- Publish `using IsXxx = std::true_type` if other layers need to detect you via `query`
-- Keep `Part` stateless where possible — every data member costs RAM on every instance
-- Use `SizeT` instead of `size_t` for AVR compatibility
-- Write `rules<Before, After>()` for any ordering constraint — zero runtime cost
+Rules of thumb:
+- Always forward to `O::method()` unless you intentionally want to suppress output (like `Gate` or `Clip`).
+- Keep `Part` stateless if possible — state costs RAM on every instance.
+- Use `static_assert` + `query` for any ordering constraint you know about.
+- Publish a tag `using IsXxx = std::true_type` if other layers might need to detect you.
 
 ---
 
-## Writing a Predicate
+## Platform Support
 
-A predicate is any type exposing `template<typename O> struct Check { static constexpr bool value; }`.
+| Platform | Sink layer | Notes |
+|---|---|---|
+| AVR (Uno, Mega, …) | `SerialOut` | `using size_t = unsigned int`; no `<type_traits>` — uses `platform/avr/avr_std.h` |
+| ESP8266 / ESP32 | `SerialOut` | Full C++17 available |
+| STM32 / ARM | `SerialOut` | Standard C++17 |
+| Teensy | `SerialOut` | Standard C++17 |
+| POSIX / Linux / macOS | `ConsoleOut` | Full C++17; used for desktop development and testing |
+| Windows | `ConsoleOut` | C++17 with MSVC or clang |
 
-```cpp
-// Example: match any type that publishes `using IsMyLayer = std::true_type`
-struct IsMyLayer {
-  template<typename O>
-  struct Check {
-    static constexpr bool value = std::is_same_v<typename O::IsMyLayer, std::true_type>;
-  };
-};
-
-// Usage
-static_assert(query<IsMyLayer, Before>, "MyLayer must come before this");
-static_assert(query<IsMyLayer, Chain<A, B, C>>, "chain must contain MyLayer");
-```
+The `#ifdef __AVR__` block in `hapi.h` provides a minimal `<type_traits>` / `<utility>` substitute for AVR targets where the standard library is unavailable.
 
 ---
 
-## Writing Rules
+## Related Projects
 
-Rules are declared as a static `constexpr bool rules()` method on the layer struct. `HasRules` detects the method automatically — no registration needed.
-
-```cpp
-struct B {
-  template<typename Before, typename After>
-  static constexpr bool rules() {
-    // Presence: A must appear somewhere before B
-    static_assert(query<SameAs<A>, Before>, "B requires A before it");
-
-    // Uniqueness: B must not appear twice
-    static_assert(!query<SameAs<B>, After>, "B must not appear twice");
-
-    // Ordering: A must not appear after B
-    static_assert(!query<SameAs<A>, After>, "A must be placed before B");
-
-    return true;  // required
-  }
-
-  template<typename O>
-  struct Part : O { /* ... */ };
-};
-```
-
-**Available context inside `rules<Before, After>()`:**
-
-| Expression | Meaning |
+| Project | Description |
 |---|---|
-| `query<SameAs<X>, Before>` | `X` appears somewhere before this layer |
-| `query<SameAs<X>, After>` | `X` appears somewhere after this layer |
-| `!query<SameAs<X>, Before>` | `X` does not appear before this layer |
-| `!query<SameAs<X>, After>` | `X` does not appear after this layer |
-| `query<MyPredicate, Before>` | any type in `Before` satisfies `MyPredicate` |
-
-Rule failures produce named `static_assert` errors at the `APIOf` instantiation site — zero runtime cost.
+| [ArduinoMenu v5 (AM5)](https://github.com/neu-rah/AM5) | Full TUI menu framework built on HAPI |
+| [ArduinoMenu v4](https://github.com/neu-rah/ArduinoMenu) | Previous generation — 1k★, 197 forks, GitHub Arctic Code Vault |
+| [OneList](https://github.com/InternetOfPins/OneList) | Heterogeneous runtime list with compile-time type mirror |
+| [streamFlow](https://github.com/neu-rah/streamFlow) | Lightweight `<<` stream operator for Arduino |
 
 ---
 
-*Part of the [InternetOfPins](https://github.com/InternetOfPins) project family.*  
-*Author: Rui Azevedo (neu-rah) · Azores, Portugal*
+## Author
+
+**Rui Azevedo** (neu-rah) — ruihfazevedo@gmail.com  
+Azores, Portugal · [github.com/neu-rah](https://github.com/neu-rah) · [github.com/InternetOfPins](https://github.com/InternetOfPins)
+
+---
+
+## License
+
+See [LICENSE](LICENSE) for details.
