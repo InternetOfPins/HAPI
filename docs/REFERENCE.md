@@ -119,8 +119,7 @@ static_assert(has<IsCursor, FeatureA, FeatureB>, "...");
 ### 1. Include
 
 ```cpp
-#include "hapi.h"   // pulls in rules.h and chain.h
-                    // namespace hapi:: unless HAPI_DEBUG is defined
+#include "hapi/hapi.h" //single include file, namespace hapi::
 ```
 
 ### 2. Define feature layers

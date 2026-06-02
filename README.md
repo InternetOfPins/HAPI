@@ -79,9 +79,10 @@ void on_clock_tick(uint8_t direction) {
 
 ## Documentation
 
+* **[HAPI for engineers and industry](docs/INDUSTRY.md)** — Why does it matter: solving vendor lock-in and zero-cost abstractions.
 * **[Component Architecture](docs/COMPONENTS.md)** — How components, structural blocks, and hardware abstraction layers work.
 * **[API Reference](docs/REFERENCE.md)** — Core types, patterns, and advanced usage.
-* **[HAPI for engineers and industry](docs/INDUSTRY.md)** Why does it matter.
+
 ---
 
 **Made with obsession in the Azores** 🇵🇹  
