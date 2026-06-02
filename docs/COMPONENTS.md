@@ -9,7 +9,8 @@ A HAPI component has two distinct parts: the **layer struct** (the feature defin
 ### The layer struct
 
 ```cpp
-struct A {                              // (1) plain struct, no base class required
+struct A {                              // (1) plain struct, no base class required, can have template parameters
+
   template<typename O>                  // (2) O is the layer below in the stack
   struct Part : O {                     // (3) inherit from O — wraps the layer below
     using Base = O;                     // (4) alias for readability
@@ -23,7 +24,7 @@ struct A {                              // (1) plain struct, no base class requi
       out << "/A";                      //     add behavior
       Base::print(out);                 // (8) forward to the layer below — always, unless suppressing
     }
-  };
+  };//Part end
 
   template<typename Before, typename After>
   static constexpr bool rules() {      // (9) optional — validate ordering at composition time
