@@ -1,4 +1,4 @@
-# HAPI
+# HAPI — Happy API
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -10,81 +10,76 @@ Enables modular, type-safe, and high-performance system design through advanced 
 
 ```cpp
 #include <hapi/hapi.h>
+using namespace hapi;
 
-// Building a structural compile-time Abstract Syntax Tree (AST)
-using MyMenu = MenuDef<
-  Title<"Main">,
-  StaticBody<
-    ItemDef<Id<1>,Action<op1>>,
-    ItemDef<Id<2>,Action<op2>>,
-    MenuDef<...>>
-  >
->;
-
-int main() {
-    MyMenu::printMenu(SerialOut);
-}
+OutDef<
+  ScrollPrinter, ANSIFmt, ClearFreeFmt,
+  DataParser<>, CtrlChars, UTF8, TextWrap, Clip,
+  ColorTrack<int>, Cursor, Gate, ANSIOut,
+  ConsoleOut, StaticPos<20,10>, StaticArea<30,8>
+> out;
 ```
+
+No virtual dispatch. No heap allocation. Wrong layer order → **named compile error**.  
+The same pipeline compiles to AVR UART or POSIX stdout by swapping one layer.
 
 ---
 
 ## Why HAPI?
 
-Modern embedded and systems programming often faces a difficult choice:
-
-- Low-level C offers performance and predictability, but poor structure and maintainability.
-- Traditional C++ provides abstraction, but often at the cost of runtime overhead and complexity.
-
-HAPI provides a third path: **zero-overhead static composition**. It lets developers build clean, composable, high-level APIs that the compiler transforms into highly efficient, deterministic code.
+Modern embedded and systems programming often forces a choice between clean architecture and runtime performance. HAPI provides a third path: **zero-overhead static composition**. Developers write modular, composable, high-level code — the compiler transforms it into flat, optimal machine instructions.
 
 ---
 
-### Zero-Overhead Pipeline Synthesis (C++17)
+## The Win-Win Architecture
 
-HAPI uses C++17 type composition to build hardware pipelines that compile directly into static MMIO instructions. Passing hardware addresses as compile-time template arguments eliminates all runtime objects, pointers, and vtable overhead.
+- **The developer wins** — expressive, modular, reusable code. Composition is declared, not wired.
+- **The hardware wins** — flat, optimal instruction sequences. No vtables, no dynamic allocation, no indirection.
+- **The compiler pays the price** — all abstraction cost is paid in build-time seconds. The final binary contains none of it.
 
-```cpp
-// 100% Static Pipeline Architecture
-using MyCoolRunnerPipeline = Chain<
-  RotateLeft, 
-  Chain<RotateRight, 
-  CoolRunner2_Target<&board>>>; // Direct C++17 auto template injection
+There is no such thing as a structurally broken HAPI program that compiles.
 
-MyCoolRunnerPipeline pipeline;
+---
 
-void on_clock_tick(uint8_t direction) {
-  pipeline.state.val = board.led_reg; // Sample state
-  pipeline.state.dir = direction;
-  pipeline.tick();                   // Fuses logic into MMIO write
-}
+## Open Chain Derivation
 
-```
+The central mechanism of HAPI. An ordered list of feature types is folded into a single C++ class through recursive open-ended inheritance. Each feature contributes an inner `Part<O>` template inheriting from `O` — the layer below. The base is provided by the caller, not fixed by the chain.
 
-#### Why HAPI Scales:
-
-* **Zero RAM Footprint**: `sizeof(pipeline) == 2` (stores only volatile `val` and `dir` bus states).
-* **Direct Register Mutation**: Resolves to an absolute assembly write (`mov` to `&board`), bypassing runtime indirection.
-* **Compiler-Driven Netlist**: The static type tree provides an open, deterministic AST structure that external tools can parse directly for logic synthesis.
+The compiler sees the full resolved hierarchy and flattens it. The result is indistinguishable in performance from a hand-written monolith — because structurally, it is one.
 
 ---
 
 ## Core Pillars
 
-- **Static Composition** — Components are assembled at compile time into flat, cache-friendly structures with full inlining.
-- **Type-Level Validation** — Structural and semantic rules are verified during compilation using powerful predicates.
-- **Zero Runtime Cost** — All composition and validation happens statically. No vtables, minimal indirection, predictable memory layout.
-- **Functional Influence** — Strong emphasis on composition, immutability of structure, and making invalid states unpresentable.
+- **Static Composition** — assembled at compile time into flat, cache-friendly structures with full inlining.
+- **Type-Level Validation** — structural and semantic rules verified at compilation.
+- **Zero Runtime Cost** — no vtables, no dynamic allocation, predictable memory layout.
+- **Functional Influence** — composition, immutability of structure, making invalid states irrepresentable.
+
+HAPI runs anywhere C++17 runs.
 
 ---
 
+
+
 ## Documentation
 
-* **[HAPI for engineers and industry](docs/INDUSTRY.md)** — Why does it matter: solving vendor lock-in and zero-cost abstractions.
-* **[Component Architecture](docs/COMPONENTS.md)** — How components, structural blocks, and hardware abstraction layers work.
-* **[API Reference](docs/REFERENCE.md)** — Core types, patterns, and advanced usage.
+- **[Industry Applications](docs/INDUSTRY.md)** — Where the pattern applies and why it matters.
+- **[Component Architecture](docs/COMPONENTS.md)** — Component anatomy, layer structure, worked examples.
+- **[API Reference](docs/REFERENCE.md)** — Core types and advanced usage.
+
+---
+
+## Related Projects
+
+| Project | Description |
+|---|---|
+| [ArduinoMenu v5 (AM5)](https://github.com/neu-rah/AM5) | Full TUI menu framework built on HAPI |
+| [ArduinoMenu v4](https://github.com/neu-rah/ArduinoMenu) | Previous generation — 1k★, 197 forks, GitHub Arctic Code Vault |
+| [OneList](https://github.com/InternetOfPins/OneList) | Heterogeneous runtime list with compile-time type mirror |
+| [streamFlow](https://github.com/neu-rah/streamFlow) | Lightweight `<<` stream operator for Arduino |
 
 ---
 
 **Made with obsession in the Azores** 🇵🇹  
-By [Rui Azevedo](https://github.com/neu-rah) • [@ruihfazevedo](https://x.com/ruihfazevedo)
-
+By [Rui Azevedo](https://github.com/neu-rah) · [@ruihfazevedo](https://x.com/ruihfazevedo)
