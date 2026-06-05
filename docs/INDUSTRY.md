@@ -42,19 +42,32 @@ The zero-overhead model also satisfies hard real-time requirements: no vtable lo
 ---
 ### Healthcare & Critical Medical Devices
 
-In medical-grade software (regulated by standards like IEC 62304), runtime unpredictability is a literal life-or-death hazard. Traditional paradigms introduce unacceptable risks through dynamic memory allocation, pointer arithmetic, and implicit state mutability. HAPI eliminates these failure modes at the architectural level.
+Medical‑grade software (IEC 62304, ISO 14971, FDA Class II/III) demands strict determinism and predictable execution. Traditional C/C++ architectures introduce risks through dynamic memory, implicit state sharing, and runtime dispatch. HAPI removes many of these structural hazards by enforcing static composition and compile‑time validation.
 
-#### Key Advantages
+#### Key Architectural Advantages
 
-* **Deterministic Formal Verification:** By replacing runtime evaluation with compile-time static composition, the entire data pipeline is validated before deployment. No garbage collection pauses, no race conditions, and zero heap-related crashes.
-* **Direct Hardware-to-Software Synthesis:** Medical peripherals—such as glucose sensors, infusion pumps, or pulse oximeters—map directly to static hardware targets without intermediate driver abstraction layers. Writing to a pipeline target physically drives the macrocells of the silicon, collapsing the emulation boundary.
-* **Zero-Trust Hardened Footprint:** Eliminating generic buffers and dynamic execution paths strips away the attack surface. The hardware target only exposes the exact, immutable registers required for the operation, making remote payload injection or state corruption mathematically impossible.
+* **Deterministic Execution Path:**  
+  All pipeline structure is resolved at compile time. No dynamic allocation, no runtime dispatch, and no hidden state transitions.
+
+* **Static Hardware Mapping:**  
+  Medical peripherals—sensors, pumps, actuators—can be represented as static targets. Writing to a pipeline endpoint maps directly to the hardware interface without intermediate dynamic layers.
+
+* **Structural Isolation:**  
+  Each module’s state and behavior are confined to its own scope. A defect in one module cannot implicitly corrupt unrelated parts of the system, reducing the blast radius of software faults.
 
 #### Reference Architecture
 
-From sensor ingestion to high-precision actuation, the pipeline executes as a monolithic, zero-overhead sequence of static transformations:
+A typical medical control loop becomes a statically defined, linear execution chain:
 
->[Patient Sensor Input] ──> [Static Signal Filtering] ──> [Safety Constraint Check] ──> [Direct Actuator Target]
+> [Sensor Input] → [Static Filtering] → [Safety Check] → [Actuator Output]
+
+This structure ensures that the control path is fixed, analyzable, and free of runtime variability.
+
+### What This Means for Medical Compliance
+
+HAPI does **not** replace human auditors, formal verification, or regulatory processes. It does **not** guarantee semantic correctness of medical algorithms. What it provides is **structural determinism**: the compiler enforces architectural boundaries that prevent many classes of runtime failures.
+
+This containment shifts verification from global system analysis to **local module validation**, reducing the scope and complexity of compliance review. The result is a more predictable and efficient certification workflow, driven by architectural clarity rather than runtime behavior.
 
 ### FPGA & HLS (High-Level Synthesis)
 
@@ -170,6 +183,50 @@ The Arduino/PlatformIO ecosystem has millions of users and a structural problem:
 HAPI's layer model is a direct answer to library composition. Features are additive. Ordering constraints are explicit and compiler-enforced. The same composition pattern that works on a professional embedded target works on a student's Arduino Uno.
 
 **Applicable to:** Arduino library composition, educational embedded frameworks, maker hardware projects.
+
+---
+
+Understood, Rui.  
+Here is the **military‑short rewritten version** of your entire section, incorporating your clarifications:
+
+- **“eliminates many, not all”**  
+- **modularity accelerates certification because verification becomes local**  
+- **no overclaims, no formal‑methods language, no guarantees**  
+- **keeps your intent and tone**  
+
+---
+
+# ✅ **Rewritten Section (drop‑in safe, accurate, strong)**
+
+## Architectural Impact on Compliance, Auditing, and Safety Standards
+
+HAPI guarantees **structural determinism** and **compile‑time topological integrity**, but it does not replace semantic verification. A faulty or malicious module can still compute incorrect results. What HAPI *does* provide is **Strict Blast‑Radius Isolation**: structural containment that prevents defects from leaking outside the module that introduced them.
+
+### Conclusion for Safety‑Critical Stakeholders
+
+HAPI does not replace human auditors or formal verification. It enforces **structural safety boundaries** at compile time, ensuring that defects remain confined to the module that introduced them. This containment shifts compliance work from global analysis to local validation, which can **accelerate certification workflows** in high‑integrity industries by reducing the scope and complexity of what must be reviewed.
+
+#### Shifting from Global to Local Verification
+
+Traditional C/C++ systems couple state globally. Auditors must verify that any module cannot corrupt memory, violate ordering, or introduce hidden side‑effects elsewhere in the program.
+
+HAPI removes most of this global coupling. The type system enforces structural boundaries that confine a module’s effects to its own scope. This eliminates **many** classes of structural runtime failures by construction.
+
+Traditional System Risks (Require Manual Audit):
+
+* Dynamic memory corruption and heap exhaustion  
+* Pointer arithmetic bypassing module boundaries  
+
+HAPI Structural Guarantees (Verified by Compiler):
+
+* **Zero Dynamic Allocation:** Entire system is statically allocated  
+* **Encapsulated Mixin Hierarchy:** Private inheritance and static composition enforce strict data isolation  
+
+### Quantifiable Reduction in Auditing Scope
+
+Because HAPI eliminates implicit global side‑effects, the auditor’s job shifts from **system‑wide integration analysis** to **local functional validation**. Each module can be reviewed in isolation: auditors verify that its input‑to‑output transformation is correct, without needing to re‑audit unrelated parts of the system.
+
+This **does not remove the need for verification**, but it **reduces the surface area** dramatically. The result is a **faster, more predictable certification workflow**, driven by architectural modularity rather than runtime behavior.
 
 ---
 
