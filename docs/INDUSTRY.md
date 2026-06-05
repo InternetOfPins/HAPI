@@ -235,6 +235,77 @@ Its contribution is providing a composition model that maps naturally onto synth
 * Hardware-software co-design
 * Register-map generation frameworks
 
+A community member has demonstrated this with a CPLD register pipeline — the hardware address injected into the type signature at compile time, producing direct register writes with no runtime indirection:
+
+```cpp
+#pragma once
+#include <hapi/hapi.h>
+
+// user state --
+struct PipelineState {
+  uint8_t val;
+  uint8_t dir;
+};
+
+// modules --
+struct RotateLeft {
+  template<typename O>
+  struct Part : O {
+    using Base = O;
+    void tick() {
+      if (Base::state.dir == 1)
+        Base::state.val
+          = (((Base::state.val & 0x07) << 1) 
+          | ((Base::state.val & 0x08) >> 3)) & 0x0F;
+      Base::tick();
+    }
+  };
+};
+
+struct RotateRight {
+  template<typename O>
+  struct Part : O {
+    using Base = O;
+    void tick() {
+      if (Base::state.dir == 0) 
+        Base::state.val 
+          = (((Base::state.val & 0x01) << 3) 
+          | ((Base::state.val & 0x0E) >> 1)) & 0x0F;
+      Base::tick();
+    }
+  };
+};
+
+// hardware target --
+struct CoolRunnerII_Family {uint8_t led_reg;};
+
+template<typename Family, Family& silicon, typename State = PipelineState>
+struct HardwareTarget {
+  State state;
+  void tick() {silicon.led_reg = state.val;}
+};
+
+// hardware instance --
+extern CoolRunnerII_Family board;
+
+// pipeline --
+using MyPipeline = OutDef<
+  RotateLeft,
+  RotateRight,
+  HardwareTarget<CoolRunnerII_Family, board>
+>;
+```
+
+The hardware address `&board` is embedded in the type signature at compile time. The compiler resolves the full call chain 
+
+> — `RL::tick` → `RR::tick` → `HardwareSink::tick` — 
+
+and emits a direct absolute register write. No pointers chased at runtime, no framework overhead in the binary.
+
+HAPI does not replace HDLs. It does not synthesise hardware directly. What it provides is a composition model general enough that, when the compiler target is an HLS toolchain, the same pattern that works on AVR produces synthesisable hardware pipelines.
+
+**Applicable to:** HLS pipeline composition, CPLD register pipelines, hardware-software co-design workflows.
+
 ---
 
 ## DSP & Audio
