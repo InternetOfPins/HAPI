@@ -1,252 +1,414 @@
 # HAPI — Industry Applications
 
-> HAPI is a composition engine. What it composes, and where it runs, is up to you.  
-> Because its cost is zero at runtime, the pattern reaches anywhere the compiler does.
+> HAPI is a composition engine. What it composes, and where it runs, is up to you.
+>
+> Because its cost is paid at compile time rather than runtime, the pattern applies anywhere a C++ compiler reaches.
 
 ---
 
-## The Core Proposition
+# The Core Proposition
 
-Every industry that runs software on constrained hardware faces the same fundamental tension: **clean, maintainable architecture costs runtime overhead**. Virtual dispatch, dynamic allocation, runtime configuration — these are the tools of abstraction, and they all have a price that constrained hardware cannot always afford.
+Every industry that runs software on constrained, real-time, or high-integrity systems faces the same tension:
 
-HAPI eliminates that tension at the source. Composition happens entirely at compile time. The compiler sees the full structure, flattens it, and emits code as if you had written a monolith by hand. The abstraction vanishes. What remains is exactly what the hardware needs — nothing more.
+> Clean, maintainable architecture usually comes with runtime cost.
 
-This is not a claim about a specific domain. It is a property of the pattern itself, which means it applies wherever C++ compilers reach.
+Virtual dispatch, runtime registration, dynamic allocation, dependency injection, and runtime configuration are valuable tools, but they consume resources and introduce additional complexity that must be understood, tested, and maintained.
 
----
+HAPI eliminates that tradeoff by moving composition into the type system.
 
-## Where the Pattern Applies
+The compiler sees the complete structure of the system, validates declared constraints, and resolves the composition into a flat implementation. The abstraction disappears from the generated binary.
 
-### Embedded Firmware & IoT
+The result is software that can remain modular, expressive, and reusable while introducing no mandatory runtime composition overhead.
 
-The original domain. AVR, ESP8266, ESP32, STM32, ARM Cortex-M — any target where RAM is measured in kilobytes and flash in tens of kilobytes.
-
-The HAPI pattern lets firmware teams write modular, layered driver and middleware code that compiles to the same flat instruction sequence a hand-written monolith would produce. Adding a feature layer costs zero bytes if its `Part<O>` adds no data members. Removing one costs zero refactoring — just drop it from the type list.
-
-Compile-time rule validation means wrong-order initialisation, missing dependencies, and incompatible component combinations are caught before the binary exists — not during hardware bring-up.
-
-**Applicable to:** sensor pipelines, display drivers, communication stacks, device middleware, UI frameworks.
+This is not a property of any particular industry. It is a property of the composition model itself.
 
 ---
 
-### Industrial & Automotive
+# Where the Pattern Applies
 
-Safety-critical embedded software has strict requirements around determinism, initialisation order, and component correctness. These are currently enforced by code review, documentation, and runtime assertions — all of which can fail.
+## Embedded Firmware & IoT
 
-HAPI moves enforcement to the compiler. A composition that violates a declared constraint does not compile. There is no binary to flash. There is no runtime failure to diagnose. The constraint is structural, not procedural.
+The original domain.
 
-The zero-overhead model also satisfies hard real-time requirements: no vtable lookup, no heap, no indirection. Execution time is determined by the instruction sequence, not by runtime dispatch.
+AVR, ESP8266, ESP32, STM32, RP2040, ARM Cortex-M, and similar platforms operate under strict memory and performance constraints. Every byte of RAM and every cycle of execution matters.
 
-**Applicable to:** ADAS sensor pipelines, motor control stacks, industrial gateway firmware, safety-critical middleware.
+The HAPI pattern allows firmware teams to build layered drivers, middleware, communication stacks, and user interfaces without introducing runtime composition overhead.
+
+Features are added by composition rather than modification. Layers can be inserted, removed, or replaced without restructuring the rest of the system.
+
+Compile-time validation ensures that declared dependencies and ordering constraints are checked before a binary is produced.
+
+### Applicable To
+
+* Device drivers
+* Hardware abstraction layers
+* Sensor pipelines
+* Communication stacks
+* Display systems
+* Embedded user interfaces
+* Middleware frameworks
 
 ---
-### Healthcare & Critical Medical Devices
 
-Medical‑grade software (IEC 62304, ISO 14971, FDA Class II/III) demands strict determinism and predictable execution. Traditional C/C++ architectures introduce risks through dynamic memory, implicit state sharing, and runtime dispatch. HAPI removes many of these structural hazards by enforcing static composition and compile‑time validation.
+## Industrial & Automotive
 
-#### Key Architectural Advantages
+Industrial control systems and automotive software place a premium on determinism, predictability, and traceability.
 
-* **Deterministic Execution Path:**  
-  All pipeline structure is resolved at compile time. No dynamic allocation, no runtime dispatch, and no hidden state transitions.
+Many architectural constraints are traditionally enforced through documentation, code review, testing, and engineering discipline. HAPI allows these constraints to be expressed directly in code and verified during compilation.
 
-* **Static Hardware Mapping:**  
-  Medical peripherals—sensors, pumps, actuators—can be represented as static targets. Writing to a pipeline endpoint maps directly to the hardware interface without intermediate dynamic layers.
+A composition that violates a declared rule simply fails to compile.
 
-* **Structural Isolation:**  
-  Each module’s state and behavior are confined to its own scope. A defect in one module cannot implicitly corrupt unrelated parts of the system, reducing the blast radius of software faults.
+The architecture introduces no mandatory runtime dispatch, heap allocation, or framework-level indirection, making execution behavior easier to reason about in time-sensitive environments.
 
-#### Reference Architecture
+### Applicable To
 
-A typical medical control loop becomes a statically defined, linear execution chain:
+* Motor-control systems
+* Industrial gateways
+* Factory automation
+* ADAS preprocessing pipelines
+* Vehicle communication stacks
+* Embedded control middleware
 
-> [Sensor Input] → [Static Filtering] → [Safety Check] → [Actuator Output]
+---
 
-This structure ensures that the control path is fixed, analyzable, and free of runtime variability.
+## Telecommunications & Protocol Stacks
 
-### What This Means for Medical Compliance
+Communication systems are naturally layered.
 
-HAPI does **not** replace human auditors, formal verification, or regulatory processes. It does **not** guarantee semantic correctness of medical algorithms. What it provides is **structural determinism**: the compiler enforces architectural boundaries that prevent many classes of runtime failures.
-
-This containment shifts verification from global system analysis to **local module validation**, reducing the scope and complexity of compliance review. The result is a more predictable and efficient certification workflow, driven by architectural clarity rather than runtime behavior.
-
-### FPGA & HLS (High-Level Synthesis)
-
-HLS toolchains (Vitis HLS, Intel HLS Compiler) synthesise hardware from C++ source. The HAPI composition pattern is naturally compatible with this workflow — the compiler sees a flat, statically resolved call chain, which maps directly onto pipeline stages in hardware.
-
-A community member has demonstrated this with a CPLD register pipeline — the hardware address injected into the type signature at compile time, producing direct register writes with no runtime indirection:
-
-```cpp
-#pragma once
-#include <hapi/hapi.h>
-
-// user state --
-struct PipelineState {
-  uint8_t val;
-  uint8_t dir;
-};
-
-// modules --
-struct RotateLeft {
-  template<typename O>
-  struct Part : O {
-    using Base = O;
-    void tick() {
-      if (Base::state.dir == 1)
-        Base::state.val
-          = (((Base::state.val & 0x07) << 1) 
-          | ((Base::state.val & 0x08) >> 3)) & 0x0F;
-      Base::tick();
-    }
-  };
-};
-
-struct RotateRight {
-  template<typename O>
-  struct Part : O {
-    using Base = O;
-    void tick() {
-      if (Base::state.dir == 0) 
-        Base::state.val 
-          = (((Base::state.val & 0x01) << 3) 
-          | ((Base::state.val & 0x0E) >> 1)) & 0x0F;
-      Base::tick();
-    }
-  };
-};
-
-// hardware target --
-struct CoolRunnerII_Family {uint8_t led_reg;};
-
-template<typename Family, Family& silicon, typename State = PipelineState>
-struct HardwareTarget {
-  State state;
-  void tick() {silicon.led_reg = state.val;}
-};
-
-// hardware instance --
-extern CoolRunnerII_Family board;
-
-// pipeline --
-using MyPipeline = OutDef<
-  RotateLeft,
-  RotateRight,
-  HardwareTarget<CoolRunnerII_Family, board>
->;
+```text
+Application
+→ Serialization
+→ Framing
+→ Encryption
+→ Error Detection
+→ Transport
+→ Physical Interface
 ```
 
-The hardware address `&board` is embedded in the type signature at compile time. The compiler resolves the full call chain 
+Traditional implementations often distribute responsibilities across large classes, runtime registration systems, or tightly coupled middleware.
 
-> — `RL::tick` → `RR::tick` → `HardwareSink::tick` — 
+HAPI models protocol layers as compile-time components. Each layer performs a specific transformation and forwards the result to the next stage. The compiler sees the complete communication path and resolves it into a flat call chain.
 
-and emits a direct absolute register write. No pointers chased at runtime, no framework overhead in the binary.
+### Architectural Advantages
 
-HAPI does not replace HDLs. It does not synthesise hardware directly. What it provides is a composition model general enough that, when the compiler target is an HLS toolchain, the same pattern that works on AVR produces synthesisable hardware pipelines.
+#### Explicit Protocol Topology
 
-**Applicable to:** HLS pipeline composition, CPLD register pipelines, hardware-software co-design workflows.
+The complete protocol stack is visible in a single type declaration.
 
----
+#### Compile-Time Layer Validation
 
-### DSP & Audio
+Dependencies, ordering constraints, and incompatibilities can be expressed as composition rules and enforced by the compiler.
 
-Digital signal processing requires deterministic, jitter-free pipelines. A single cycle of unexpected latency — from a vtable lookup, a cache miss caused by a pointer dereference, or a branch misprediction from runtime dispatch — produces audible artifacts or missed deadlines.
+#### Encourages Component Isolation
 
-The HAPI pattern composes DSP stages into a single flat call chain. Each stage is a layer; the composed result is a linear sequence of operations with no runtime indirection between them. Filter chains, sample rate converters, effect pipelines — all compose without overhead.
+Protocol layers can maintain private internal state and expose only explicit interfaces. By leveraging standard C++ access control, implementation details remain localized to the component that defines them, helping reduce unintended coupling between layers.
 
-**Applicable to:** audio effect pipelines, DSP filter chains, codec middleware, embedded synthesisers.
+#### Zero Runtime Composition Cost
 
----
+Serialization, framing, checksums, routing, and transport layers compose without virtual dispatch, runtime registration, or dynamic allocation.
 
-### Edge AI & TinyML
+### Applicable To
 
-Running inference on microcontrollers is a resource allocation problem. Every byte of RAM and every clock cycle consumed by framework overhead is a byte and a cycle not available for computation.
-
-The HAPI pattern applies to inference pipeline composition — preprocessing, quantisation, layer execution, postprocessing — with zero framework overhead. Layers compose at compile time; the resulting object is as lean as hand-written code.
-
-**Applicable to:** TinyML inference pipelines, sensor fusion, on-device preprocessing stacks.
-
----
-
-### ATE & Lab Instrumentation
-
-Automated test equipment requires frequent reconfiguration of signal generation and acquisition pipelines. Traditional approaches require rewriting or reconfiguring at runtime, with the associated overhead and risk.
-
-The HAPI pattern allows pipeline topologies to be declared as types and validated at compile time. A misconfigured pipeline is a compile error, not a test failure discovered during a run. Different configurations are different types — the compiler enforces their correctness independently.
-
-**Applicable to:** signal generation pipelines, acquisition stacks, configurable instrument firmware.
+* CAN
+* Modbus
+* NMEA
+* MQTT
+* Telemetry systems
+* Industrial field buses
+* Custom serial protocols
+* Embedded networking stacks
+* SDR control paths
 
 ---
 
-### Open Source & Education
+## Robotics & Autonomous Systems
 
-The Arduino/PlatformIO ecosystem has millions of users and a structural problem: libraries that don't compose. Two libraries that both need to own a peripheral, or both define the same interface, or both require a specific initialisation order — they conflict, and the resolution is manual and fragile.
+Robotic systems are typically built from deterministic processing pipelines.
 
-HAPI's layer model is a direct answer to library composition. Features are additive. Ordering constraints are explicit and compiler-enforced. The same composition pattern that works on a professional embedded target works on a student's Arduino Uno.
+```text
+Sensor
+→ Filter
+→ Localization
+→ Planning
+→ Control
+→ Actuator
+```
 
-**Applicable to:** Arduino library composition, educational embedded frameworks, maker hardware projects.
+As systems grow, maintaining clear boundaries between stages becomes increasingly important.
 
----
+Hidden coupling, shared mutable state, and implicit dependencies can make behavior difficult to understand and changes difficult to assess.
 
-Understood, Rui.  
-Here is the **military‑short rewritten version** of your entire section, incorporating your clarifications:
+HAPI models each stage as an explicit compile-time component. Processing order, dependencies, and constraints become part of the system structure rather than runtime convention.
 
-- **“eliminates many, not all”**  
-- **modularity accelerates certification because verification becomes local**  
-- **no overclaims, no formal‑methods language, no guarantees**  
-- **keeps your intent and tone**  
+### Architectural Advantages
 
----
+#### Explicit Control Topology
 
-# ✅ **Rewritten Section (drop‑in safe, accurate, strong)**
+The complete processing pipeline is visible in a single type declaration.
 
-## Architectural Impact on Compliance, Auditing, and Safety Standards
+#### Compile-Time Validation
 
-HAPI guarantees **structural determinism** and **compile‑time topological integrity**, but it does not replace semantic verification. A faulty or malicious module can still compute incorrect results. What HAPI *does* provide is **Strict Blast‑Radius Isolation**: structural containment that prevents defects from leaking outside the module that introduced them.
+Dependencies and ordering constraints can be expressed as composition rules and enforced by the compiler.
 
-### Conclusion for Safety‑Critical Stakeholders
+#### Encourages Component Isolation
 
-HAPI does not replace human auditors or formal verification. It enforces **structural safety boundaries** at compile time, ensuring that defects remain confined to the module that introduced them. This containment shifts compliance work from global analysis to local validation, which can **accelerate certification workflows** in high‑integrity industries by reducing the scope and complexity of what must be reviewed.
+Components can maintain private internal state and expose only explicit interfaces. By leveraging standard C++ access control, implementation details remain localized to the component that defines them, helping reduce unintended coupling between stages.
 
-#### Shifting from Global to Local Verification
+#### Deterministic Execution
 
-Traditional C/C++ systems couple state globally. Auditors must verify that any module cannot corrupt memory, violate ordering, or introduce hidden side‑effects elsewhere in the program.
+No runtime composition overhead, dynamic allocation requirements, or framework-level dispatch mechanisms are introduced by the architecture.
 
-HAPI removes most of this global coupling. The type system enforces structural boundaries that confine a module’s effects to its own scope. This eliminates **many** classes of structural runtime failures by construction.
+### Applicable To
 
-Traditional System Risks (Require Manual Audit):
-
-* Dynamic memory corruption and heap exhaustion  
-* Pointer arithmetic bypassing module boundaries  
-
-HAPI Structural Guarantees (Verified by Compiler):
-
-* **Zero Dynamic Allocation:** Entire system is statically allocated  
-* **Encapsulated Mixin Hierarchy:** Private inheritance and static composition enforce strict data isolation  
-
-### Quantifiable Reduction in Auditing Scope
-
-Because HAPI eliminates implicit global side‑effects, the auditor’s job shifts from **system‑wide integration analysis** to **local functional validation**. Each module can be reviewed in isolation: auditors verify that its input‑to‑output transformation is correct, without needing to re‑audit unrelated parts of the system.
-
-This **does not remove the need for verification**, but it **reduces the surface area** dramatically. The result is a **faster, more predictable certification workflow**, driven by architectural modularity rather than runtime behavior.
+* Industrial robotics
+* CNC controllers
+* Motion-control systems
+* Autonomous vehicles
+* Sensor-fusion pipelines
+* Embedded robotics middleware
 
 ---
 
-## The Common Thread
+## Healthcare & Medical Devices
 
-Every domain above has the same underlying problem: **abstraction overhead is unaffordable on constrained or real-time hardware, but monolithic code is unmaintainable**.
+Medical software often prioritizes predictability, traceability, and architectural clarity.
 
-HAPI resolves this not by compromising on either side, but by moving the cost of abstraction entirely into the compiler. The developer writes modular, expressive, validated compositions. The hardware receives flat, optimal instruction sequences. The compiler pays the price — in build-time seconds, not runtime cycles.
+Dynamic allocation, runtime configuration, and implicit coupling can complicate analysis, testing, and maintenance.
 
-Because the pattern is a property of C++ template composition rather than a domain-specific framework, it applies wherever the compiler reaches. The domains listed here are starting points, not boundaries.
+HAPI composes systems statically. Component relationships, ordering constraints, and dependencies are visible to the compiler and validated before a binary is produced.
+
+The resulting execution path is fixed and deterministic, with no framework-level runtime dispatch or allocation.
+
+### Architectural Advantages
+
+#### Explicit System Structure
+
+The complete architecture is visible through composition rather than runtime configuration.
+
+#### Compile-Time Validation
+
+Declared structural constraints are verified before deployment.
+
+#### Encourages Component Isolation
+
+HAPI leverages standard C++ access control and compile-time composition to encourage component-local state ownership. Components can maintain private internal state and expose only explicit interfaces, reducing hidden coupling and making the impact of changes easier to analyze.
+
+#### Predictable Execution
+
+The execution path is fixed by the compiled composition rather than runtime discovery or registration.
+
+### What This Means for Compliance
+
+HAPI does not replace testing, risk analysis, formal verification, certification processes, or regulatory review.
+
+Its contribution is architectural.
+
+By making component boundaries explicit and reducing hidden coupling, HAPI can reduce architectural uncertainty and narrow the scope of impact analysis when systems evolve over time.
+
+### Applicable To
+
+* Patient monitoring systems
+* Diagnostic instruments
+* Laboratory equipment
+* Portable medical devices
+* Embedded control systems
 
 ---
 
-## Further Reading
+## FPGA & High-Level Synthesis (HLS)
 
-- [README](../README.md) — what HAPI is and how to use it
-- [COMPONENTS.md](COMPONENTS.md) — component anatomy and worked examples
-- [REFERENCE.md](REFERENCE.md) — complete API reference
+Modern HLS toolchains synthesize hardware from C++ source.
+
+Because HAPI compositions are statically resolved, they naturally align with the pipeline-oriented structure common in hardware design.
+
+The compiler sees the complete call graph and can flatten the resulting implementation into a deterministic processing chain.
+
+HAPI does not generate HDL and does not replace traditional hardware-description languages.
+
+Its contribution is providing a composition model that maps naturally onto synthesis-oriented workflows.
+
+### Applicable To
+
+* HLS pipeline composition
+* CPLD register pipelines
+* FPGA host-side APIs
+* Hardware-software co-design
+* Register-map generation frameworks
 
 ---
 
-*Part of the [InternetOfPins](https://github.com/InternetOfPins) project family.*  
-*Author: Rui Azevedo (neu-rah) · Azores, Portugal · MIT License*
+## DSP & Audio
+
+Digital signal-processing systems often operate under tight latency and jitter constraints.
+
+```text
+Input
+→ Filter
+→ Transform
+→ Analyze
+→ Output
+```
+
+Because HAPI contributes no runtime composition overhead, available processor time can be dedicated entirely to signal-processing work rather than framework infrastructure.
+
+In resource-constrained designs, eliminating framework overhead can enable lower clock rates, smaller devices, reduced power consumption, or more complex processing pipelines within the same real-time budget.
+
+HAPI does not make DSP algorithms faster.
+
+It removes itself from the cycle budget.
+
+### Applicable To
+
+* Audio effect chains
+* DSP filter pipelines
+* Embedded synthesizers
+* SDR preprocessing
+* Codec middleware
+* Sensor-processing systems
+
+---
+
+## Edge AI & TinyML
+
+Running machine-learning workloads on microcontrollers is fundamentally a resource-allocation problem.
+
+Every byte of RAM and every clock cycle consumed by framework infrastructure is unavailable for application logic.
+
+The HAPI pattern applies naturally to the stages surrounding inference:
+
+```text
+Sensor
+→ Calibration
+→ Filtering
+→ Feature Extraction
+→ Quantization
+→ Inference
+→ Postprocessing
+→ Decision
+```
+
+These stages can be composed and validated at compile time while introducing no framework-level runtime overhead.
+
+HAPI does not accelerate neural-network kernels themselves.
+
+Its contribution is architectural: organizing the stages surrounding inference into explicit, compile-time validated processing pipelines.
+
+### Applicable To
+
+* TinyML systems
+* Sensor-fusion pipelines
+* Edge inference devices
+* Smart sensors
+* On-device preprocessing systems
+
+---
+
+## ATE & Laboratory Instrumentation
+
+Automated test equipment and scientific instrumentation often require configurable acquisition and processing pipelines.
+
+A misconfigured pipeline may not fail until a test run is already underway.
+
+With HAPI, pipeline topology becomes part of the type system.
+
+Different configurations become different types, allowing the compiler to validate each independently.
+
+### Applicable To
+
+* Signal generation systems
+* Acquisition pipelines
+* Oscilloscopes
+* Logic analyzers
+* Spectrum analyzers
+* Scientific instrumentation firmware
+
+---
+
+## Open Source & Education
+
+The Arduino and maker ecosystems frequently encounter library-composition problems.
+
+Libraries compete for peripherals, require specific initialization orders, or expose incompatible interfaces.
+
+HAPI's layer model provides a framework for additive composition.
+
+Dependencies become explicit, ordering constraints become compiler-enforced, and integration issues can be detected before deployment.
+
+The same pattern that scales to industrial firmware remains accessible to educational and hobbyist projects.
+
+### Applicable To
+
+* Arduino ecosystems
+* Educational frameworks
+* Maker projects
+* Teaching modern C++ design
+* Embedded-software experimentation
+
+---
+
+# Additional High-Integrity Domains
+
+The industries described above are not exhaustive.
+
+HAPI's architectural properties become increasingly valuable as systems become more deterministic, resource-constrained, safety-critical, or operationally expensive to validate.
+
+As the cost of failure increases, the value of explicit composition, compile-time validation, deterministic execution, and localized component boundaries tends to increase as well.
+
+Potential application areas include:
+
+* Power generation and distribution systems
+* Electrical grid monitoring and control
+* Railway signaling and control systems
+* Mass-transit infrastructure
+* Aerospace and avionics
+* Defense systems
+* Maritime navigation and control
+* Energy management systems
+* Building automation and industrial SCADA
+* Scientific instrumentation
+* Environmental monitoring networks
+* Satellite and ground-station infrastructure
+
+HAPI does not guarantee correctness, safety, security, or regulatory compliance.
+
+Those properties depend on system design, implementation, verification, and operational procedures.
+
+What HAPI contributes is architectural determinism: explicit component boundaries, compile-time composition, and the elimination of framework-level runtime composition overhead.
+
+In domains where failures can be expensive, disruptive, or dangerous, these properties can simplify reasoning about system structure and reduce architectural complexity.
+
+---
+
+# The Common Thread
+
+Every domain above faces the same fundamental challenge:
+
+> Abstraction overhead is undesirable, but monolithic software is difficult to maintain.
+
+HAPI resolves this by moving composition into the compiler.
+
+Developers work with modular, expressive, reusable components.
+
+The compiler validates structure, resolves composition, and emits a flat implementation.
+
+The hardware receives only the behavior that remains after optimization.
+
+The domains described here are examples, not boundaries.
+
+Wherever software can be expressed as deterministic processing stages, layered transformations, or validated component compositions, the HAPI pattern can apply.
+
+---
+
+# Further Reading
+
+* README.md — What HAPI is and how to use it
+* COMPONENTS.md — Component anatomy and implementation patterns
+* REFERENCE.md — Complete API reference
+
+---
+
+Part of the InternetOfPins project family.
+
+Author: Rui Azevedo (neu-rah)
+Azores, Portugal
+MIT License
