@@ -40,6 +40,21 @@ The zero-overhead model also satisfies hard real-time requirements: no vtable lo
 **Applicable to:** ADAS sensor pipelines, motor control stacks, industrial gateway firmware, safety-critical middleware.
 
 ---
+### Healthcare & Critical Medical Devices
+
+In medical-grade software (regulated by standards like IEC 62304), runtime unpredictability is a literal life-or-death hazard. Traditional paradigms introduce unacceptable risks through dynamic memory allocation, pointer arithmetic, and implicit state mutability. HAPI eliminates these failure modes at the architectural level.
+
+#### Key Advantages
+
+* **Deterministic Formal Verification:** By replacing runtime evaluation with compile-time static composition, the entire data pipeline is validated before deployment. No garbage collection pauses, no race conditions, and zero heap-related crashes.
+* **Direct Hardware-to-Software Synthesis:** Medical peripherals—such as glucose sensors, infusion pumps, or pulse oximeters—map directly to static hardware targets without intermediate driver abstraction layers. Writing to a pipeline target physically drives the macrocells of the silicon, collapsing the emulation boundary.
+* **Zero-Trust Hardened Footprint:** Eliminating generic buffers and dynamic execution paths strips away the attack surface. The hardware target only exposes the exact, immutable registers required for the operation, making remote payload injection or state corruption mathematically impossible.
+
+#### Reference Architecture
+
+From sensor ingestion to high-precision actuation, the pipeline executes as a monolithic, zero-overhead sequence of static transformations:
+
+>[Patient Sensor Input] ──> [Static Signal Filtering] ──> [Safety Constraint Check] ──> [Direct Actuator Target]
 
 ### FPGA & HLS (High-Level Synthesis)
 
@@ -48,57 +63,69 @@ HLS toolchains (Vitis HLS, Intel HLS Compiler) synthesise hardware from C++ sour
 A community member has demonstrated this with a CPLD register pipeline — the hardware address injected into the type signature at compile time, producing direct register writes with no runtime indirection:
 
 ```cpp
-#include <stdint.h>
+#pragma once
+#include <hapi/hapi.h>
 
-struct MMIO_Target { uint8_t led_reg; };
+// user state --
+struct PipelineState {
+  uint8_t val;
+  uint8_t dir;
+};
 
-// ── Layers ────────────────────────────────────────────────
-struct RL {
+// modules --
+struct RotateLeft {
   template<typename O>
   struct Part : O {
     using Base = O;
-    void tick(uint8_t val, uint8_t dir) {
-      if (dir == 1) val = ((val & 0x07) << 1) | ((val & 0x08) >> 3);
-      Base::tick(val, dir);
+    void tick() {
+      if (Base::state.dir == 1)
+        Base::state.val
+          = (((Base::state.val & 0x07) << 1) 
+          | ((Base::state.val & 0x08) >> 3)) & 0x0F;
+      Base::tick();
     }
   };
 };
 
-struct RR {
+struct RotateRight {
   template<typename O>
   struct Part : O {
     using Base = O;
-    void tick(uint8_t val, uint8_t dir) {
-      if (dir == 0) val = ((val & 0x01) << 3) | ((val & 0x0E) >> 1);
-      Base::tick(val, dir);
+    void tick() {
+      if (Base::state.dir == 0) 
+        Base::state.val 
+          = (((Base::state.val & 0x01) << 3) 
+          | ((Base::state.val & 0x0E) >> 1)) & 0x0F;
+      Base::tick();
     }
   };
 };
 
-// ── Sink: address is a compile-time template parameter ────
-template<MMIO_Target* target>
-struct HardwareSink {
-  template<typename O>
-  struct Part : O {
-    void tick(uint8_t val, uint8_t dir) {
-      target->led_reg = val;  // direct register write — no indirection
-    }
-  };
+// hardware target --
+struct CoolRunnerII_Family {uint8_t led_reg;};
+
+template<typename Family, Family& silicon, typename State = PipelineState>
+struct HardwareTarget {
+  State state;
+  void tick() {silicon.led_reg = state.val;}
 };
 
-// ── Composition ───────────────────────────────────────────
-extern MMIO_Target board;
+// hardware instance --
+extern CoolRunnerII_Family board;
 
-using Pipeline = APIOf<SinkAPI, RL, RR, HardwareSink<&board>>;
-Pipeline pipeline;
-
-void on_clock_tick(uint8_t direction) {
-  pipeline.tick(board.led_reg, direction);
-  // The compiler flattens the call hierarchy to a direct register write.
-}
+// pipeline --
+using MyPipeline = OutDef<
+  RotateLeft,
+  RotateRight,
+  HardwareTarget<CoolRunnerII_Family, board>
+>;
 ```
 
-The hardware address `&board` is embedded in the type signature at compile time. The compiler resolves the full call chain — `RL::tick` → `RR::tick` → `HardwareSink::tick` — and emits a direct absolute register write. No pointers chased at runtime, no framework overhead in the binary.
+The hardware address `&board` is embedded in the type signature at compile time. The compiler resolves the full call chain 
+
+> — `RL::tick` → `RR::tick` → `HardwareSink::tick` — 
+
+and emits a direct absolute register write. No pointers chased at runtime, no framework overhead in the binary.
 
 HAPI does not replace HDLs. It does not synthesise hardware directly. What it provides is a composition model general enough that, when the compiler target is an HLS toolchain, the same pattern that works on AVR produces synthesisable hardware pipelines.
 
