@@ -53,25 +53,25 @@ namespace xform {
 
 //------------------------------------------------------------------------
 
+template<typename X,typename O,typename Chk=std::false_type>
+struct Impl{
+  using Type=O;
+  template<typename P> struct Part:P {};
+};
+
+template<typename X,typename O>
+struct Impl<X,O,std::true_type> {
+  using Type=typename X::template XForm<O>;
+  template<typename P> struct Part:P {};
+};
+
 template<typename Q, typename X>
 struct XFormEngine {
   private:
 
-  template<typename O,typename Chk=std::false_type>
-  struct Impl{
-    using Type=O;
-    template<typename P> struct Part:P {};
-  };
-  
-  template<typename O>
-  struct Impl<O,std::true_type> {
-    using Type=typename X::template XForm<O>;
-    template<typename P> struct Part:P {};
-  };
-
   public:
   template<typename O>
-  using On = Impl<O,typename Q::template Check<O>>;
+  using On = Impl<X,O,typename Q::template Check<O>>;
   
   template<typename P> struct Part : P {};
 };
