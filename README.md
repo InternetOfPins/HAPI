@@ -1,7 +1,5 @@
 # HAPI — Happy API
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
 **A zero-overhead static composition engine for C++.**
 
 Enables modular, type-safe, and high-performance system design through advanced compile-time composition.
@@ -18,9 +16,11 @@ OutDef<
   ColorTrack<int>, Cursor, Gate, ANSIOut,
   ConsoleOut, StaticPos<20,10>, StaticArea<30,8>
 > out;
+
 ```
 
-No virtual dispatch. No heap allocation. Wrong layer order → **named compile error**.  
+No virtual dispatch. No heap allocation. Wrong layer order → **named compile error**.
+
 The same pipeline compiles to AVR UART or POSIX stdout by swapping one layer.
 
 ---
@@ -33,9 +33,9 @@ Modern embedded and systems programming often forces a choice between clean arch
 
 ## The Win-Win Architecture
 
-- **The developer wins** — expressive, modular, reusable code. Composition is declared, not wired.
-- **The hardware wins** — flat, optimal instruction sequences. No vtables, no dynamic allocation, no indirection.
-- **The compiler pays the price** — all abstraction cost is paid in build-time seconds. The final binary contains none of it.
+* **The developer wins** — expressive, modular, reusable code. Composition is declared, not wired.
+* **The hardware wins** — flat, optimal instruction sequences. No vtables, no dynamic allocation, no indirection.
+* **The compiler pays the price** — all abstraction cost is paid in build-time seconds. The final binary contains none of it.
 
 There is no such thing as a structurally broken HAPI program that compiles.
 
@@ -51,29 +51,27 @@ The compiler sees the full resolved hierarchy and flattens it. The result is ind
 
 ## Core Pillars
 
-- **Static Composition** — assembled at compile time into flat, cache-friendly structures with full inlining.
-- **Type-Level Validation** — structural and semantic rules verified at compilation.
-- **Zero Runtime Cost** — no vtables, no dynamic allocation, predictable memory layout.
-- **Functional Influence** — composition, immutability of structure, making invalid states irrepresentable.
+* **Static Composition** — assembled at compile time into flat, cache-friendly structures with full inlining.
+* **Type-Level Validation** — structural and semantic rules verified at compilation.
+* **Zero Runtime Cost** — no vtables, no dynamic allocation, predictable memory layout.
+* **Functional Influence** — composition, immutability of structure, making invalid states irrepresentable.
 
 HAPI runs anywhere C++17 runs.
 
 ---
 
-
-
 ## Documentation
 
-- **[Industry Applications](docs/INDUSTRY.md)** — Where the pattern applies and why it matters.
-- **[Component Architecture](docs/COMPONENTS.md)** — Component anatomy, layer structure, worked examples.
-- **[API Reference](docs/REFERENCE.md)** — Core types and advanced usage.
+* **[Industry Applications](https://www.google.com/search?q=docs/INDUSTRY.md)** — Where the pattern applies and why it matters.
+* **[Component Architecture](https://www.google.com/search?q=docs/COMPONENTS.md)** — Component anatomy, layer structure, worked examples.
+* **[API Reference](https://www.google.com/search?q=docs/REFERENCE.md)** — Core types and advanced usage.
 
 ---
 
 ## Related Projects
 
 | Project | Description |
-|---|---|
+| --- | --- |
 | [ArduinoMenu v5 (AM5)](https://github.com/neu-rah/AM5) | Full TUI menu framework built on HAPI |
 | [ArduinoMenu v4](https://github.com/neu-rah/ArduinoMenu) | Previous generation — 1k★, 197 forks, GitHub Arctic Code Vault |
 | [OneList](https://github.com/InternetOfPins/OneList) | Heterogeneous runtime list with compile-time type mirror |
@@ -81,5 +79,6 @@ HAPI runs anywhere C++17 runs.
 
 ---
 
-**Made with obsession in the Azores** 🇵🇹  
+## **Made with obsession in the Azores** 🇵🇹
+
 By [Rui Azevedo](https://github.com/neu-rah) · [@ruihfazevedo](https://x.com/ruihfazevedo)
