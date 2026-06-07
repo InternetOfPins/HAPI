@@ -31,8 +31,8 @@ namespace hapi {
   /// @brief apply a predicate over an object
   /// @tparam Q : predicate
   /// @tparam O : target object type
-  template<typename Q,typename O>
-  constexpr const bool query{Q::template Check<O>::value};
+  // template<typename Q,typename O>
+  // constexpr const bool query{Q::template Check<O>::value};
 
   // ====================== CHAIN ======================--
 
@@ -283,5 +283,17 @@ namespace hapi {
     O* operator->() {return static_cast<O*>(this);}
     const O* operator->() const {return static_cast<const O*>(this);}
   };
+
+  template<typename Q, typename O, typename = void>
+  constexpr bool query = Q::template Check<O>::value;
+
+  template<typename Q, typename O>
+  constexpr bool query<Q, O, std::void_t<typename O::Types>> = []() {
+    using FlatChain = typename O::Types;
+    return query<Q, FlatChain>;
+  }();
+
+  template<typename Q, typename... XX>
+  constexpr bool query<Q, Chain<XX...>> = (Q::template Check<XX>::value || ...);
 
 }; // namespace hapi

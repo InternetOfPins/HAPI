@@ -36,10 +36,6 @@ struct ItemDef:APIOf<ItemAPI<>,OO...>{
 template<typename Out,typename... OO>
 Out& operator<<(Out& out,const ItemDef<OO...>& o) {o.print(out);return out;}
 
-//rules ItemDef query specialization --
-template<typename Q,typename... OO>
-constexpr const bool query<Q,ItemDef<OO...>>{(query<Q,OO>||...)};
-
 struct A {
   template<typename O>
   struct Part:O {
@@ -87,7 +83,7 @@ void run() {
   cout<<"HasRules<B>:"<<HasRules<B>::value<<endl;
   cout<<"query<SameAs<A>,A>:"<<query<SameAs<A>,A><<endl;
   cout<<"query<SameAs<A>,Chain<A>>:"<<query<SameAs<A>,Chain<A>><<endl;
-  cout<<ok<<endl;
+  // cout<<ok<<endl;
   cout<<endl;
 }
 
