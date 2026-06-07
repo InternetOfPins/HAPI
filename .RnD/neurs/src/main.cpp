@@ -1,17 +1,45 @@
-/**
- * @file main.cpp
- * @author Rui Azevedo (ruihfazevedo@gamil.com)
- * @brief flat modular API, static and non-recursive API interface
- * @version 1
- * @date 2025-04-10
- * 
- */
-
 #include <hapi/hapi.h>
-namespace {using namespace hapi;}
+using hapi::Chain;
+using hapi::APIOf;
+using hapi::SameAs;
 
 #include <iostream>
 using namespace std;
+
+//small api -------------------------------
+struct API {
+  static void nl() {cout.put('\n');}
+  static void put(){nl();}
+};
+
+template<typename... OO> using Item=APIOf<API,OO...>;
+
+struct A {
+  template<typename O>
+  struct Part:O {
+    static constexpr void put(){cout<<"A";O::put();}
+  };
+};
+struct B {
+  template<typename O>
+  struct Part:O {
+    static void put(){cout<<"B";O::put();}
+  };
+};
+struct C {
+  template<typename O>
+  struct Part:O {
+    static void put(){cout<<"C";O::put();}
+  };
+};
+
+template<int i> 
+struct Id {
+  template<typename O>
+  struct Part:O {
+    static void put(){cout<<"C";O::put();}
+  };
+};
 
 //predicate expressions--
 template <typename P>
@@ -51,88 +79,25 @@ namespace xform {
   };
 }
 
-//------------------------------------------------------------------------
-
-template<typename X,typename O,typename Chk=std::false_type>
-struct Impl{
-  using Type=O;
-  template<typename P> struct Part:P {};
-};
-
-template<typename X,typename O>
-struct Impl<X,O,std::true_type> {
-  using Type=typename X::template XForm<O>;
-  template<typename P> struct Part:P {};
-};
-
-template<typename Q, typename X>
-struct XFormEngine {
-  private:
-
-  public:
-  template<typename O>
-  using On = Impl<X,O,typename Q::template Check<O>>;
-  
-  template<typename P> struct Part : P {};
-};
-
-// Clean wrapper that defers application to target object O
-template<typename Q, typename X> 
-struct Transform {
-  template<typename O> 
-  using On = typename XFormEngine<Q, X>::template On<O>;
-  template<typename O> struct Part:O {};
-};
-
-template<typename Q>
+//-------------------------------------------
+template<typename Q,typename O>
 struct Query {
-  template<typename O> 
-  using On = typename XFormEngine<Q,typename Q::template Check<O>>::On<O>;//::Type;
+  using Check = typename Q::template Check<O>;
 };
 
-namespace xform {
-  template <template <typename> class Component>
-  struct Inject {
-    template <typename O> using XForm = Component<O>;
-  };
-}
-
-//case -------------------------------
-struct API {
-  static void nl() {cout.put('\n');}
-  static void put(){nl();}
+template<typename Q,typename... OO>
+struct Query<Q,Chain<OO...>> {
+  using Check = Chain<typename Q::template Check<OO>...>;
 };
 
-template<typename... OO> using Item=APIOf<API,OO...>;
-
-struct A {
+template<typename Q,typename X> struct Trans {
   template<typename O>
-  struct Part:O {
-    static constexpr void put(){cout<<"A";O::put();}
-  };
+  using Check=std::conditional_t<
+    Q::template Check<O>::value,
+    typename X::template XForm<O>,
+    O
+  >;
 };
-struct B {
-  template<typename O>
-  struct Part:O {
-    static void put(){cout<<"B";O::put();}
-  };
-};
-struct C {
-  template<typename O>
-  struct Part:O {
-    static void put(){cout<<"C";O::put();}
-  };
-};
-
-template<int i> 
-struct Id {
-  template<typename O>
-  struct Part:O {
-    static void put(){cout<<"C";O::put();}
-  };
-};
-
-using Test=Chain<A,B>;
 
 #ifdef ARDUINO
   void setup() {
@@ -146,22 +111,26 @@ using Test=Chain<A,B>;
   }
 #else
   int main() {
-    cout<<boolalpha;
-
     //Query --
-    cout<<"A==A:"<<SameAs<A>::Check<A>::value<<endl;//yes
-    cout<<"A==B:"<<SameAs<A>::Check<B>::value<<endl;//no
-    cout<<"Id<1>==Id<1>:"<<SameAs<Id<1>>::Check<Id<1>>::value<<endl;//yes
-    cout<<"Id<1>==Id<2>:"<<SameAs<Id<1>>::Check<Id<2>>::value<<endl;//no
-    cout<<"Test==Test:"<<SameAs<Test>::Check<Test>::value<<endl;//no
-    cout<<"Test!=Test:"<<Not<SameAs<Test>>::Check<Test>::value<<endl;//no
-    cout<<"int==int:"<<SameAs<int>::Check<int>::value<<endl;//no
-    cout<<"A==Chain<A,B>:"<<SameAs<A>::Check<Chain<A,B>>::value<<endl;//no
+
+    cout<<"int==int:"<<SameAs<int>::Check<int>::value<<endl;
+
+    cout<<"A==A:"<<SameAs<A>::Check<A>::value<<endl;
+    cout<<"A==B:"<<SameAs<A>::Check<B>::value<<endl;
+    cout<<"Id<1>==Id<1>:"<<SameAs<Id<1>>::Check<Id<1>>::value<<endl;
+    cout<<"Id<1>==Id<2>:"<<SameAs<Id<1>>::Check<Id<2>>::value<<endl;
+
+    using Test=Chain<A,B>;
+    cout<<"Test==Test:"<<SameAs<Test>::Check<Test>::value<<endl;
+    cout<<"Test!=Test:"<<Not<SameAs<Test>>::Check<Test>::value<<endl;
 
     //Transform --
-    Item<Transform<SameAs<A>,xform::ReplaceWith<B>>::template On<A>>::put();//replaces
-    // Item<Transform<SameAs<A>,ReplaceWith<B>>::template On<C>>::put();//does not replace
-    // Transform<SameAs<A>,ReplaceWith<B>>::template On<Item<A,C>>::put();
+    cout<<boolalpha;
+    using X=Trans<Not<SameAs<A>>,xform::ReplaceWith<A>>;//we can store transformations
+    Item<X::template Check<B>>::put();//apply to elements
+    using R=Query<X,Chain<A,B,Chain<C,A>>>::Check;//use them on _Query, so they can traverse structs
+    Item<R>::put();
+
     cout<<endl;
     return 0;
   }
