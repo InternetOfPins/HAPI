@@ -1,5 +1,7 @@
 # HAPI — Happy API
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 **A zero-overhead static composition engine for C++.**
 
 Enables modular, type-safe, and high-performance system design through advanced compile-time composition.
@@ -71,7 +73,7 @@ HAPI runs anywhere C++17 runs.
 ## Related Projects
 
 | Project | Description |
-| --- | --- |
+|---|---|
 | [ArduinoMenu v5 (AM5)](https://github.com/neu-rah/AM5) | Full TUI menu framework built on HAPI |
 | [ArduinoMenu v4](https://github.com/neu-rah/ArduinoMenu) | Previous generation — 1k★, 197 forks, GitHub Arctic Code Vault |
 | [OneList](https://github.com/InternetOfPins/OneList) | Heterogeneous runtime list with compile-time type mirror |
