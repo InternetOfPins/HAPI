@@ -151,3 +151,74 @@ constexpr ItemDef<A, B> ok{};
 ```
 
 The `print` call chain follows the type list order: `A::Part::print` → `B::Part::print` → `ItemAPI::print`, producing `/A/B/`.
+
+---
+
+### Predicates and Transformations
+
+HAPI utilizes a two-tier meta-programming system to manage component discovery and structural manipulation:
+
+* **Predicates (Types):** Define capabilities or search criteria. By convention, these are structured as type-traits that return a boolean `value`.
+* **Transformations (Values/Templates):** Define how the type-list is processed or manipulated. These are typically recursive templates used to walk the chain.
+
+#### Predicate Anatomy
+
+Predicates allow the `query<>` system to introspect the stack. The core pattern involves a "Matcher" that compares a target against the layer's identity.
+
+```cpp
+template<typename Q> 
+struct SameAs {
+  // Check if layer O matches the target Q
+  template<typename O> struct Check {
+    static constexpr const bool value{std::is_same_v<O,Q>};
+  };
+};
+
+```
+
+#### Transformation Anatomy
+
+Transformations are the engine of HAPI's chain manipulation. They provide a recursive interface to walk the stack, applying logic at every step—such as mapping types, filtering layers, or extracting hardware metadata.
+
+```cpp
+// Recursive walker: Map a function F over a type
+template<typename F, typename O>
+struct Map {
+  using Expr = typename F::template Apply<O>::Expr;
+};
+
+// Recursive walker specialization: Map a function F over a Chain
+template<typename F, typename... OO>
+struct Map<F, Chain<OO...>> {
+  using Expr = Chain<typename Map<F, OO>::Expr...>;
+};
+
+```
+
+### Why this architecture?
+
+This separation ensures that **Logic (Part)** remains distinct from **Meta-Logic (Predicates/Transformations)**. Predicates allow the compiler to "see" your composition constraints, while Transformations allow the compiler to "rewrite" the chain for optimization or code generation. By using this anatomy, you keep the component surface area small while enabling complex, multi-layer validation and transformation.
+
+### Hardware Components
+
+Hardware-bound layers provide direct physical access to system resources. They act as dependency providers at the base of the chain, enabling platform-agnostic composition: you can move the same chain to a different platform by simply swapping the hardware component for the relevant device.
+
+```cpp
+template<uintptr_t addr>
+struct HardwarePart {
+  using IsPeripheral = std::true_type;
+
+  template<typename O>
+  struct Part : O {
+    using Base = O;
+    using Base::Base;
+
+    void write(uint8_t val) {
+      *reinterpret_cast<volatile uint8_t*>(addr) = val;
+    }
+  };
+};
+
+```
+
+This structure ensures that the address `Addr` is inlined by the compiler, maintaining the zero-overhead promise of the library while providing a standard interface for peripheral access.
