@@ -64,9 +64,9 @@ HAPI runs anywhere C++17 runs.
 
 ## Documentation
 
-* **[Industry Applications](https://www.google.com/search?q=docs/INDUSTRY.md)** — Where the pattern applies and why it matters.
-* **[Component Architecture](https://www.google.com/search?q=docs/COMPONENTS.md)** — Component anatomy, layer structure, worked examples.
-* **[API Reference](https://www.google.com/search?q=docs/REFERENCE.md)** — Core types and advanced usage.
+- **[Industry Applications](docs/INDUSTRY.md)** — Where the pattern applies and why it matters.
+- **[Component Architecture](docs/COMPONENTS.md)** — Component anatomy, layer structure, worked examples.
+- **[API Reference](docs/REFERENCE.md)** — Core types and advanced usage.
 
 ---
 
