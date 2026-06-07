@@ -180,7 +180,7 @@ void run() {
   cout<<"Left Domain (Remaining infrastructure): ";
   Item<LeftDomain>::put();  // ACA
 
-  using X=typename Not<SameAs<B>>::template Apply<Item<A>>::X;
+  // using X=typename Not<SameAs<B>>::template Apply<Item<A>>::X;
 }
 
 #ifdef ARDUINO

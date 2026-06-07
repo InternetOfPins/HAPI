@@ -2,8 +2,7 @@
  * @file hapi.h
  * @author Rui Azevedo (neu-rah) (ruihfazevedo@gmail.com)
  * @brief A powerful modular, zero-overhead, static composition engine for embedded systems and modern C++.
- * 
-*/
+ * */
 
 #pragma once
 
@@ -37,10 +36,9 @@ namespace hapi {
 
   // ====================== CHAIN ======================--
 
-  template<typename...> struct Chain;
-
-  // empty chain
-  template<> struct Chain<> {
+  // Base primary template: empty chain definition
+  template<typename... OO> 
+  struct Chain {
     static constexpr const SizeT size{0};
     template<typename... XX> using App=Chain<XX...>;
     template<typename... XX> using Ins=Chain<XX...>;
@@ -286,4 +284,4 @@ namespace hapi {
     const O* operator->() const {return static_cast<const O*>(this);}
   };
 
-};//namespace hapi
+}; // namespace hapi
