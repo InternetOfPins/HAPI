@@ -71,36 +71,36 @@ struct Or {
 // type transformations --
 namespace xform {
   struct Identity {
-    template<typename T> using Apply = T;
+    template<typename T> struct Apply { using Expr = T; };
   };
 
   template<typename R> struct ReplaceWith {
-    template<typename> using Apply = R;
+    template<typename> struct Apply { using Expr = R; };
   };
 }
 
 //-------------------------------------------
 // 1. Primary template handles flat types
-template<typename Q, typename O>
+template<typename F, typename O>
 struct Map {
-  using Check = typename Q::template Check<O>::type;
+  using Expr = typename F::template Apply<O>::Expr;
 };
 
 // 2. Single specialization handles both flat elements and nested Chains
-template<typename Q, typename... OO>
-struct Map<Q, Chain<OO...>> {
-  using Check = Chain<typename Map<Q, OO>::Check...>;
+template<typename F, typename... OO>
+struct Map<F, Chain<OO...>> {
+  using Expr = Chain<typename Map<F, OO>::Expr...>;
 };
 
 template<typename Q, typename X> 
 struct When {
   template<typename O>
-  struct Check {
+  struct Apply {
     static constexpr bool value = Q::template Check<O>::value;
     
-    using type = std::conditional_t<
+    using Expr = std::conditional_t<
       value,
-      typename X::template Apply<O>,
+      typename X::template Apply<O>::Expr,
       O
     >;
     template<typename P> struct Part:P {};
@@ -134,13 +134,14 @@ struct When {
 
     //Transform --
     cout<<boolalpha;
-    using X=When<Not<SameAs<A>>,xform::ReplaceWith<A>>;//we can store transformations
-    Item<X::template Check<B>>::put();//apply to elements
-    using R=Map<X,Chain<A,B,Chain<C,A>>>::Check;//use them on _Query, so they can traverse structs
+    using X=When<Not<SameAs<A>>,xform::ReplaceWith<A>>; // stored pipeline rule
+    
+    Item<X::template Apply<B>::Expr>::put(); // apply direct
+    
+    using R=Map<X,Chain<A,B,Chain<C,A>>>::Expr; // recursive mapping
     Item<R>::put();
 
     cout<<endl;
     return 0;
   }
 #endif
- 
