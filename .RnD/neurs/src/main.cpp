@@ -71,32 +71,40 @@ struct Or {
 // type transformations --
 namespace xform {
   struct Identity {
-    template<typename T> using XForm = T;
+    template<typename T> using Apply = T;
   };
 
   template<typename R> struct ReplaceWith {
-    template<typename> using XForm = R;
+    template<typename> using Apply = R;
   };
 }
 
 //-------------------------------------------
-template<typename Q,typename O>
-struct Query {
-  using Check = typename Q::template Check<O>;
+// 1. Primary template handles flat types
+template<typename Q, typename O>
+struct Map {
+  using Check = typename Q::template Check<O>::type;
 };
 
-template<typename Q,typename... OO>
-struct Query<Q,Chain<OO...>> {
-  using Check = Chain<typename Q::template Check<OO>...>;
+// 2. Single specialization handles both flat elements and nested Chains
+template<typename Q, typename... OO>
+struct Map<Q, Chain<OO...>> {
+  using Check = Chain<typename Map<Q, OO>::Check...>;
 };
 
-template<typename Q,typename X> struct Trans {
+template<typename Q, typename X> 
+struct When {
   template<typename O>
-  using Check=std::conditional_t<
-    Q::template Check<O>::value,
-    typename X::template XForm<O>,
-    O
-  >;
+  struct Check {
+    static constexpr bool value = Q::template Check<O>::value;
+    
+    using type = std::conditional_t<
+      value,
+      typename X::template Apply<O>,
+      O
+    >;
+    template<typename P> struct Part:P {};
+  };
 };
 
 #ifdef ARDUINO
@@ -111,7 +119,7 @@ template<typename Q,typename X> struct Trans {
   }
 #else
   int main() {
-    //Query --
+    //Map --
 
     cout<<"int==int:"<<SameAs<int>::Check<int>::value<<endl;
 
@@ -126,9 +134,9 @@ template<typename Q,typename X> struct Trans {
 
     //Transform --
     cout<<boolalpha;
-    using X=Trans<Not<SameAs<A>>,xform::ReplaceWith<A>>;//we can store transformations
+    using X=When<Not<SameAs<A>>,xform::ReplaceWith<A>>;//we can store transformations
     Item<X::template Check<B>>::put();//apply to elements
-    using R=Query<X,Chain<A,B,Chain<C,A>>>::Check;//use them on _Query, so they can traverse structs
+    using R=Map<X,Chain<A,B,Chain<C,A>>>::Check;//use them on _Query, so they can traverse structs
     Item<R>::put();
 
     cout<<endl;
