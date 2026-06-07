@@ -1,15 +1,22 @@
 #include <hapi/hapi.h>
-#include <type_traits>
 using hapi::Chain;
 using hapi::APIOf;
 using hapi::SameAs;
 
-#include <iostream>
-using namespace std;
+#ifdef __AVR__
+  #include <streamFlow.h>
+  #include "hapi/platform/avr/avr_std.h"
+  using namespace StreamFlow;
+  #define cout Serial
+#else
+  // #include <type_traits>
+  #include <iostream>
+  using namespace std;
+#endif
 
-//small api -------------------------------
+// Small test API -----------------------------------------
 struct API {
-  static void nl() {cout.put('\n');}
+  static void nl() {cout.write('\n');}
   static void put(){nl();}
 };
 
@@ -34,15 +41,7 @@ struct C {
   };
 };
 
-template<int i> 
-struct Id {
-  template<typename O>
-  struct Part:O {
-    static void put(){cout<<"C";O::put();}
-  };
-};
-
-//predicate expressions--
+// Variadic Logical Predicates ----------------------------
 template <typename P>
 struct Not {
   template <typename O>
@@ -51,7 +50,6 @@ struct Not {
   };
 };
 
-// Variadic AND: folds all predicates with &&
 template <typename... Ps>
 struct And {
   template <typename O>
@@ -60,7 +58,6 @@ struct And {
   };
 };
 
-// Variadic OR: folds all predicates with ||
 template <typename... Ps>
 struct Or {
   template <typename O>
@@ -69,7 +66,7 @@ struct Or {
   };
 };
 
-// The Either Monad Channels -----------------------------
+// Monadic Channels (Concrete Control Metaprogramming) ----
 template<typename T>
 struct Left {
   using Type = T;
@@ -86,7 +83,22 @@ struct Right {
   };
 };
 
-// Core Architectural Transformations --------------------
+// Universal Inspection Tool ------------------------------
+template<template<typename...> class Wrapper>
+struct IsInstanceOf {
+  template<typename O> struct Check { 
+    static constexpr bool value{false}; 
+  };
+  template<typename... Args> struct Check<Wrapper<Args...>> { 
+    static constexpr bool value{true}; 
+  };
+};
+
+// Global Convenience Aliases for the Toolset
+struct IsLeft  : IsInstanceOf<Left> {};
+struct IsRight : IsInstanceOf<Right> {};
+
+// Categorization Transformation ---------------------------
 template<typename Q>
 struct Partition {
   template<typename O>
@@ -96,9 +108,7 @@ struct Partition {
   };
 };
 
-// Structural Metaprogramming Core -----------------------
-
-// 1. Pure 1:1 Map Topology Walker
+// Pure 1:1 Map Topology Walker ---------------------------
 template<typename F, typename O>
 struct Map {
   using Expr = typename F::template Apply<O>::Expr;
@@ -109,52 +119,66 @@ struct Map<F, Chain<OO...>> {
   using Expr = Chain<typename Map<F, OO>::Expr...>;
 };
 
-// 2. Right-Channel Extraction Pass
-template<typename C> struct FilterRight;
+// Conditional Extraction and Cleanup Engine --------------
+template<typename P, typename C, typename Enable = void> 
+struct FilterIf;
 
-template<> struct FilterRight<Chain<>> { 
+template<typename P> 
+struct FilterIf<P, Chain<>> { 
   using Expr = Chain<>; 
 };
 
-template<typename T, typename... OO>
-struct FilterRight<Chain<Right<T>, OO...>> {
-  using Expr = typename FilterRight<Chain<OO...>>::Expr::template App<T>;
+// 1. Case for Monadic Wrappers (Excludes Chains using SFINAE to prevent ambiguity)
+template<typename P, template<typename...> class Wrapper, typename T, typename... Args, typename... OO>
+struct FilterIf<P, Chain<Wrapper<T, Args...>, OO...>, 
+                std::enable_if_t<!std::is_same_v<Wrapper<T, Args...>, Chain<T, Args...>>>> {
+  static constexpr bool match = P::template Check<Wrapper<T, Args...>>::value;
+  
+  using Expr = std::conditional_t<
+    match,
+    typename FilterIf<P, Chain<OO...>>::Expr::template App<T>,
+    typename FilterIf<P, Chain<OO...>>::Expr
+  >;
 };
 
-template<typename T, typename... OO>
-struct FilterRight<Chain<Left<T>, OO...>> {
-  using Expr = typename FilterRight<Chain<OO...>>::Expr;
+// 2. Case for Recursive Sub-Chains within the hardware tree
+template<typename P, typename... OO, typename... Rest>
+struct FilterIf<P, Chain<Chain<OO...>, Rest...>> {
+  using HeadFilter = typename FilterIf<P, Chain<OO...>>::Expr;
+  using Expr = typename FilterIf<P, Chain<Rest...>>::Expr::template App<HeadFilter>;
 };
 
-template<typename... OO, typename... Rest>
-struct FilterRight<Chain<Chain<OO...>, Rest...>> {
-  using HeadFilter = typename FilterRight<Chain<OO...>>::Expr;
-  using Expr = typename FilterRight<Chain<Rest...>>::Expr::template App<HeadFilter>;
-};
+void run() {
+  // 1. Direct Inspection Tests using IsInstanceOf
+  using SampleL = Left<A>;
+  using SampleR = Right<B>;
 
-// 3. Left-Channel Extraction Pass
-template<typename C> struct FilterLeft;
+  cout<<"Is SampleL Left?  "<<IsLeft::Check<SampleL>::value<<endl;
+  cout<<"Is SampleR Right? "<<IsRight::Check<SampleR>::value<<endl;
+  cout<<"Is SampleL Right? "<<IsRight::Check<SampleL>::value<<endl;
 
-template<> struct FilterLeft<Chain<>> { 
-  using Expr = Chain<>; 
-};
+  // Complex logical composition: "Is Left AND NOT of underlying type B"
+  using ComplexPredicate = And<IsLeft, Not<SameAs<B>>>;
+  cout<<"Does SampleL pass the complex predicate? "<<ComplexPredicate::Check<SampleL>::value<<endl;
 
-template<typename T, typename... OO>
-struct FilterLeft<Chain<Left<T>, OO...>> {
-  using Expr = typename FilterLeft<Chain<OO...>>::Expr::template App<T>;
-};
+  // 2. Hardware Pipeline Execution
+  using HardwareTopology = Chain<A, B, Chain<C, B, A>>;
+  using Rule = Partition<SameAs<B>>; // Isolate pin/component B
 
-template<typename T, typename... OO>
-struct FilterLeft<Chain<Right<T>, OO...>> {
-  using Expr = typename FilterLeft<Chain<OO...>>::Expr;
-};
+  // 1:1 categorical mapping
+  using DividedTopology = Map<Rule, HardwareTopology>::Expr;
 
-template<typename... OO, typename... Rest>
-struct FilterLeft<Chain<Chain<OO...>, Rest...>> {
-  using HeadFilter = typename FilterLeft<Chain<OO...>>::Expr;
-  using Expr = typename FilterLeft<Chain<Rest...>>::Expr::template App<HeadFilter>;
-};
+  // Apply filters using clean global predicates
+  using RightDomain = FilterIf<IsRight, DividedTopology>::Expr; // Extract matched nodes
+  using LeftDomain  = FilterIf<IsLeft,  DividedTopology>::Expr; // Extract rejected nodes
 
+  cout<<"\nRight Domain (Only B components): ";
+  Item<RightDomain>::put(); // BB
+  cout<<endl;
+
+  cout<<"Left Domain (Remaining infrastructure): ";
+  Item<LeftDomain>::put();  // ACA
+}
 
 #ifdef ARDUINO
   void setup() {
@@ -162,44 +186,15 @@ struct FilterLeft<Chain<Chain<OO...>, Rest...>> {
     while(!Serial);
   }
   void loop() {
-    testItem.put();
+    run();
     cout<<endl;
     delay(1000);
   }
 #else
   int main() {
     cout<<boolalpha;
-
-    // Direct Evaluation Checks (Outside a container)
-    using SampleA = Partition<SameAs<B>>::Apply<A>::Expr; // Evaluates to Left<A>
-    using SampleB = Partition<SameAs<B>>::Apply<B>::Expr; // Evaluates to Right<B>
-
-    cout<<"Is SampleA Left?  "<<Left<A>::Check<SampleA>::value<<endl;
-    cout<<"Is SampleB Right? "<<Right<B>::Check<SampleB>::value<<endl;
-
-    // Split rule: Categorize node B vs everything else
-    using Rule = Partition<SameAs<B>>;
-    using HardwareTopology = Chain<A, B, Chain<C, B, A>>;
-
-    // 1. Map walks 1:1 and partitions types into separate channels
-    // Yields: Chain<Left<A>, Right<B>, Chain<Left<C>, Right<B>, Left<A>>>
-    using DividedTopology = Map<Rule, HardwareTopology>::Expr;
-
-    // 2. Extract Right Channel (Only nodes matching predicate)
-    using RightDomain = FilterRight<DividedTopology>::Expr; // Chain<B, Chain<B>>
-    
-    // 3. Extract Left Channel (Nodes failing predicate)
-    using LeftDomain  = FilterLeft<DividedTopology>::Expr;  // Chain<A, Chain<C, A>>
-
-    cout<<"Right Domain output: ";
-    Item<RightDomain>::put(); // BB
+    run();
     cout<<endl;
-
-    cout<<"Left Domain output:  ";
-    Item<LeftDomain>::put();  // ACA
-    cout<<endl;
-
     return 0;
   }
 #endif
-
