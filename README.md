@@ -18,7 +18,6 @@ OutDef<
   ColorTrack<int>, Cursor, Gate, ANSIOut,
   ConsoleOut, StaticPos<20,10>, StaticArea<30,8>
 > out;
-
 ```
 
 No virtual dispatch. No heap allocation. Wrong layer order → **named compile error**.
@@ -49,6 +48,8 @@ The central mechanism of HAPI. An ordered list of feature types is folded into a
 
 The compiler sees the full resolved hierarchy and flattens it. The result is indistinguishable in performance from a hand-written monolith — because structurally, it is one.
 
+Chains are also first-class objects — mappable, filterable, and queryable at compile time. Any composed type that exposes its component list is automatically introspectable without manual registration.
+
 ---
 
 ## Core Pillars
@@ -56,6 +57,7 @@ The compiler sees the full resolved hierarchy and flattens it. The result is ind
 * **Static Composition** — assembled at compile time into flat, cache-friendly structures with full inlining.
 * **Type-Level Validation** — structural and semantic rules verified at compilation.
 * **Zero Runtime Cost** — no vtables, no dynamic allocation, predictable memory layout.
+* **Chain Transformation** — type lists are first-class. Inspect, categorise, filter, and restructure compositions at compile time with zero runtime cost.
 * **Functional Influence** — composition, immutability of structure, making invalid states irrepresentable.
 
 HAPI runs anywhere C++17 runs.
@@ -81,6 +83,5 @@ HAPI runs anywhere C++17 runs.
 
 ---
 
-## **Made with obsession in the Azores** 🇵🇹
-
+*Made with obsession in the Azores* 🇵🇹  
 By [Rui Azevedo](https://github.com/neu-rah) · [@ruihfazevedo](https://x.com/ruihfazevedo)

@@ -18,17 +18,17 @@ struct A {                              // (1) plain struct, no base class requi
 
     using IsA = std::true_type;         // (6) optional tag — lets other layers detect A via query
 
-    //not a component requirement but just an example of override, and chain call
+    // not a component requirement but just an example of override and chain call
     template<typename Out>
     void print(Out& out) {              // (7) override a method
       out << "/A";                      //     add behavior
       Base::print(out);                 // (8) forward to the layer below — always, unless suppressing
     }
-  };//Part end
+  }; // Part end
 
   template<typename Before, typename After>
   static constexpr bool rules() {      // (9) optional — validate ordering at composition time
-    static_assert(query<SameAs<X>, Before>, "X must come before A");
+    static_assert(query<SameAs<RequiredLayer>, Before>, "RequiredLayer must come before A");
     return true;                        // (10) required return value
   }
 };
@@ -142,8 +142,8 @@ struct B {
 
 // ── Usage ─────────────────────────────────────────────────
 constexpr ItemDef<A, B> ok{};
-// constexpr ItemDef<B>    fail_requireA{};     // error: "B requires A before it"
-// constexpr ItemDef<B, A> fail_order{};        // error: "A must be placed before B"
+// constexpr ItemDef<B>     fail_requireA{};    // error: "B requires A before it"
+// constexpr ItemDef<B, A>  fail_order{};       // error: "A must be placed before B"
 // constexpr ItemDef<A,B,B> fail_uniqueness{};  // error: "B must not appear twice"
 
 // ok.print(cout)  →  /A/B/
@@ -156,55 +156,62 @@ The `print` call chain follows the type list order: `A::Part::print` → `B::Par
 
 ### Predicates and Transformations
 
-HAPI utilizes a two-tier meta-programming system to manage component discovery and structural manipulation:
+HAPI uses a two-tier metaprogramming system to manage component discovery and structural manipulation:
 
-* **Predicates (Types):** Define capabilities or search criteria. By convention, these are structured as type-traits that return a boolean `value`.
-* **Transformations (Values/Templates):** Define how the type-list is processed or manipulated. These are typically recursive templates used to walk the chain.
+- **Predicates** — define capabilities or search criteria. Structured as type-traits returning a boolean `value`, used with `query<>` to introspect the stack.
+- **Transformations** — define how the type list is processed or manipulated. Recursive templates that walk the chain to map, filter, or extract type-level information.
 
 #### Predicate Anatomy
 
-Predicates allow the `query<>` system to introspect the stack. The core pattern involves a "Matcher" that compares a target against the layer's identity.
-
 ```cpp
-template<typename Q> 
+template<typename Q>
 struct SameAs {
-  // Check if layer O matches the target Q
   template<typename O> struct Check {
-    static constexpr const bool value{std::is_same_v<O,Q>};
+    static constexpr const bool value{std::is_same_v<O, Q>};
   };
 };
+```
 
+HAPI provides built-in logical combinators for composing predicates:
+
+```cpp
+query<Not<SameAs<A>>, Chain<...>>           // negation
+query<And<SameAs<A>, SameAs<B>>, Chain<...>>// conjunction
+query<Or<SameAs<A>, SameAs<B>>, Chain<...>> // disjunction
 ```
 
 #### Transformation Anatomy
 
-Transformations are the engine of HAPI's chain manipulation. They provide a recursive interface to walk the stack, applying logic at every step—such as mapping types, filtering layers, or extracting hardware metadata.
+Transformations provide a recursive interface to walk and rewrite the stack:
 
 ```cpp
-// Recursive walker: Map a function F over a type
+// Map a transformation F over a single type
 template<typename F, typename O>
 struct Map {
   using Expr = typename F::template Apply<O>::Expr;
 };
 
-// Recursive walker specialization: Map a function F over a Chain
+// Map a transformation F over every type in a Chain
 template<typename F, typename... OO>
 struct Map<F, Chain<OO...>> {
   using Expr = Chain<typename Map<F, OO>::Expr...>;
 };
-
 ```
 
-### Why this architecture?
+`Partition<Q>` categorises each type as `Right<T>` (matches) or `Left<T>` (doesn't). `FilterIf<P, Chain<...>>` extracts matching types, unwrapping their inner type in the process.
 
-This separation ensures that **Logic (Part)** remains distinct from **Meta-Logic (Predicates/Transformations)**. Predicates allow the compiler to "see" your composition constraints, while Transformations allow the compiler to "rewrite" the chain for optimization or code generation. By using this anatomy, you keep the component surface area small while enabling complex, multi-layer validation and transformation.
+#### Why this separation?
+
+**Logic (`Part`)** remains distinct from **Meta-Logic (Predicates/Transformations)**. Predicates allow the compiler to *see* your composition constraints. Transformations allow the compiler to *rewrite* the chain for optimisation or code generation. The component surface stays small while enabling complex multi-layer validation and structural manipulation.
+
+---
 
 ### Hardware Components
 
-Hardware-bound layers provide direct physical access to system resources. They act as dependency providers at the base of the chain, enabling platform-agnostic composition: you can move the same chain to a different platform by simply swapping the hardware component for the relevant device.
+Hardware-bound layers provide direct physical access to system resources at the base of the chain, enabling platform-agnostic composition — swap the hardware layer to retarget the entire stack.
 
 ```cpp
-template<uintptr_t addr>
+template<uintptr_t Addr>
 struct HardwarePart {
   using IsPeripheral = std::true_type;
 
@@ -214,11 +221,19 @@ struct HardwarePart {
     using Base::Base;
 
     void write(uint8_t val) {
-      *reinterpret_cast<volatile uint8_t*>(addr) = val;
+      // reinterpret_cast is intentional: Addr is a compile-time MMIO address.
+      // The compiler inlines it as an absolute register write with no runtime indirection.
+      *reinterpret_cast<volatile uint8_t*>(Addr) = val;
     }
   };
 };
-
 ```
 
-This structure ensures that the address `Addr` is inlined by the compiler, maintaining the zero-overhead promise of the library while providing a standard interface for peripheral access.
+The address `Addr` is a compile-time template parameter — the compiler embeds it as an immediate in the instruction stream, maintaining the zero-overhead guarantee while providing a standard layer interface for peripheral access.
+
+> **On component isolation:** keeping data members `private` in `Part` limits their visibility to the layer that owns them. However, because layers compose through inheritance, `protected` and `public` members remain accessible to layers above. Full blast-radius isolation between layers is not achievable through this pattern alone — isolation is a design discipline, not a structural guarantee.
+
+---
+
+*Part of the [InternetOfPins](https://github.com/InternetOfPins) project family.*  
+*Author: Rui Azevedo (neu-rah) · Azores, Portugal*

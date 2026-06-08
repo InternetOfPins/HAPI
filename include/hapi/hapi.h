@@ -28,17 +28,12 @@ namespace hapi {
   /// @brief sentinel empty type
   struct Nil {};
 
-  /// @brief apply a predicate over an object
-  /// @tparam Q : predicate
-  /// @tparam O : target object type
-  // template<typename Q,typename O>
-  // constexpr const bool query{Q::template Check<O>::value};
-
   // ====================== CHAIN ======================--
 
   // Base primary template: empty chain definition
   template<typename... OO> 
   struct Chain {
+    using Types=Chain<OO...>;
     static constexpr const SizeT size{0};
     template<typename... XX> using App=Chain<XX...>;
     template<typename... XX> using Ins=Chain<XX...>;
@@ -256,13 +251,6 @@ namespace hapi {
     static_assert(BuildRules<Chain<>,Chain<OO...>>::rules(), "HAPI: validation failed");
   };
 
-  //empty case, just the fall-back
-  template<typename API>
-  struct APIOf<API> : API { 
-    using Base = API; 
-    using Base::Base;
-  };
-
   // Map specialization to traverse directly through an APIOf boundary
   template<typename F, typename API, typename... OO>
   struct Map<F, APIOf<API, OO...>> {
@@ -284,13 +272,16 @@ namespace hapi {
     const O* operator->() const {return static_cast<const O*>(this);}
   };
 
+  /// @brief 
+  /// @tparam Q 
+  /// @tparam O 
+  /// @tparam  
   template<typename Q, typename O, typename = void>
   constexpr bool query = Q::template Check<O>::value;
 
   template<typename Q, typename O>
   constexpr bool query<Q, O, std::void_t<typename O::Types>> = []() {
-    using FlatChain = typename O::Types;
-    return query<Q, FlatChain>;
+    return query<Q, typename O::Types>;
   }();
 
   template<typename Q, typename... XX>
