@@ -140,4 +140,24 @@ namespace hapi {
   template<typename Q, typename... XX>
   constexpr bool query<Q, Chain<XX...>> = (Q::template Check<XX>::value || ...);
 
+  // Forward declaration of the worker helper
+  template<typename Q, typename CurrentNode, bool MatchNext>
+  struct WithIdHelper;
+
+  template<typename Q, typename CurrentNode>
+  constexpr auto& withId(CurrentNode& node) noexcept 
+    {return WithIdHelper<Q, CurrentNode, hapi::query<Q, typename CurrentNode::Base>>::withId(node);}
+
+  template<typename Q, typename CurrentNode>
+  struct WithIdHelper<Q, CurrentNode, true> {
+    static constexpr auto& withId(CurrentNode& node) noexcept 
+      {return hapi::withId<Q>(static_cast<typename CurrentNode::Base&>(node));}
+  };
+
+  // BRANCH B: The next layer does NOT have it. This current layer is the target!
+  template<typename Q, typename CurrentNode>
+  struct WithIdHelper<Q, CurrentNode, false> {
+    static constexpr auto& withId(CurrentNode& node) noexcept {return node;}
+  };
+
 };
