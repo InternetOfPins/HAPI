@@ -275,8 +275,10 @@ Walks the chain threading `Before` forward at each step:
 BuildRules< Chain<>, Chain<A, B, C> >
   step 1: Current=A, Before=Chain<>,    After=Chain<B,C>
   step 2: Current=B, Before=Chain<A>,   After=Chain<C>
-  step 3: Current=C, Before=Chain<A,B>, After=Chain<>
+  step 3: Current=C, Before=Chain<B,A>, After=Chain<>
 ```
+
+`Before` is built via `App<Head>` which prepends — so elements accumulate in reverse insertion order (`Chain<B,A>` not `Chain<A,B>`). This has no effect on rule correctness: `query` ORs over the chain and is order-agnostic.
 
 Triggered automatically by `APIOf` — never instantiate directly.
 
@@ -323,28 +325,50 @@ Optional. Provides self-reference from any layer back to the fully-composed obje
 Universal compile-time predicate query. Three resolution paths:
 
 ```cpp
-// 1. Direct: test O against predicate Q
-template<typename Q, typename O>
+// 1. Direct: test O against predicate Q (primary template, third param enables SFINAE below)
+template<typename Q, typename O, typename = void>
 constexpr bool query = Q::template Check<O>::value;
 
-// 2. Chain fold: OR across all types in the chain
+// 2. Auto-traversal: if O exposes ::Types, check O itself then search its chain
+template<typename Q, typename O>  // selected when O::Types exists
+constexpr bool query<Q, O, std::void_t<typename O::Types>> = []() {
+  return Q::template Check<O>::value || query<Q, typename O::Types>;
+}();
+
+// 3. Chain fold: OR across all types in the chain
 template<typename Q, typename... XX>
 constexpr bool query<Q, Chain<XX...>> = (Q::template Check<XX>::value || ...);
-
-// 3. Auto-traversal: if O exposes ::Types, query the chain it describes
-template<typename Q, typename O>  // requires O::Types
-constexpr bool query<Q, O> = query<Q, typename O::Types>;
 ```
 
-Any composed type that exposes `Types` (which `Chain::Part` does) is automatically queryable without a manual specialisation.
+Any composed type that exposes `Types` (which `Chain::Part` does) is automatically queryable without a manual specialisation. The auto-traversal specialisation (2) checks `O` itself first, then recurses into its layer list.
 
 **Usage:**
 
 ```cpp
 query<SameAs<A>, Chain<A, B, C>>     // true
-query<SameAs<A>, MyDevice>           // true if MyDevice::Types contains A
+query<SameAs<A>, MyDevice>           // true if Q matches MyDevice directly, or if MyDevice::Types contains A
 query<Not<SameAs<B>>, Before>        // true if B is not in Before
 ```
+
+### `withId<Q>(node)`
+
+```cpp
+template<typename Q, typename CurrentNode>
+constexpr auto& withId(CurrentNode& node) noexcept;
+```
+
+Walks the inheritance chain of `node` and returns a reference to the innermost layer for which `query<Q, Base>` is false — i.e. the layer that owns the match. Useful for accessing a specific layer by tag from outside the composition.
+
+```cpp
+// tag a layer
+template<int id> struct Id { template<typename O> using Part = O; };
+
+// retrieve by tag
+auto& item = mainMenu.template withId<Id<42>>();
+item.enable(false);
+```
+
+`Q` is typically `SameAs<Id<N>>` or any predicate matching the target layer. The search stops at the outermost layer whose `Base` no longer contains a match.
 
 ---
 

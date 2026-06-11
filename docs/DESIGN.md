@@ -81,7 +81,7 @@ For hardware register targets, the referenced variable must be `volatile`:
 
 ```cpp
 volatile uint8_t PORTB_REG = 0;
-using PinOut = DataRef<volatile uint8_t, PORTB_REG>;
+using PinOut = DataRef<volatile uint8_t*, &PORTB_REG>;
 ```
 
 Without `volatile`, the compiler may cache the value in a register and skip the actual hardware write. A non-volatile reference to a hardware register is undefined behaviour on most architectures.

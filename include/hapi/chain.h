@@ -57,9 +57,9 @@ namespace hapi {
     static constexpr const SizeT size{1+sizeof...(OO)};
     // Assemble container W with same components
     template<template<typename...> class W> using Build=W<O,OO...>;
-    /// append
+    /// prepend
     template<typename... XX> using App=Chain<XX...,O,OO...>;
-    /// insert
+    /// append
     template<typename... XX> using Ins=Chain<O,OO...,XX...>;
     /// map a transformation over the chain
     template<template<typename> class M> using Map=Chain<M<O>,M<OO>...>;
