@@ -152,8 +152,17 @@ namespace hapi {
   struct FindHelper;
 
   /// @brief find the first layer in the assembled chain that satisfies predicate Q
+  // Constness note: find() propagates const correctly via the two overloads below.
+  // Blast area for full const support: FindHelper specialisations (done), CRTP::obj()
+  // (already has const overload), Chain::Part (const propagates by inheritance).
+  // Any future chain traversal returning a reference will need the same pair.
   template<typename Q, typename CurrentNode>
   constexpr auto& find(CurrentNode& node) noexcept {
+    // static_assert(query<Q, typename CurrentNode::Types>, "find<>: no component in chain satisfies predicate Q");
+    return FindHelper<Q, CurrentNode, query<Q, typename CurrentNode::Base>>::find(node);
+  }
+  template<typename Q, typename CurrentNode>
+  constexpr const auto& find(const CurrentNode& node) noexcept {
     // static_assert(query<Q, typename CurrentNode::Types>, "find<>: no component in chain satisfies predicate Q");
     return FindHelper<Q, CurrentNode, query<Q, typename CurrentNode::Base>>::find(node);
   }
@@ -162,12 +171,15 @@ namespace hapi {
   struct FindHelper<Q, CurrentNode, true> {
     static constexpr auto& find(CurrentNode& node) noexcept
       {return hapi::find<Q>(static_cast<typename CurrentNode::Base&>(node));}
+    static constexpr const auto& find(const CurrentNode& node) noexcept
+      {return hapi::find<Q>(static_cast<const typename CurrentNode::Base&>(node));}
   };
 
   // predicate not found in Base — current layer is the best match
   template<typename Q, typename CurrentNode>
   struct FindHelper<Q, CurrentNode, false> {
     static constexpr auto& find(CurrentNode& node) noexcept {return node;}
+    static constexpr const auto& find(const CurrentNode& node) noexcept {return node;}
   };
 
 };

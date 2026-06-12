@@ -11,15 +11,19 @@
 namespace hapi {
   /// @brief true if predicate X matches at least one element in any of Chains.
   /// Pass After only for directional checks; pass Before,After for full-chain checks.
-  /// With no chains (Chains empty), returns false — caller decides scope.
   template<typename X, typename... Chains>
-  inline constexpr bool Requires = (query<X, Chains> || ...);
+  inline constexpr bool Requires = []() {
+    static_assert(sizeof...(Chains) > 0, "Requires<X>: no chain specified — pass After, or Before+After for full-chain check");
+    return (query<X, Chains> || ...);
+  }();
 
   /// @brief true if predicate X matches no element in any of Chains.
   /// Pass After only for directional checks; pass Before,After for full-chain checks.
-  /// With no chains (Chains empty), returns true — caller decides scope.
   template<typename X, typename... Chains>
-  inline constexpr bool Excludes = (!query<X, Chains> && ...);
+  inline constexpr bool Excludes = []() {
+    static_assert(sizeof...(Chains) > 0, "Excludes<X>: no chain specified — pass After, or Before+After for full-chain check");
+    return (!query<X, Chains> && ...);
+  }();
   // ====================== RULES DETECTION ======================--
 
   template<typename T, typename = void>
