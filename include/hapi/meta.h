@@ -74,6 +74,13 @@ namespace hapi {
   struct IsLeft  : IsInstanceOf<Left> {};
   struct IsRight : IsInstanceOf<Right> {};
 
+  /// @brief predicate: true if O publicly inherits Tag (outer struct declares `struct MyComp : Tag`)
+  template<typename Tag>
+  struct TagIs {
+    template<typename O>
+    struct Check : std::is_base_of<Tag, O> {};
+  };
+
   // Categorization Transformation ---------------------------
   template<typename Q>
   struct Partition {

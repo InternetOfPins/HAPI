@@ -6,8 +6,20 @@
 
 #pragma once
 #include "hapi/chain.h"
+#include "hapi/meta.h"
 
 namespace hapi {
+  /// @brief true if predicate X matches at least one element in any of Chains.
+  /// Pass After only for directional checks; pass Before,After for full-chain checks.
+  /// With no chains (Chains empty), returns false — caller decides scope.
+  template<typename X, typename... Chains>
+  inline constexpr bool Requires = (query<X, Chains> || ...);
+
+  /// @brief true if predicate X matches no element in any of Chains.
+  /// Pass After only for directional checks; pass Before,After for full-chain checks.
+  /// With no chains (Chains empty), returns true — caller decides scope.
+  template<typename X, typename... Chains>
+  inline constexpr bool Excludes = (!query<X, Chains> && ...);
   // ====================== RULES DETECTION ======================--
 
   template<typename T, typename = void>
