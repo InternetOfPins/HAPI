@@ -152,10 +152,6 @@ namespace hapi {
   struct FindHelper;
 
   /// @brief find the first layer in the assembled chain that satisfies predicate Q
-  // Constness note: find() propagates const correctly via the two overloads below.
-  // Blast area for full const support: FindHelper specialisations (done), CRTP::obj()
-  // (already has const overload), Chain::Part (const propagates by inheritance).
-  // Any future chain traversal returning a reference will need the same pair.
   template<typename Q, typename CurrentNode>
   constexpr auto& find(CurrentNode& node) noexcept {
     // static_assert(query<Q, typename CurrentNode::Types>, "find<>: no component in chain satisfies predicate Q");
