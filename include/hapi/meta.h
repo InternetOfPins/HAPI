@@ -149,22 +149,25 @@ namespace hapi {
 
   // Forward declaration of the worker helper
   template<typename Q, typename CurrentNode, bool MatchNext>
-  struct WithIdHelper;
+  struct FindHelper;
+
+  /// @brief find the first layer in the assembled chain that satisfies predicate Q
+  template<typename Q, typename CurrentNode>
+  constexpr auto& find(CurrentNode& node) noexcept {
+    // static_assert(query<Q, typename CurrentNode::Types>, "find<>: no component in chain satisfies predicate Q");
+    return FindHelper<Q, CurrentNode, query<Q, typename CurrentNode::Base>>::find(node);
+  }
 
   template<typename Q, typename CurrentNode>
-  constexpr auto& withId(CurrentNode& node) noexcept 
-    {return WithIdHelper<Q, CurrentNode, hapi::query<Q, typename CurrentNode::Base>>::withId(node);}
-
-  template<typename Q, typename CurrentNode>
-  struct WithIdHelper<Q, CurrentNode, true> {
-    static constexpr auto& withId(CurrentNode& node) noexcept 
-      {return hapi::withId<Q>(static_cast<typename CurrentNode::Base&>(node));}
+  struct FindHelper<Q, CurrentNode, true> {
+    static constexpr auto& find(CurrentNode& node) noexcept
+      {return hapi::find<Q>(static_cast<typename CurrentNode::Base&>(node));}
   };
 
-  // BRANCH B: The next layer does NOT have it. This current layer is the target!
+  // predicate not found in Base — current layer is the best match
   template<typename Q, typename CurrentNode>
-  struct WithIdHelper<Q, CurrentNode, false> {
-    static constexpr auto& withId(CurrentNode& node) noexcept {return node;}
+  struct FindHelper<Q, CurrentNode, false> {
+    static constexpr auto& find(CurrentNode& node) noexcept {return node;}
   };
 
 };

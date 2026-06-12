@@ -350,11 +350,11 @@ query<SameAs<A>, MyDevice>           // true if Q matches MyDevice directly, or 
 query<Not<SameAs<B>>, Before>        // true if B is not in Before
 ```
 
-### `withId<Q>(node)`
+### `find<Q>(node)`
 
 ```cpp
 template<typename Q, typename CurrentNode>
-constexpr auto& withId(CurrentNode& node) noexcept;
+constexpr auto& find(CurrentNode& node) noexcept;
 ```
 
 Walks the inheritance chain of `node` and returns a reference to the innermost layer for which `query<Q, Base>` is false — i.e. the layer that owns the match. Useful for accessing a specific layer by tag from outside the composition.
@@ -364,7 +364,7 @@ Walks the inheritance chain of `node` and returns a reference to the innermost l
 template<int id> struct Id { template<typename O> using Part = O; };
 
 // retrieve by tag
-auto& item = mainMenu.template withId<Id<42>>();
+auto& item = mainMenu.template find<Id<42>>();
 item.enable(false);
 ```
 
