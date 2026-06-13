@@ -9,16 +9,15 @@ A HAPI component has two distinct parts: the **layer struct** (the feature defin
 ### The layer struct
 
 ```cpp
-struct ATag {};                         // (1a) optional outer tag — inherit from it to declare category membership
+struct A : Hapi<A> {                    // (1) outer struct — the layer identity, never instantiated directly
+                                        //     inheriting Hapi<A> makes A itself usable as a component
 
-struct A : ATag {                       // (1) plain struct; inheriting ATag makes query<TagIs<ATag>, Chain<...>> true
-
-  template<typename O>                  // (2) O is the layer below in the stack
-  struct Part : O {                     // (3) inherit from O — wraps the layer below
+  template<typename O>                  // (2) O is the composed type of everything below in the stack
+  struct Part : O {                     // (3) the actual mixin — single-inheritance from O
     using Base = O;                     // (4) alias for readability
     using Base::Base;                   // (5) forward constructors
 
-    // not a component requirement but just an example of override and chain call
+    // not a component requirement — just an example of override and chain call
     template<typename Out>
     void print(Out& out) {              // (6) override a method
       out << "/A";                      //     add behavior
@@ -28,7 +27,7 @@ struct A : ATag {                       // (1) plain struct; inheriting ATag mak
 
   template<typename Before, typename After>
   static constexpr bool rules() {      // (8) optional — validate ordering at composition time
-    static_assert(Requires<TagIs<ATag>, Before>, "A requires an ATag component before it");
+    static_assert(Requires<TagIs<aTag>, Before>, "A requires a tagged component before it");
     static_assert(Excludes<SameAs<A>,   Before>, "A must not appear twice");
     return true;                        // (9) required return value
   }
@@ -37,10 +36,9 @@ struct A : ATag {                       // (1) plain struct; inheriting ATag mak
 
 | # | Element | Required | Description |
 |---|---|---|---|
-| 1 | Outer struct | yes | The layer identity. Never instantiated directly. |
-| 1a | Outer tag base | no | Inherit from a tag struct so `query<TagIs<ATag>, Chain<...>>` detects this layer without instantiating `Part` |
+| 1 | `struct A : Hapi<A>` | yes | The layer identity. Never instantiated directly. Inheriting `Hapi<A>` makes the outer struct itself usable as a component inside another chain (same mechanism `Chain<>` uses). |
 | 2 | `template<typename O>` | yes | `O` is the composed type of everything below this layer |
-| 3 | `struct Part : O` | yes | The actual mixin — inherits and extends `O` |
+| 3 | `struct Part : O` | yes | The actual mixin — single-inheritance from `O` (mono_block topology) |
 | 4 | `using Base = O` | no | Convenience alias, used to call through |
 | 5 | `using Base::Base` | no | Forwards constructors from below |
 | 6 | Method override | no | Add or transform behavior at this level |
