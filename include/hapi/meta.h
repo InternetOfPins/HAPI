@@ -148,6 +148,11 @@ namespace hapi {
   template<typename Q, typename... XX>
   constexpr bool query<Q, Chain<XX...>> = (query<Q, XX> || ...);
 
+  template<typename T, typename=void>
+  struct has_type : std::false_type {};
+  template<typename T>
+  struct has_type<T, std::void_t<typename T::type>> : std::true_type {};
+
   // FindFirst<Q, Chain<OO...>, API>:
   //   Searches component list Chain<OO...> for Q; returns the collapsed
   //   Hapi::Part<Tail::Part<API>> base type (valid for static_cast).
@@ -156,9 +161,7 @@ namespace hapi {
   template<typename Q, typename C, typename API> struct FindFirst;
 
   template<typename Q, typename API>
-  struct FindFirst<Q, Chain<>, API> {
-    static_assert(sizeof(Q) == 0, "find<>: no component in chain satisfies predicate Q");
-  };
+  struct FindFirst<Q, Chain<>, API> {};
 
   // Head is a nested Chain — recurse into it when Q matches something inside
   template<typename Q, typename... Inner, typename... OO, typename API>
@@ -193,9 +196,11 @@ namespace hapi {
   constexpr auto& find(Node& node) noexcept {
     using FullTypes = typename Node::Types;
     using API       = typename FullTypes::Head;
-    using Hapis= typename FullTypes::Tail;
+    using Hapis     = typename FullTypes::Tail;
     static_assert(query<Q, Hapis>, "find<>: no component in chain satisfies predicate Q");
-    using Found = typename FindFirst<Q, Hapis, API>::type;
+    using FF = FindFirst<Q, Hapis, API>;
+    static_assert(has_type<FF>::value, "find<>: component matched by query but not reachable via inheritance — use findBody<> for body items");
+    using Found = typename FF::type;
     return static_cast<Found&>(node);
   }
 
@@ -203,9 +208,11 @@ namespace hapi {
   constexpr const auto& find(const Node& node) noexcept {
     using FullTypes = typename Node::Types;
     using API       = typename FullTypes::Head;
-    using Hapis= typename FullTypes::Tail;
+    using Hapis     = typename FullTypes::Tail;
     static_assert(query<Q, Hapis>, "find<>: no component in chain satisfies predicate Q");
-    using Found = typename FindFirst<Q, Hapis, API>::type;
+    using FF = FindFirst<Q, Hapis, API>;
+    static_assert(has_type<FF>::value, "find<>: component matched by query but not reachable via inheritance — use findBody<> for body items");
+    using Found = typename FF::type;
     return static_cast<const Found&>(node);
   }
 
