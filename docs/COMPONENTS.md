@@ -37,10 +37,10 @@ struct A : Hapi<A> {                    // (1) outer struct — the layer identi
 | # | Element | Required | Description |
 |---|---|---|---|
 | 1 | `struct A : Hapi<A>` | yes | The layer identity. Never instantiated directly. Inheriting `Hapi<A>` makes the outer struct itself usable as a component inside another chain (same mechanism `Chain<>` uses). |
-| 2 | `template<typename O>` | yes | `O` is the composed type of everything below this layer |
-| 3 | `struct Part : O` | yes | The actual mixin — single-inheritance from `O` (mono_block topology) |
+| 2 | `template<typename O>` | no | `O` is the composed type of everything below this layer. Omitted when `Part` is inherited via `Hapi<T>` or when the component adds no behavior. |
+| 3 | `struct Part : O` | no | The actual mixin — single-inheritance from `O` (mono_block topology). Omitted when inherited from `Hapi<T>`. |
 | 4 | `using Base = O` | no | Convenience alias, used to call through |
-| 5 | `using Base::Base` | no | Forwards constructors from below |
+| 5 | `using Base::Base` | yes* | Essential for compound construction — propagates constructors from `O` up through every layer so the composed type can be instantiated with arguments. Without it the chain breaks at this level. Cannot be absorbed into `Hapi<T>` because `Hapi` wraps the outer `Part`, not the inner one. |
 | 6 | Method override | no | Add or transform behavior at this level |
 | 7 | `Base::method()` | no* | Forward to the layer below — omit only when intentionally suppressing |
 | 8 | `rules<Before,After>()` | no | Declare ordering constraints — detected automatically by `HasRules` |
