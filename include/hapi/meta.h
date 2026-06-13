@@ -147,35 +147,37 @@ namespace hapi {
   template<typename Q, typename... XX>
   constexpr bool query<Q, Chain<XX...>> = (Q::template Check<XX>::value || ...);
 
-  // Forward declaration of the worker helper
-  template<typename Q, typename CurrentNode, bool MatchNext>
-  struct FindHelper;
+  // FindFirst: compile-time search for the first type in Chain<OO...> satisfying Q
+  template<typename Q, typename C> struct FindFirst;
 
-  /// @brief find the first layer in the assembled chain that satisfies predicate Q
-  template<typename Q, typename CurrentNode>
-  constexpr auto& find(CurrentNode& node) noexcept {
-    // static_assert(query<Q, typename CurrentNode::Types>, "find<>: no component in chain satisfies predicate Q");
-    return FindHelper<Q, CurrentNode, query<Q, typename CurrentNode::Base>>::find(node);
-  }
-  template<typename Q, typename CurrentNode>
-  constexpr const auto& find(const CurrentNode& node) noexcept {
-    // static_assert(query<Q, typename CurrentNode::Types>, "find<>: no component in chain satisfies predicate Q");
-    return FindHelper<Q, CurrentNode, query<Q, typename CurrentNode::Base>>::find(node);
-  }
-
-  template<typename Q, typename CurrentNode>
-  struct FindHelper<Q, CurrentNode, true> {
-    static constexpr auto& find(CurrentNode& node) noexcept
-      {return hapi::find<Q>(static_cast<typename CurrentNode::Base&>(node));}
-    static constexpr const auto& find(const CurrentNode& node) noexcept
-      {return hapi::find<Q>(static_cast<const typename CurrentNode::Base&>(node));}
+  template<typename Q>
+  struct FindFirst<Q, Chain<>> {
+    static_assert(sizeof(Q) == 0, "find<>: no component in chain satisfies predicate Q");
   };
 
-  // predicate not found in Base — current layer is the best match
-  template<typename Q, typename CurrentNode>
-  struct FindHelper<Q, CurrentNode, false> {
-    static constexpr auto& find(CurrentNode& node) noexcept {return node;}
-    static constexpr const auto& find(const CurrentNode& node) noexcept {return node;}
+  template<typename Q, typename O, typename... OO>
+  struct FindFirst<Q, Chain<O, OO...>> {
+    using type = std::conditional_t<
+      Q::template Check<O>::value,
+      O,
+      typename FindFirst<Q, Chain<OO...>>::type
+    >;
   };
+
+  /// @brief find: compile-time type resolution via FindFirst, O(1) static_cast at call site.
+  ///        Node::Types must be a Chain<OO...>; Found is the first OO satisfying Q.
+  template<typename Q, typename Node>
+  constexpr auto& find(Node& node) noexcept {
+    static_assert(query<Q, typename Node::Types>, "find<>: no component in chain satisfies predicate Q");
+    using Found = typename FindFirst<Q, typename Node::Types>::type;
+    return static_cast<Found&>(node);
+  }
+
+  template<typename Q, typename Node>
+  constexpr const auto& find(const Node& node) noexcept {
+    static_assert(query<Q, typename Node::Types>, "find<>: no component in chain satisfies predicate Q");
+    using Found = typename FindFirst<Q, typename Node::Types>::type;
+    return static_cast<const Found&>(node);
+  }
 
 };
