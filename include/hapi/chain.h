@@ -2,7 +2,9 @@
  * @file chain.h
  * @author Rui Azevedo (neu-rah) (ruihfazevedo@gmail.com)
  * @brief hapi chain — mono_block topology
- *        Chain is a Component: inherits Component<Chain<OO...>>, Part is inherited not defined.
+ *        Hapi<T>::Part<O> : T::Part<O>  (delegates through T's collapse)
+ *        Chain<OO...> inherits Hapi<Chain<OO...>> — Chain IS a component.
+ *        Chain still defines its own Part<T> so Hapi's Part has a non-circular target.
 */
 
 #pragma once
@@ -30,13 +32,14 @@ namespace hapi {
 
   // ====================== COMPONENT ======================--
 
-  /// @brief provides Part<O> : T, O for any type T
-  /// Chain inherits this — so Part is inherited, not separately defined
+  /// @brief Wrap T as a component: Part<O> delegates through T::Part<O>.
+  ///        Derived from Hapi<T> can delete or hide methods to create restricted views.
   template<typename T>
-  struct Component {
+  struct Hapi {
     template<typename O>
-    struct Part : T, O {
-      using T::T;
+    struct Part : T::template Part<O> {
+      using Base = typename T::template Part<O>;
+      using Base::Base;
     };
   };
 
@@ -44,9 +47,13 @@ namespace hapi {
 
   template<typename... OO> struct Chain;
 
-  // Empty chain: IS a Component — Part<O> : Chain<>, O
+  // Empty chain — anchors recursion: Part<T> : T
+  // Also inherits Hapi<Chain<>> so Chain<> is usable as a component.
+  // Own Part<T> shadows Hapi's to avoid circularity.
   template<>
-  struct Chain<> : Component<Chain<>> {
+  struct Chain<> : Hapi<Chain<>> {
+    template<typename T>
+    struct Part : T { using T::T; };  // anchor: no more components, collapse to T
     using Types = Chain<>;
     static constexpr SizeT size{0};
     template<template<typename...> class W> using Build = W<>;
@@ -55,12 +62,13 @@ namespace hapi {
     template<template<typename> class M> using Map = Chain<>;
   };
 
-  /// @brief Non-empty chain: inherits head component O, tail Chain<OO...>,
-  ///        and Component<Chain<O,OO...>> which provides Part<T> : Chain<O,OO...>, T.
-  ///        Part is pulled in explicitly to disambiguate from Chain<OO...>'s Part.
+  /// @brief Non-empty chain.
+  ///        - Inherits Hapi<Chain<O,OO...>>: makes Chain usable as a component.
+  ///        - Defines own Part<T>: standard collapse O::Part<Chain<OO...>::Part<T>>.
+  ///          Own Part shadows Hapi's, so Hapi<Chain<O,OO...>>::Part<T>
+  ///          delegates here without circularity.
   template<typename O, typename... OO>
-  struct Chain<O, OO...> : O, Chain<OO...>, Component<Chain<O, OO...>> {
-    using Component<Chain<O, OO...>>::Part;  // disambiguate: use own Part, not tail's
+  struct Chain<O, OO...> : Hapi<Chain<O, OO...>> {
     using Types = Chain<O, OO...>;
     using Head  = O;
     using Tail  = Chain<OO...>;
@@ -69,6 +77,13 @@ namespace hapi {
     template<typename... XX> using App = Chain<XX..., O, OO...>;
     template<typename... XX> using Ins = Chain<O, OO..., XX...>;
     template<template<typename> class M> using Map = Chain<M<O>, M<OO>...>;
+
+    template<typename T>
+    struct Part : O::template Part<typename Chain<OO...>::template Part<T>> {
+      using Base = typename O::template Part<typename Chain<OO...>::template Part<T>>;
+      using Base::Base;
+      using Types = Chain<O, OO...>;
+    };
   };
 
   /// @brief provide circular reference to the whole chain if needed

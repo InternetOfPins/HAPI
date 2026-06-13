@@ -144,39 +144,68 @@ namespace hapi {
     return Q::template Check<O>::value || query<Q, typename O::Types>;
   }();
 
+  // Recurse into nested Chain elements — mirrors Map<F, Chain<OO...>> pattern
   template<typename Q, typename... XX>
-  constexpr bool query<Q, Chain<XX...>> = (Q::template Check<XX>::value || ...);
+  constexpr bool query<Q, Chain<XX...>> = (query<Q, XX> || ...);
 
-  // FindFirst: compile-time search for the first type in Chain<OO...> satisfying Q
-  template<typename Q, typename C> struct FindFirst;
+  // FindFirst<Q, Chain<OO...>, API>:
+  //   Searches component list Chain<OO...> for Q; returns the collapsed
+  //   Hapi::Part<Tail::Part<API>> base type (valid for static_cast).
+  //   Lazy: uses nested Pick<bool> partial specialisation — only the
+  //   taken branch is instantiated (avoids static_assert in Chain<>).
+  template<typename Q, typename C, typename API> struct FindFirst;
 
-  template<typename Q>
-  struct FindFirst<Q, Chain<>> {
+  template<typename Q, typename API>
+  struct FindFirst<Q, Chain<>, API> {
     static_assert(sizeof(Q) == 0, "find<>: no component in chain satisfies predicate Q");
   };
 
-  template<typename Q, typename O, typename... OO>
-  struct FindFirst<Q, Chain<O, OO...>> {
-    using type = std::conditional_t<
-      Q::template Check<O>::value,
-      O,
-      typename FindFirst<Q, Chain<OO...>>::type
-    >;
+  // Head is a nested Chain — recurse into it when Q matches something inside
+  template<typename Q, typename... Inner, typename... OO, typename API>
+  struct FindFirst<Q, Chain<Chain<Inner...>, OO...>, API> {
+  private:
+    using InnerAPI = typename Chain<OO...>::template Part<API>;
+    template<bool HasMatch, typename Dummy = void>
+    struct Pick { using type = typename FindFirst<Q, Chain<OO...>, API>::type; };
+    template<typename Dummy>
+    struct Pick<true, Dummy> { using type = typename FindFirst<Q, Chain<Inner...>, InnerAPI>::type; };
+  public:
+    using type = typename Pick<query<Q, Chain<Inner...>>>::type;
   };
 
-  /// @brief find: compile-time type resolution via FindFirst, O(1) static_cast at call site.
-  ///        Node::Types must be a Chain<OO...>; Found is the first OO satisfying Q.
+  // Head is a regular element — lazy: only instantiate the taken branch
+  template<typename Q, typename O, typename... OO, typename API>
+  struct FindFirst<Q, Chain<O, OO...>, API> {
+  private:
+    using MatchedType = typename O::template Part<typename Chain<OO...>::template Part<API>>;
+    template<bool Match, typename Dummy = void>
+    struct Pick { using type = typename FindFirst<Q, Chain<OO...>, API>::type; };
+    template<typename Dummy>
+    struct Pick<true, Dummy> { using type = MatchedType; };
+  public:
+    using type = typename Pick<Q::template Check<O>::value>::type;
+  };
+
+  /// @brief find: locate the first component satisfying Q and return a reference to its
+  ///        collapsed Part<...> base — valid for static_cast in the mono_block topology.
+  ///        Node::Types = Chain<API, OO...>; searches OO... (API is the terminal, not a component).
   template<typename Q, typename Node>
   constexpr auto& find(Node& node) noexcept {
-    static_assert(query<Q, typename Node::Types>, "find<>: no component in chain satisfies predicate Q");
-    using Found = typename FindFirst<Q, typename Node::Types>::type;
+    using FullTypes = typename Node::Types;
+    using API       = typename FullTypes::Head;
+    using Hapis= typename FullTypes::Tail;
+    static_assert(query<Q, Hapis>, "find<>: no component in chain satisfies predicate Q");
+    using Found = typename FindFirst<Q, Hapis, API>::type;
     return static_cast<Found&>(node);
   }
 
   template<typename Q, typename Node>
   constexpr const auto& find(const Node& node) noexcept {
-    static_assert(query<Q, typename Node::Types>, "find<>: no component in chain satisfies predicate Q");
-    using Found = typename FindFirst<Q, typename Node::Types>::type;
+    using FullTypes = typename Node::Types;
+    using API       = typename FullTypes::Head;
+    using Hapis= typename FullTypes::Tail;
+    static_assert(query<Q, Hapis>, "find<>: no component in chain satisfies predicate Q");
+    using Found = typename FindFirst<Q, Hapis, API>::type;
     return static_cast<const Found&>(node);
   }
 
