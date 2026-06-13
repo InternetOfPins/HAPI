@@ -9,27 +9,28 @@ A HAPI component has two distinct parts: the **layer struct** (the feature defin
 ### The layer struct
 
 ```cpp
-struct A {                              // (1) plain struct, no base class required, can have template parameters
+struct ATag {};                         // (1a) optional outer tag — inherit from it to declare category membership
+
+struct A : ATag {                       // (1) plain struct; inheriting ATag makes query<TagIs<ATag>, Chain<...>> true
 
   template<typename O>                  // (2) O is the layer below in the stack
   struct Part : O {                     // (3) inherit from O — wraps the layer below
     using Base = O;                     // (4) alias for readability
     using Base::Base;                   // (5) forward constructors
 
-    using IsA = std::true_type;         // (6) optional tag — lets other layers detect A via query
-
     // not a component requirement but just an example of override and chain call
     template<typename Out>
-    void print(Out& out) {              // (7) override a method
+    void print(Out& out) {              // (6) override a method
       out << "/A";                      //     add behavior
-      Base::print(out);                 // (8) forward to the layer below — always, unless suppressing
+      Base::print(out);                 // (7) forward to the layer below — always, unless suppressing
     }
   }; // Part end
 
   template<typename Before, typename After>
-  static constexpr bool rules() {      // (9) optional — validate ordering at composition time
-    static_assert(query<SameAs<RequiredLayer>, Before>, "RequiredLayer must come before A");
-    return true;                        // (10) required return value
+  static constexpr bool rules() {      // (8) optional — validate ordering at composition time
+    static_assert(Requires<TagIs<ATag>, Before>, "A requires an ATag component before it");
+    static_assert(Excludes<SameAs<A>,   Before>, "A must not appear twice");
+    return true;                        // (9) required return value
   }
 };
 ```
@@ -37,15 +38,45 @@ struct A {                              // (1) plain struct, no base class requi
 | # | Element | Required | Description |
 |---|---|---|---|
 | 1 | Outer struct | yes | The layer identity. Never instantiated directly. |
+| 1a | Outer tag base | no | Inherit from a tag struct so `query<TagIs<ATag>, Chain<...>>` detects this layer without instantiating `Part` |
 | 2 | `template<typename O>` | yes | `O` is the composed type of everything below this layer |
 | 3 | `struct Part : O` | yes | The actual mixin — inherits and extends `O` |
 | 4 | `using Base = O` | no | Convenience alias, used to call through |
 | 5 | `using Base::Base` | no | Forwards constructors from below |
-| 6 | Tag alias | no | Publish presence for `query<IsA, ...>` detection |
-| 7 | Method override | no | Add or transform behavior at this level |
-| 8 | `Base::method()` | no* | Forward to the layer below — omit only when intentionally suppressing |
-| 9 | `rules<Before,After>()` | no | Declare ordering constraints — detected automatically by `HasRules` |
-| 10 | `return true` | yes* | Required when `rules()` is declared |
+| 6 | Method override | no | Add or transform behavior at this level |
+| 7 | `Base::method()` | no* | Forward to the layer below — omit only when intentionally suppressing |
+| 8 | `rules<Before,After>()` | no | Declare ordering constraints — detected automatically by `HasRules` |
+| 9 | `return true` | yes* | Required when `rules()` is declared |
+
+#### Tagging: outer struct vs inner alias
+
+Two tagging styles exist. **Prefer outer struct inheritance** — it is visible to `query<>` without instantiating `Part`, which is important for `rules<>` validation:
+
+```cpp
+// Preferred — outer struct inherits the tag; query<TagIs<aFormat>, Chain<...>> works
+struct aFormat {};
+struct MyFmt : aFormat { ... };
+
+// Older style — tag is a type alias inside Part; only visible after Part is instantiated
+struct MyFmt {
+  template<typename O>
+  struct Part : O { using IsFormat = std::true_type; };
+};
+```
+
+#### Rules helpers
+
+`Requires<P, Chain>` and `Excludes<P, Chain>` are convenience wrappers over `query<>`:
+
+```cpp
+template<typename Before, typename After>
+static constexpr bool rules() {
+  static_assert(Requires<TagIs<aFormat>,    After>,  "format layer required below");
+  static_assert(Excludes<SameAs<MyLayer>,   Before>, "MyLayer must not appear before this");
+  static_assert(Excludes<SameAs<MyLayer>,   After>,  "MyLayer must appear only once");
+  return true;
+}
+```
 
 ---
 
@@ -203,6 +234,25 @@ struct Map<F, Chain<OO...>> {
 #### Why this separation?
 
 **Logic (`Part`)** remains distinct from **Meta-Logic (Predicates/Transformations)**. Predicates allow the compiler to *see* your composition constraints. Transformations allow the compiler to *rewrite* the chain for optimisation or code generation. The component surface stays small while enabling complex multi-layer validation and structural manipulation.
+
+---
+
+### Hapi\<T\> — component view wrapper
+
+`Hapi<T>` wraps any type `T` as a component whose `Part<O>` delegates through `T::Part<O>`. A derived struct can hide or delete methods to create a restricted view of the chain:
+
+```cpp
+struct ReadOnly : Hapi<Chain<Data, Store>> {
+  // hide the write path — only read is exposed
+  template<typename O>
+  struct Part : Chain<Data, Store>::template Part<O> {
+    using Base = typename Chain<Data, Store>::template Part<O>;
+    void set(auto) = delete;
+  };
+};
+```
+
+`Chain<OO...>` itself inherits `Hapi<Chain<OO...>>`, making every chain directly usable as a component inside another chain without extra wrapping.
 
 ---
 
