@@ -156,6 +156,9 @@ namespace hapi {
   template<typename T>
   struct has_type<T, std::void_t<typename T::type>> : std::true_type {};
 
+  template<typename Q>
+  inline constexpr SameAs<Q> sameAs{};
+
   template<typename Q, typename=void>
   struct is_predicate : std::false_type {};
   template<typename Q>
