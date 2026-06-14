@@ -42,8 +42,21 @@ namespace hapi {
     struct Part : T::template Part<O> {
       using Base = typename T::template Part<O>;
       using Base::Base;
-      template<typename Q> constexpr auto find() const {return hapi::template find<Q>(*this);}
+      template<typename Q> constexpr auto& find() {return hapi::template find<Q>(*this);}
+      template<typename Q> constexpr const auto& find() const {return hapi::template find<Q>(*this);}
+      template<typename Q> constexpr auto& find(Q) {
+        static_assert(is_predicate<Q>::value,"find(Q{}): Q must be a hapi predicate with template<typename O> struct Check { static constexpr bool value; };");
+        return find<Q>();
+      }
+      template<typename Q> constexpr const auto& find(Q) const {
+        static_assert(is_predicate<Q>::value,"find(Q{}): Q must be a hapi predicate with template<typename O> struct Check { static constexpr bool value; };");
+        return find<Q>();
+      }
       template<typename Q> constexpr bool query() const {using Self=std::decay_t<decltype(*this)>;return hapi::query<Q,Self>;}
+      template<typename Q> constexpr bool query(Q) const {
+        static_assert(is_predicate<Q>::value,"query(Q{}): Q must be a hapi predicate with template<typename O> struct Check { static constexpr bool value; };");
+        return query<Q>();
+      }
     };
   };
 

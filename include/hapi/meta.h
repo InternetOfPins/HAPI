@@ -156,6 +156,11 @@ namespace hapi {
   template<typename T>
   struct has_type<T, std::void_t<typename T::type>> : std::true_type {};
 
+  template<typename Q, typename=void>
+  struct is_predicate : std::false_type {};
+  template<typename Q>
+  struct is_predicate<Q, std::void_t<decltype(Q::template Check<void>::value)>> : std::true_type {};
+
   // FindFirst<Q, Chain<OO...>, API>:
   //   Searches component list Chain<OO...> for Q; returns the collapsed
   //   Hapi::Part<Tail::Part<API>> base type (valid for static_cast).
