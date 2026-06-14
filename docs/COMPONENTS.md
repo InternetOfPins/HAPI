@@ -204,10 +204,42 @@ struct SameAs {
 HAPI provides built-in logical combinators for composing predicates:
 
 ```cpp
-query<Not<SameAs<A>>, Chain<...>>           // negation
-query<And<SameAs<A>, SameAs<B>>, Chain<...>>// conjunction
-query<Or<SameAs<A>, SameAs<B>>, Chain<...>> // disjunction
+query<Not<SameAs<A>>, Chain<...>>            // negation
+query<And<SameAs<A>, SameAs<B>>, Chain<...>> // conjunction
+query<Or<SameAs<A>, SameAs<B>>, Chain<...>>  // disjunction
 ```
+
+#### Variable-template shorthands
+
+Predicates are empty types; constructing them with `{}` is noise. HAPI provides variable templates for the common ones:
+
+```cpp
+template<typename Q>
+inline constexpr SameAs<Q> sameAs{};
+
+// downstream libraries add their own — e.g. oneItem/oneMenu:
+// template<auto V> inline constexpr SameAs<Id<V>> byId{};
+```
+
+This lets `find` and `query` be called without explicit template arguments or brace construction:
+
+```cpp
+node.find(byId<sub>)                // best: no .template, no {}, no Id<>
+node.find(sameAs<MyLayer>)          // good: no .template, no {}
+node.find(SameAs<MyLayer>{})        // ok: explicit construction
+node.template find<SameAs<MyLayer>>() // ok: explicit template arg, needs .template in template context
+```
+
+#### `is_predicate<Q>`
+
+```cpp
+template<typename Q, typename = void> struct is_predicate : std::false_type {};
+template<typename Q>
+struct is_predicate<Q, std::void_t<decltype(Q::template Check<void>::value)>>
+  : std::true_type {};
+```
+
+Detects valid predicates. Used by `find(Q)` and `query(Q)` tag-dispatch overloads to give a clear `static_assert` error rather than a template instantiation wall when a non-predicate type is accidentally passed.
 
 #### Transformation Anatomy
 
@@ -251,6 +283,33 @@ struct ReadOnly : Hapi<Chain<Data, Store>> {
 ```
 
 `Chain<OO...>` itself inherits `Hapi<Chain<OO...>>`, making every chain directly usable as a component inside another chain without extra wrapping.
+
+#### Member sugar on `Hapi<T>::Part`
+
+Every composed node that passes through `Hapi<T>::Part` inherits these convenience members:
+
+```cpp
+// find the first chain component satisfying Q; returns a reference
+template<typename Q> auto& find();
+template<typename Q> const auto& find() const;
+template<typename Q> auto& find(Q);          // tag-dispatch — deduces Q, no .template needed
+template<typename Q> const auto& find(Q) const;
+
+// true if Q is satisfied anywhere in this node's chain
+template<typename Q> constexpr bool query() const;
+template<typename Q> constexpr bool query(Q) const;
+```
+
+The tag-dispatch forms (`find(Q{})`, `query(Q{})`) eliminate the `.template` keyword requirement in template contexts and allow the concise variable-template style:
+
+```cpp
+node.find(byId<sub>).enable(false);
+if constexpr (node.query(sameAs<WrapNav>)) { /* ... */ }
+```
+
+**Shadowing rule:** a component that defines its own `find<Q>()` (e.g. `Menu::Part`, which also searches body items) **must** also define `find(Q)` explicitly — the tag overload is not inherited through a shadow.
+
+**Non-predicate guard:** `find(Q)` and `query(Q)` fire `is_predicate<Q>` static_assert if `Q` lacks a `Check` member, producing a human-readable error at the call site.
 
 ---
 
