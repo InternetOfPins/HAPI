@@ -5,9 +5,12 @@
 */
 
 #pragma once
-#include "hapi/chain.h"
+// #include "hapi/chain.h"
 
 namespace hapi {
+
+  template<typename... OO> struct Chain;
+
   /// @brief predicate to select elements by type
   /// @tparam Q : the selector type
   template<typename Q> struct SameAs {

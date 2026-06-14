@@ -26,6 +26,8 @@
   namespace hapi{};
 #endif
 
+#include "hapi/meta.h"
+
 namespace hapi {
   /// @brief sentinel empty type
   struct Nil {};
@@ -40,6 +42,7 @@ namespace hapi {
     struct Part : T::template Part<O> {
       using Base = typename T::template Part<O>;
       using Base::Base;
+      template<typename Q> constexpr auto find() const {return hapi::template find<Q>(*this);}
     };
   };
 
