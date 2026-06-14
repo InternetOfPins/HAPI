@@ -89,20 +89,6 @@ template<typename Q> struct SameAs {
 
 True when target type `O` is exactly `Q`.
 
-### `sameAs<Q>`
-
-```cpp
-template<typename Q>
-inline constexpr SameAs<Q> sameAs{};
-```
-
-Variable-template shorthand. Eliminates brace-construction noise at call sites:
-
-```cpp
-node.find(sameAs<MyLayer>)          // instead of node.find(SameAs<MyLayer>{})
-node.query(sameAs<MyLayer>)
-```
-
 ### `is_predicate<Q>`
 
 ```cpp
@@ -395,11 +381,10 @@ template<typename Q> const auto& find(Q) const;
 Locates the first component in `node`'s chain satisfying predicate `Q` and returns a reference to it. The tag-dispatch form deduces `Q` from the argument type — no explicit template argument needed, no `.template` keyword required in template contexts.
 
 ```cpp
-// all equivalent; prefer the last two forms in new code
+// all equivalent; prefer tag-dispatch forms in new code
 hapi::find<SameAs<Id<42>>>(node)
 node.template find<SameAs<Id<42>>>()
-node.find(SameAs<Id<42>>{})
-node.find(sameAs<Id<42>>)           // cleanest — variable template, no braces
+node.find(SameAs<Id<42>>{})         // tag-dispatch — no .template needed
 ```
 
 **Requirements on `node`:** must be an `APIOf` node (or any type whose `Types::Head` is the API terminal and `Types::Tail` is the component chain). Passing a raw `Chain::Part` fires a `static_assert`.
@@ -418,7 +403,7 @@ template<typename Q> constexpr bool query(Q) const;
 Compile-time boolean: true if `Q` is satisfied anywhere in the HAPI chain of this node (components only — body items are not part of the chain). Same tag-dispatch pattern as `find`.
 
 ```cpp
-if constexpr (node.query(sameAs<WrapNav>)) { /* ... */ }
+if constexpr (node.query(SameAs<WrapNav>{})) { /* ... */ }
 ```
 
 ---

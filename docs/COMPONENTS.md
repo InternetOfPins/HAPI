@@ -211,20 +211,11 @@ query<Or<SameAs<A>, SameAs<B>>, Chain<...>>  // disjunction
 
 #### Variable-template shorthands
 
-Predicates are empty types; constructing them with `{}` is noise. HAPI provides variable templates for the common ones:
+Predicates are empty types; constructing them with `{}` can be noisy. Downstream libraries define their own variable templates for frequent predicates (e.g. `byId<V>` in OneItem). HAPI itself does not ship any — `SameAs<Q>{}` is the baseline:
 
 ```cpp
-template<typename Q>
-inline constexpr SameAs<Q> sameAs{};
-```
-
-This lets `find` and `query` be called without explicit template arguments or brace construction:
-
-```cpp
-node.find(byId<sub>)                // best: no .template, no {}, no Id<>
-node.find(sameAs<MyLayer>)          // good: no .template, no {}
-node.find(SameAs<MyLayer>{})        // ok: explicit construction
-node.template find<SameAs<MyLayer>>() // ok: explicit template arg, needs .template in template context
+node.find(SameAs<MyLayer>{})           // tag-dispatch — no .template needed
+node.template find<SameAs<MyLayer>>()  // explicit template arg — needs .template in template context
 ```
 
 #### `is_predicate<Q>`
@@ -301,7 +292,7 @@ The tag-dispatch forms (`find(Q{})`, `query(Q{})`) eliminate the `.template` key
 
 ```cpp
 node.find(byId<sub>).enable(false);
-if constexpr (node.query(sameAs<WrapNav>)) { /* ... */ }
+if constexpr (node.query(SameAs<WrapNav>{})) { /* ... */ }
 ```
 
 **Shadowing rule:** a component that defines its own `find<Q>()` (e.g. `Menu::Part`, which also searches body items) **must** also define `find(Q)` explicitly — the tag overload is not inherited through a shadow.
