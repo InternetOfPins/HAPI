@@ -43,6 +43,7 @@ namespace hapi {
       using Base = typename T::template Part<O>;
       using Base::Base;
       template<typename Q> constexpr auto find() const {return hapi::template find<Q>(*this);}
+      template<typename Q> constexpr bool query() const {using Self=std::decay_t<decltype(*this)>;return hapi::query<Q,Self>;}
     };
   };
 
