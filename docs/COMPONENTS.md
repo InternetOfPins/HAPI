@@ -216,9 +216,6 @@ Predicates are empty types; constructing them with `{}` is noise. HAPI provides 
 ```cpp
 template<typename Q>
 inline constexpr SameAs<Q> sameAs{};
-
-// downstream libraries add their own — e.g. oneItem/oneMenu:
-// template<auto V> inline constexpr SameAs<Id<V>> byId{};
 ```
 
 This lets `find` and `query` be called without explicit template arguments or brace construction:
