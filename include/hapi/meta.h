@@ -197,6 +197,16 @@ namespace hapi {
     using FullTypes = typename Node::Types;
     using API       = typename FullTypes::Head;
     using Hapis     = typename FullTypes::Tail;
+    // Guard: Node::Types::Head is the API terminal only when Node is an APIOf node.
+    // A raw Chain<A,B>::Part<X> exposes A as Head, which find silently skips —
+    // making A permanently unreachable. The structural signature of a valid APIOf
+    // node is that it inherits from Tail::Part<Head> (the collapsed chain with Head
+    // as the API base), which raw Chain::Part never satisfies in that orientation.
+    static_assert(
+      std::is_base_of_v<typename Hapis::template Part<API>, Node>,
+      "find<>: Node must be an APIOf node — "
+      "Node::Types::Head is treated as the API terminal (not a component). "
+      "Calling find on a raw Chain::Part silently skips Head and can never locate it.");
     static_assert(query<Q, Hapis>, "find<>: no component in chain satisfies predicate Q");
     using FF = FindFirst<Q, Hapis, API>;
     static_assert(has_type<FF>::value, "find<>: component matched by query but not reachable via inheritance — use findBody<> for body items");
@@ -209,6 +219,11 @@ namespace hapi {
     using FullTypes = typename Node::Types;
     using API       = typename FullTypes::Head;
     using Hapis     = typename FullTypes::Tail;
+    static_assert(
+      std::is_base_of_v<typename Hapis::template Part<API>, Node>,
+      "find<>: Node must be an APIOf node — "
+      "Node::Types::Head is treated as the API terminal (not a component). "
+      "Calling find on a raw Chain::Part silently skips Head and can never locate it.");
     static_assert(query<Q, Hapis>, "find<>: no component in chain satisfies predicate Q");
     using FF = FindFirst<Q, Hapis, API>;
     static_assert(has_type<FF>::value, "find<>: component matched by query but not reachable via inheritance — use findBody<> for body items");
