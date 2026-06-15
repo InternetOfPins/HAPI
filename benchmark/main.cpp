@@ -44,6 +44,7 @@
 #include <boost/hana.hpp>
 #include "hapi/chain.h"
 #include "hapi/meta.h"
+#include "hapi/run.h"
 
 namespace hana = boost::hana;
 
@@ -310,6 +311,18 @@ int main() {
     ForEachNode<C, DummyAPI> node;
     hapi::forEach<hapi::TagIs<AllTag>>(node, [](auto&){});
 
+#elif defined(TEST_RUN_EACH)
+    // hapi::run::runEach — same topology, runtime loop over compile-time dispatch table
+    using C = typename GenerateCompChain<std::make_index_sequence<TEST_SIZE>>::Type;
+    ForEachNode<C, DummyAPI> node;
+    hapi::run::runEach<hapi::TagIs<AllTag>>(node, [](auto&){});
+
 #endif
     return 0;
 }
+
+#elif defined(TEST_NODE_ONLY)
+    // just construct the node, no traversal
+    using C = typename GenerateCompChain<std::make_index_sequence<TEST_SIZE>>::Type;
+    ForEachNode<C, DummyAPI> node;
+    (void)node;

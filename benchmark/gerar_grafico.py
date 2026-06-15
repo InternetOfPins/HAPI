@@ -61,11 +61,12 @@ tree_tests = [
 ]
 
 val_tests = [
-    ("TEST_BASELINE",      "Baseline",                   "black", "--", "x", sizes_val, False),
-    ("TEST_HANA_VAL_MAP",  "Hana transform (value)",     "blue",  "-",  "^", sizes_val, False),
-    ("TEST_HANA_VAL_FIND", "Hana find_if (value)",       "blue",  "-.", "D", sizes_val, False),
-    ("TEST_STD_VAL_MAP",   "std::apply+tuple (value)",   "red",   "-",  "o", sizes_val, False),
-    ("TEST_HAPI_FOR_EACH", "HAPI forEach (type-level)",  "green", "-",  "s", sizes_val, False),
+    ("TEST_BASELINE",      "Baseline",                   "black",  "--", "x", sizes_val, False),
+    ("TEST_HANA_VAL_MAP",  "Hana transform (value)",     "blue",   "-",  "^", sizes_val, False),
+    ("TEST_HANA_VAL_FIND", "Hana find_if (value)",       "blue",   "-.", "D", sizes_val, False),
+    ("TEST_STD_VAL_MAP",   "std::apply+tuple (value)",   "red",    "-",  "o", sizes_val, False),
+    ("TEST_HAPI_FOR_EACH", "HAPI forEach (type-level)",  "green",  "-",  "s", sizes_val, False),
+    ("TEST_RUN_EACH",      "HAPI runEach (hybrid)",      "orange", "-",  "D", sizes_val, False),
 ]
 
 all_tests = map_tests + find_tests + tree_tests + val_tests
