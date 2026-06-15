@@ -317,12 +317,12 @@ int main() {
     ForEachNode<C, DummyAPI> node;
     hapi::run::runEach<hapi::TagIs<AllTag>>(node, [](auto&){});
 
-#endif
-    return 0;
-}
-
 #elif defined(TEST_NODE_ONLY)
-    // just construct the node, no traversal
+    // construct node only — isolates chain construction cost from traversal
     using C = typename GenerateCompChain<std::make_index_sequence<TEST_SIZE>>::Type;
     ForEachNode<C, DummyAPI> node;
     (void)node;
+
+#endif
+    return 0;
+}
