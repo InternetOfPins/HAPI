@@ -4,10 +4,10 @@ import matplotlib.pyplot as plt
 source      = "../main.cpp"
 include_dir = "../../include"
 
-sizes_map   = [10, 100, 300, 500]
-sizes_find  = [10, 100, 300, 500]
+sizes_map   = [10, 100, 200, 300]
+sizes_find  = [10, 100, 200, 300]
 sizes_tree  = [2, 5, 10, 14]        # B values, total = B² (max 196)
-sizes_val   = [10, 100, 300, 500]
+sizes_val   = [10, 100, 200, 300]
 
 def base_cmd(n, flag, tree=False):
     size_flag = f"-DTREE_B={n}" if tree else f"-DTEST_SIZE={n}"
@@ -61,10 +61,11 @@ tree_tests = [
 ]
 
 val_tests = [
-    ("TEST_BASELINE",     "Baseline",                   "black", "--", "x", sizes_val, False),
-    ("TEST_HANA_VAL_MAP", "Hana transform (value)",     "blue",  "-",  "^", sizes_val, False),
-    ("TEST_HANA_VAL_FIND","Hana find_if (value)",       "blue",  "-.", "D", sizes_val, False),
-    ("TEST_STD_VAL_MAP",  "std::apply+tuple (value)",   "red",   "-",  "o", sizes_val, False),
+    ("TEST_BASELINE",      "Baseline",                   "black", "--", "x", sizes_val, False),
+    ("TEST_HANA_VAL_MAP",  "Hana transform (value)",     "blue",  "-",  "^", sizes_val, False),
+    ("TEST_HANA_VAL_FIND", "Hana find_if (value)",       "blue",  "-.", "D", sizes_val, False),
+    ("TEST_STD_VAL_MAP",   "std::apply+tuple (value)",   "red",   "-",  "o", sizes_val, False),
+    ("TEST_HAPI_FOR_EACH", "HAPI forEach (type-level)",  "green", "-",  "s", sizes_val, False),
 ]
 
 all_tests = map_tests + find_tests + tree_tests + val_tests
@@ -113,7 +114,7 @@ plot_panel(axes[0][1], find_tests, 'Find: flat chain — first / middle / last')
 plot_panel(axes[1][0], tree_tests, 'Tree topology (B×B) — HAPI native vs flatten',
            xlabel='Total Elements (N = B²)', x_fn=lambda b: b*b)
 plot_panel(axes[1][1], val_tests,
-           "Hana's terrain: value-level heterogeneous ops\n(HAPI abstains — not its domain)")
+           "Iteration over all N: value ops (Hana/std) vs type-level forEach (HAPI)")
 
 plt.tight_layout()
 plt.savefig('grafico_performance.png', dpi=150)

@@ -77,12 +77,14 @@ struct MakePointer {
 };
 
 // -----------------------------------------------------------------------
-// FIND: unique component types with Part<> for HAPI, raw tags for Hana
+// FIND / FOREACH: unique component types with Part<> for HAPI, raw tags for Hana
 // -----------------------------------------------------------------------
 template<std::size_t I> struct Tag {};
 
+struct AllTag {};  // common base — forEach<TagIs<AllTag>> visits every TagComp<I>
+
 template<std::size_t I>
-struct TagComp {
+struct TagComp : AllTag {
     template<typename T>
     struct Part : T { using T::T; };
 };
@@ -90,6 +92,16 @@ struct TagComp {
 struct DummyAPI {
     template<typename T>
     struct Part : T { using T::T; };
+};
+
+// ForEachNode: wraps Chain<OO...> into an APIOf-compatible node for forEach<Q>
+// Types::Head = API (terminal), Types::Tail = Chain<OO...> (components)
+// App<API> prepends API: Chain<OO...>::App<API> = Chain<API, OO...>
+template<typename C, typename API>
+struct ForEachNode : C::template Part<API> {
+    using Base  = typename C::template Part<API>;
+    using Types = typename C::template App<API>;
+    ForEachNode() : Base() {}
 };
 
 template<std::size_t Target>
@@ -291,6 +303,12 @@ int main() {
         [](auto... xs) { return std::make_tuple(std::integral_constant<int, xs.value+1>{}...); },
         std_input);
     (void)std_result;
+
+#elif defined(TEST_HAPI_FOR_EACH)
+    // hapi::forEach<TagIs<AllTag>> — visits every component; O(N) compile-time walk
+    using C = typename GenerateCompChain<std::make_index_sequence<TEST_SIZE>>::Type;
+    ForEachNode<C, DummyAPI> node;
+    hapi::forEach<hapi::TagIs<AllTag>>(node, [](auto&){});
 
 #endif
     return 0;
