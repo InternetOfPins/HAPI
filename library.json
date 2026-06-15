@@ -20,6 +20,9 @@
   ],
   "license": "MIT",
   "homepage": "https://github.com/InternetOfPins/HAPI",
+  "build": {
+    "srcFilter": "-<benchmark>"
+  },
   "dependencies": {
   },
   "frameworks": "*",
