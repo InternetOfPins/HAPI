@@ -1,2 +1,5 @@
 .pio/
 .*
+benchmark/build/
+benchmark/*.png
+benchmark/*.zip
