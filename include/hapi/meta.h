@@ -11,6 +11,9 @@ namespace hapi {
 
   template<typename... OO> struct Chain;
 
+  template<typename T> struct is_chain : std::false_type {};
+  template<typename... OO> struct is_chain<Chain<OO...>> : std::true_type {};
+
   /// @brief predicate to select elements by type
   /// @tparam Q : the selector type
   template<typename Q> struct SameAs {
@@ -182,17 +185,19 @@ namespace hapi {
     using type = typename FindFirst<Q, Chain<OO...>, API>::type;
   };
 
-  // Head matches — compute Part only here, not at every level
+  // Head matches (and is not a nested Chain — that case handled above)
   template<typename Q, typename O, typename... OO, typename API>
   struct FindFirst<Q, Chain<O, OO...>, API,
-                   std::enable_if_t<Q::template Check<O>::value>> {
+                   std::enable_if_t<Q::template Check<O>::value
+                                    && !is_chain<O>::value>> {
     using type = typename O::template Part<typename Chain<OO...>::template Part<API>>;
   };
 
-  // Head doesn't match — recurse, no Part instantiated
+  // Head doesn't match (and is not a nested Chain)
   template<typename Q, typename O, typename... OO, typename API>
   struct FindFirst<Q, Chain<O, OO...>, API,
-                   std::enable_if_t<!Q::template Check<O>::value>> {
+                   std::enable_if_t<!Q::template Check<O>::value
+                                    && !is_chain<O>::value>> {
     using type = typename FindFirst<Q, Chain<OO...>, API>::type;
   };
 

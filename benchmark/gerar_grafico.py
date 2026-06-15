@@ -1,76 +1,119 @@
 import os, time, subprocess
 import matplotlib.pyplot as plt
 
-sizes_map  = [10, 25, 50, 100, 200, 500, 750, 1000]
-sizes_find = [10, 25, 50, 100, 200, 500, 750, 1000]
-
 source      = "../main.cpp"
 include_dir = "../../include"
 
-base_cmd = lambda n, flag: (
-    f"g++ -std=c++17 -fsyntax-only -I{include_dir} "
-    f"-DTEST_SIZE={n} -D{flag} {source}"
-)
+sizes_map   = [10, 100, 300, 500]
+sizes_find  = [10, 100, 300, 500]
+sizes_tree  = [2, 5, 10, 14]        # B values, total = B² (max 196)
+sizes_val   = [10, 100, 300, 500]
 
-def measure(sizes, flag):
+def base_cmd(n, flag, tree=False):
+    size_flag = f"-DTREE_B={n}" if tree else f"-DTEST_SIZE={n}"
+    return (
+        f"g++ -std=c++17 -fsyntax-only -ftemplate-depth=2000 "
+        f"-I{include_dir} {size_flag} -D{flag} {source}"
+    )
+
+def measure(sizes, flag, tree=False):
     times = []
     for n in sizes:
         t0 = time.time()
-        result = subprocess.run(base_cmd(n, flag), shell=True,
-                                stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+        result = subprocess.run(
+            base_cmd(n, flag, tree), shell=True,
+            stdout=subprocess.DEVNULL, stderr=subprocess.PIPE
+        )
         elapsed = time.time() - t0
         if result.returncode != 0:
-            print(f"  ERROR {flag} N={n}: {result.stderr.decode()[:120]}")
+            print(f"  ERROR {flag} N={n}: {result.stderr.decode()[:100]}")
             times.append(None)
         else:
             times.append(elapsed)
-            print(f"  {flag} N={n}: {elapsed:.3f}s")
+            print(f"  {flag} N={n if not tree else n*n}: {elapsed:.3f}s")
     return times
 
+# ---- test definitions --------------------------------------------------
 map_tests = [
-    ("TEST_BASELINE",   "Baseline",          "black", "--", "x"),
-    ("TEST_TUPLE_TYPE", "std::tuple (type)", "red",   "-",  "o"),
-    ("TEST_HANA_TYPE",  "Hana (type)",       "blue",  "-",  "^"),
-    ("TEST_HAPI_TYPE",  "hapi::Map (type)",  "green", "-",  "s"),
+    ("TEST_BASELINE",   "Baseline",           "black", "--", "x", sizes_map,  False),
+    ("TEST_TUPLE_TYPE", "std::tuple (type)",  "red",   "-",  "o", sizes_map,  False),
+    ("TEST_HANA_TYPE",  "Hana transform (type)","blue","-",  "^", sizes_map,  False),
+    ("TEST_HAPI_TYPE",  "hapi::Map (type)",   "green", "-",  "s", sizes_map,  False),
 ]
 
 find_tests = [
-    ("TEST_BASELINE",    "Baseline",              "black", "--",  "x"),
-    ("TEST_HAPI_FIRST",  "HAPI find (first)",     "green", "-",   "s"),
-    ("TEST_HAPI_MIDDLE", "HAPI find (middle)",    "green", "-.",  "D"),
-    ("TEST_HAPI_LAST",   "HAPI find (last)",      "green", ":",   "^"),
-    ("TEST_HANA_FIRST",  "Hana find_if (first)",  "blue",  "-",   "s"),
-    ("TEST_HANA_MIDDLE", "Hana find_if (middle)", "blue",  "-.",  "D"),
-    ("TEST_HANA_LAST",   "Hana find_if (last)",   "blue",  ":",   "^"),
+    ("TEST_BASELINE",    "Baseline",              "black", "--",  "x", sizes_find, False),
+    ("TEST_HAPI_FIRST",  "HAPI find — first",     "green", "-",   "s", sizes_find, False),
+    ("TEST_HAPI_MIDDLE", "HAPI find — middle",    "green", "-.",  "D", sizes_find, False),
+    ("TEST_HAPI_LAST",   "HAPI find — last",      "green", ":",   "^", sizes_find, False),
+    ("TEST_HANA_FIRST",  "Hana find_if — first",  "blue",  "-",   "s", sizes_find, False),
+    ("TEST_HANA_MIDDLE", "Hana find_if — middle", "blue",  "-.",  "D", sizes_find, False),
+    ("TEST_HANA_LAST",   "Hana find_if — last",   "blue",  ":",   "^", sizes_find, False),
 ]
 
-# Deduplicate — baseline measured once, reused in both charts
-all_flags = {t[0] for t in map_tests + find_tests}
+tree_tests = [
+    ("TEST_BASELINE",       "Baseline",                  "black", "--", "x", sizes_tree, False),
+    ("TEST_HAPI_TREE_MAP",  "HAPI Map — tree (native)",  "green", "-",  "s", sizes_tree, True),
+    ("TEST_HAPI_TREE_FIRST","HAPI find — tree first",    "green", "-.", "D", sizes_tree, True),
+    ("TEST_HAPI_TREE_LAST", "HAPI find — tree last",     "green", ":",  "^", sizes_tree, True),
+    ("TEST_HANA_TREE_MAP",  "Hana flatten+transform",    "blue",  "-",  "s", sizes_tree, True),
+    ("TEST_HANA_TREE_FIND", "Hana flatten+find_if",      "blue",  "-.", "D", sizes_tree, True),
+]
+
+val_tests = [
+    ("TEST_BASELINE",     "Baseline",                   "black", "--", "x", sizes_val, False),
+    ("TEST_HANA_VAL_MAP", "Hana transform (value)",     "blue",  "-",  "^", sizes_val, False),
+    ("TEST_HANA_VAL_FIND","Hana find_if (value)",       "blue",  "-.", "D", sizes_val, False),
+    ("TEST_STD_VAL_MAP",  "std::apply+tuple (value)",   "red",   "-",  "o", sizes_val, False),
+]
+
+all_tests = map_tests + find_tests + tree_tests + val_tests
+
+# deduplicate by (flag, sizes, tree)
+seen = set()
+unique_tests = []
+for t in all_tests:
+    key = (t[0], t[5][0], t[6])
+    if key not in seen:
+        seen.add(key)
+        unique_tests.append(t)
+
+# ---- measure -----------------------------------------------------------
 results = {}
-for flag in all_flags:
-    sizes = sizes_map if flag in {t[0] for t in map_tests} else sizes_find
-    print(f"\nA medir: {flag}")
-    results[flag] = measure(sizes, flag)
+for flag, label, color, ls, marker, sizes, tree in unique_tests:
+    print(f"\nA medir: {label}")
+    results[(flag, sizes[0], tree)] = measure(sizes, flag, tree)
 
-# ---- Plot ---------------------------------------------------------------
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
-fig.suptitle('HAPI vs Boost.Hana — Type-level Map and Find\n'
-             '(compile-time only, no value instantiated)', fontsize=13)
+def get(flag, sizes, tree):
+    return results.get((flag, sizes[0], tree), [None]*len(sizes))
 
-def plot_panel(ax, tests, sizes, title):
-    for flag, label, color, ls, marker in tests:
-        vals = results[flag]
-        xs = [s for s, v in zip(sizes, vals) if v is not None]
+# ---- plot --------------------------------------------------------------
+fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+fig.suptitle(
+    'HAPI vs Boost.Hana — Compile-time type-level performance\n'
+    'All measurements: template instantiation cost only  '
+    '(g++ -fsyntax-only, no runtime values)',
+    fontsize=12
+)
+
+def plot_panel(ax, tests, title, xlabel='Número de Elementos (N)', x_fn=None):
+    for flag, label, color, ls, marker, sizes, tree in tests:
+        vals = get(flag, sizes, tree)
+        xs = [x_fn(s) if x_fn else s for s, v in zip(sizes, vals) if v is not None]
         ys = [v for v in vals if v is not None]
         ax.plot(xs, ys, label=label, color=color, linestyle=ls, marker=marker)
     ax.set_title(title)
-    ax.set_xlabel('Número de Elementos (N)')
+    ax.set_xlabel(xlabel)
     ax.set_ylabel('Tempo (Segundos)')
-    ax.legend()
+    ax.legend(fontsize=8)
     ax.grid(True)
 
-plot_panel(ax1, map_tests,  sizes_map,  'Map: int -> int* (type-level)')
-plot_panel(ax2, find_tests, sizes_find, 'Find: first / middle / last position')
+plot_panel(axes[0][0], map_tests,  'Map: int -> int* (type-level)')
+plot_panel(axes[0][1], find_tests, 'Find: flat chain — first / middle / last')
+plot_panel(axes[1][0], tree_tests, 'Tree topology (B×B) — HAPI native vs flatten',
+           xlabel='Total Elements (N = B²)', x_fn=lambda b: b*b)
+plot_panel(axes[1][1], val_tests,
+           "Hana's terrain: value-level heterogeneous ops\n(HAPI abstains — not its domain)")
 
 plt.tight_layout()
 plt.savefig('grafico_performance.png', dpi=150)
