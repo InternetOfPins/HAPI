@@ -100,11 +100,6 @@ namespace hapi {
     using Expr = typename F::template Apply<O>::Expr;
   };
 
-  template<typename F, typename... OO>
-  struct Map<F, Chain<OO...>> {
-    using Expr = Chain<typename Map<F, OO>::Expr...>;
-  };
-
   // Conditional Extraction and Cleanup Engine --------------
   template<typename P, typename C, typename Enable = void> 
   struct FilterIf;
@@ -163,38 +158,42 @@ namespace hapi {
 
   // FindFirst<Q, Chain<OO...>, API>:
   //   Searches component list Chain<OO...> for Q; returns the collapsed
-  //   Hapi::Part<Tail::Part<API>> base type (valid for static_cast).
-  //   Lazy: uses nested Pick<bool> partial specialisation — only the
-  //   taken branch is instantiated (avoids static_assert in Chain<>).
-  template<typename Q, typename C, typename API> struct FindFirst;
+  //   O::Part<Tail::Part<API>> base type (valid for static_cast).
+  //   SFINAE on Enable halves recursion depth vs Pick<bool>: 1 frame per
+  //   non-matching step instead of 2, so peak depth is O(N) not O(2N).
+  template<typename Q, typename C, typename API, typename Enable = void>
+  struct FindFirst;
 
-  template<typename Q, typename API>
-  struct FindFirst<Q, Chain<>, API> {};
+  template<typename Q, typename API, typename Enable>
+  struct FindFirst<Q, Chain<>, API, Enable> {};
 
-  // Head is a nested Chain — recurse into it when Q matches something inside
+  // Head is a nested Chain, Q matches something inside — recurse in
   template<typename Q, typename... Inner, typename... OO, typename API>
-  struct FindFirst<Q, Chain<Chain<Inner...>, OO...>, API> {
-  private:
-    using InnerAPI = typename Chain<OO...>::template Part<API>;
-    template<bool HasMatch, typename Dummy = void>
-    struct Pick { using type = typename FindFirst<Q, Chain<OO...>, API>::type; };
-    template<typename Dummy>
-    struct Pick<true, Dummy> { using type = typename FindFirst<Q, Chain<Inner...>, InnerAPI>::type; };
-  public:
-    using type = typename Pick<query<Q, Chain<Inner...>>>::type;
+  struct FindFirst<Q, Chain<Chain<Inner...>, OO...>, API,
+                   std::enable_if_t<query<Q, Chain<Inner...>>>> {
+    using type = typename FindFirst<Q, Chain<Inner...>,
+                                    typename Chain<OO...>::template Part<API>>::type;
   };
 
-  // Head is a regular element — lazy: only instantiate the taken branch
+  // Head is a nested Chain, Q matches nothing inside — skip
+  template<typename Q, typename... Inner, typename... OO, typename API>
+  struct FindFirst<Q, Chain<Chain<Inner...>, OO...>, API,
+                   std::enable_if_t<!query<Q, Chain<Inner...>>>> {
+    using type = typename FindFirst<Q, Chain<OO...>, API>::type;
+  };
+
+  // Head matches — compute Part only here, not at every level
   template<typename Q, typename O, typename... OO, typename API>
-  struct FindFirst<Q, Chain<O, OO...>, API> {
-  private:
-    using MatchedType = typename O::template Part<typename Chain<OO...>::template Part<API>>;
-    template<bool Match, typename Dummy = void>
-    struct Pick { using type = typename FindFirst<Q, Chain<OO...>, API>::type; };
-    template<typename Dummy>
-    struct Pick<true, Dummy> { using type = MatchedType; };
-  public:
-    using type = typename Pick<Q::template Check<O>::value>::type;
+  struct FindFirst<Q, Chain<O, OO...>, API,
+                   std::enable_if_t<Q::template Check<O>::value>> {
+    using type = typename O::template Part<typename Chain<OO...>::template Part<API>>;
+  };
+
+  // Head doesn't match — recurse, no Part instantiated
+  template<typename Q, typename O, typename... OO, typename API>
+  struct FindFirst<Q, Chain<O, OO...>, API,
+                   std::enable_if_t<!Q::template Check<O>::value>> {
+    using type = typename FindFirst<Q, Chain<OO...>, API>::type;
   };
 
   /// @brief find: locate the first component satisfying Q and return a reference to its

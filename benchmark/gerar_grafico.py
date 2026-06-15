@@ -1,8 +1,8 @@
 import os, time, subprocess
 import matplotlib.pyplot as plt
 
-sizes_map  = [10, 25, 50, 100, 200, 500]
-sizes_find = [10, 25, 50, 100, 200, 500]
+sizes_map  = [10, 25, 50, 100, 200, 500, 750, 1000]
+sizes_find = [10, 25, 50, 100, 200, 500, 750, 1000]
 
 source      = "../main.cpp"
 include_dir = "../../include"

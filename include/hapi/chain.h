@@ -88,6 +88,11 @@ namespace hapi {
     };
   };
 
+  template<typename F, typename... OO>
+  struct Map<F, Chain<OO...>> {
+    using Expr = Chain<typename Map<F, OO>::Expr...>;
+  };
+
   /// @brief provide circular reference to the whole chain if needed
   template<typename O>
   struct CRTP {
