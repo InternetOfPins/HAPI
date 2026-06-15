@@ -36,14 +36,14 @@ namespace hapi {
 
   /// @brief Wrap T as a component: Part<O> delegates through T::Part<O>.
   ///        Derived from Hapi<T> can delete or hide methods to create restricted views.
-  template<typename T>
-  struct Hapi {
-    template<typename O>
-    struct Part : T::template Part<O> {
-      using Base = typename T::template Part<O>;
-      using Base::Base;
-    };
-  };
+  // template<typename T>
+  // struct Hapi {
+  //   // template<typename O>
+  //   // struct Part : T::template Part<O> {
+  //   //   using Base = typename T::template Part<O>;
+  //   //   using Base::Base;
+  //   // };
+  // };
 
   // ====================== CHAIN ======================--
 
@@ -53,7 +53,7 @@ namespace hapi {
   // Also inherits Hapi<Chain<>> so Chain<> is usable as a component.
   // Own Part<T> shadows Hapi's to avoid circularity.
   template<>
-  struct Chain<> : Hapi<Chain<>> {
+  struct Chain<> /*: Hapi<Chain<>>*/ {
     template<typename T>
     struct Part : T { using T::T; };  // anchor: no more components, collapse to T
     using Types = Chain<>;
@@ -70,7 +70,7 @@ namespace hapi {
   ///          Own Part shadows Hapi's, so Hapi<Chain<O,OO...>>::Part<T>
   ///          delegates here without circularity.
   template<typename O, typename... OO>
-  struct Chain<O, OO...> : Hapi<Chain<O, OO...>> {
+  struct Chain<O, OO...> /*: Hapi<Chain<O, OO...>>*/ {
     using Types = Chain<O, OO...>;
     using Head  = O;
     using Tail  = Chain<OO...>;

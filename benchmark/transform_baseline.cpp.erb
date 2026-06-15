@@ -1,0 +1,11 @@
+#include <type_traits>
+
+template <typename T>
+struct make_pointer { using type = T*; };
+
+int main() {
+    <% (1..n).each do |i| %>
+    typename make_pointer<int>::type p<%= i %>;
+    <% end %>
+    return 0;
+}

@@ -1,0 +1,16 @@
+#include <type_traits>
+#include <meta.h>
+
+int main() {
+    struct HapiMakePointer {
+        template <typename O>
+        struct Apply {
+            using Expr = O*;
+        };
+    };
+
+    using HapiInputChain = hapi::Chain<<%= (1..n).map { "int" }.join(', ') %>>;
+    using HapiTransformed = typename hapi::Map<HapiMakePointer, HapiInputChain>::Expr;
+    [[maybe_unused]] HapiTransformed hapi_instance;
+    return 0;
+}

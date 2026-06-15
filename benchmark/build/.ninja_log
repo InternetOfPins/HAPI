@@ -1,0 +1,22 @@
+# ninja log v5
+2	9463	1781479484503664792	/home/azevedo/Work/r-site.net/C++/IOP/HAPI/benchmark/build/bench_baseline.json	1cca05b7a44b9daf
+0	5	0	clean	a31eedcededa8236
+2	175	1781482642198366833	CMakeFiles/bench_hapi.dir/main.cpp.o	327dbc48377d4de5
+242	284	1781482638700358167	bench_tuple	bc6f9e7e51be59c9
+3	471	1781479562519898497	CMakeFiles/bench_tuple.dir/_metabench/bench_tuple.cpp.o	c29a1adccfa1456d
+471	624	1781479562713899052	_metabench/bench_tuple	77deddc34bec2dfc
+2	11338	1781479562728899095	/home/azevedo/Work/r-site.net/C++/IOP/HAPI/benchmark/build/bench_tuple.json	83f2742fb1a25108
+175	217	1781482642240366937	bench_hapi	6d66a64e5c761ba0
+280	442	1781479484487664741	_metabench/bench_baseline	9b5d8ea8d2ea715f
+2	11338	1781479562728899095	bench_tuple.json	83f2742fb1a25108
+2	52	1781482642269367009	build.ninja	47bfb81961b1f927
+0	213	1781482640839363467	CMakeFiles/bench_baseline.dir/main.cpp.o	780004164c01165a
+1	242	1781482638659358066	CMakeFiles/bench_tuple.dir/main.cpp.o	c0ad8c0ec857698a
+3	280	1781479484305664171	CMakeFiles/bench_baseline.dir/_metabench/bench_baseline.cpp.o	f769650d1d90878b
+2	9463	1781479484503664792	bench_baseline.json	1cca05b7a44b9daf
+214	256	1781482640881363571	bench_baseline	39f00b303b83005c
+1	6	0	clean	a31eedcededa8236
+2	354	1781482642649367950	CMakeFiles/bench_baseline.dir/main.cpp.o	4a0ff7589f566930
+354	413	1781482642708368096	bench_baseline	39f00b303b83005c
+1	269	1781482645236374354	CMakeFiles/bench_hapi.dir/main.cpp.o	6e6ef261202067a
+270	327	1781482645294374498	bench_hapi	6d66a64e5c761ba0
