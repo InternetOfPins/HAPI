@@ -30,6 +30,47 @@ namespace hapi {
     using Expr = APIOf<API, typename Map<F, OO>::Expr...>;
   };
 
+  // ====================== At<N> ======================--
+
+  /// @brief Indexed homogeneous-array element — zero-overhead tagged storage.
+  /// DataDef<At<0,T>, At<1,T>, At<2,T>> is a 3-element array of T with
+  /// named positional access via value<K>():
+  ///   K==0  → this element's data (base case)
+  ///   K>0   → Base::value<K-1>()  (count down through the chain)
+  template<std::size_t N, typename T = int>
+  struct At {
+    template<typename O>
+    struct Part : O {
+      using Base = O;
+      T data{};
+
+      template<typename V, typename... OO>
+      constexpr Part(V v, OO&&... oo) noexcept
+          : Base{std::forward<OO>(oo)...}, data{static_cast<T>(v)} {}
+
+      template<typename... OO>
+      constexpr Part(OO&&... oo) noexcept : Base{std::forward<OO>(oo)...} {}
+
+      T&       get()       noexcept { return data; }
+      const T& get() const noexcept { return data; }
+      void     set(const T& v) noexcept { data = v; }
+      operator T&()       noexcept { return data; }
+      operator const T&() const noexcept { return data; }
+
+      template<std::size_t K>
+      T& value() {
+        if constexpr (K == 0) return data;
+        else                  return Base::template value<K-1>();
+      }
+
+      template<std::size_t K>
+      const T& value() const {
+        if constexpr (K == 0) return data;
+        else                  return Base::template value<K-1>();
+      }
+    };
+  };
+
   // ====================== IdxTag<I> ======================--
 
   /// @brief Positional index tag — zero overhead (EBO), marks component I in a chain.
