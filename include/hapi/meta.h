@@ -5,7 +5,8 @@
 */
 
 #pragma once
-// #include "hapi/chain.h"
+
+#include "hapi/base.h"
 
 namespace hapi {
 
@@ -205,7 +206,7 @@ namespace hapi {
   ///        collapsed Part<...> base — valid for static_cast in the mono_block topology.
   ///        Node::Types = Chain<API, OO...>; searches OO... (API is the terminal, not a component).
   template<typename Q, typename Node>
-  constexpr auto& find(Node& node) noexcept {
+  constexpr auto find(Node& node) noexcept ->typename FindFirst<Q, typename Node::Types::Tail, typename Node::Types::Head>::type& {
     using FullTypes = typename Node::Types;
     using API       = typename FullTypes::Head;
     using Hapis     = typename FullTypes::Tail;

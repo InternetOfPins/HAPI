@@ -59,6 +59,10 @@ namespace std {
   template<typename _Tp> struct remove_cv<volatile _Tp> { using type = _Tp; };
   template<typename _Tp> struct remove_cv<const volatile _Tp> { using type = _Tp; };
 
+  template< class T > using remove_cv_t = typename remove_cv<T>::type;
+  template< class T > using remove_const_t = typename remove_const<T>::type;
+  template< class T > using remove_volatile_t = typename remove_volatile<T>::type;
+
   template<typename _Tp> struct add_const    { using type = _Tp const; };
   template<typename _Tp> struct add_volatile { using type = _Tp volatile; };
   template<typename _Tp> struct add_cv       { using type = typename add_const<typename add_volatile<_Tp>::type>::type; };
@@ -126,7 +130,8 @@ namespace std {
   template< class T > struct remove_pointer<T* const>          { typedef T type; };
   template< class T > struct remove_pointer<T* volatile>       { typedef T type; };
   template< class T > struct remove_pointer<T* const volatile> { typedef T type; };
-
+  template< class T > using  remove_pointer_t = typename remove_pointer<T>::type;
+  
   namespace detail {
     template <class T> struct type_identity { using type = T; };
     template <class T> auto try_add_lvalue_reference(int) -> type_identity<T&>;
@@ -186,6 +191,9 @@ namespace std {
   
   template<typename Base, typename Derived>
   struct is_base_of : integral_constant<bool, is_class<Base>::value && is_class<Derived>::value && decltype(details::test_is_base_of<Base, Derived>(0))::value> {};
+
+  template< class Base, class Derived >
+  constexpr bool is_base_of_v = is_base_of<Base, Derived>::value;
 
   template<class T> struct is_void : is_same<void, typename remove_cv<T>::type> {};
 
