@@ -58,15 +58,27 @@ namespace hapi {
       operator const T&() const noexcept { return data; }
 
       template<std::size_t K>
-      T& value() {
+      constexpr T& value() {
         if constexpr (K == 0) return data;
         else                  return Base::template value<K-1>();
       }
 
       template<std::size_t K>
-      const T& value() const {
+      constexpr const T& value() const {
         if constexpr (K == 0) return data;
         else                  return Base::template value<K-1>();
+      }
+
+      template<typename TT = T>
+      constexpr TT& operator[](std::size_t i) {
+        if (i == 0) return data;
+        return static_cast<Base&>(*this).template operator[]<TT>(i - 1);
+      }
+
+      template<typename TT = T>
+      constexpr const TT& operator[](std::size_t i) const {
+        if (i == 0) return data;
+        return static_cast<const Base&>(*this).template operator[]<TT>(i - 1);
       }
     };
   };
