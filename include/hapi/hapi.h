@@ -30,14 +30,14 @@ namespace hapi {
     using Expr = APIOf<API, typename Map<F, OO>::Expr...>;
   };
 
-  // ====================== At<I> ======================--
+  // ====================== IdxTag<I> ======================--
 
   /// @brief Positional index tag — zero overhead (EBO), marks component I in a chain.
-  /// Place At<I> before the component it indexes:
-  ///   APIOf<API, At<0>, T0, At<1>, T1, ...>
-  /// Then find<TagIs<At<I>>>(node) returns a direct reference to Ti.
+  /// Place IdxTag<I> before the component it indexes:
+  ///   APIOf<API, IdxTag<0>, T0, IdxTag<1>, T1, ...>
+  /// Then idx<I>(node) returns a direct reference to Ti.
   template<std::size_t I>
-  struct At {
+  struct IdxTag {
     template<typename O>
     struct Part : O {
       using Base = O;
@@ -45,12 +45,12 @@ namespace hapi {
     };
   };
 
-  /// @brief Free function: indexed access into an At<>-tagged chain.
-  /// Returns the value reference for the component tagged At<I>.
+  /// @brief Free function: indexed access into an IdxTag<>-tagged chain.
+  /// Returns the value reference for the component tagged IdxTag<I>.
   template<std::size_t I, typename C>
-  inline decltype(auto) idx(C& c) { return find<TagIs<At<I>>>(c); }
+  inline decltype(auto) idx(C& c) { return find<TagIs<IdxTag<I>>>(c); }
 
   template<std::size_t I, typename C>
-  inline decltype(auto) idx(const C& c) { return find<TagIs<At<I>>>(c); }
+  inline decltype(auto) idx(const C& c) { return find<TagIs<IdxTag<I>>>(c); }
 
 }; // namespace hapi
