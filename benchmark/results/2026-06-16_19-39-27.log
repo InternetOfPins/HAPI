@@ -1,0 +1,41 @@
+=== HAPI Standalone Benchmark ===
+Date:         2026-06-16 19:39:27
+Host:         neurux
+Compiler:     g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+HAPI:         0.4.2
+RunInlineMax: 8  (runEach uses table for N > this)
+Flags:        -std=c++17 -ftemplate-depth=2000 -I/home/azevedo/Work/r-site.net/C++/IOP/HAPI/benchmark/../include
+
+--- Compile time (ms, -fsyntax-only -O0) ---
+  baseline: HAPI include + compiler startup, no Chain<N>
+  node_only - baseline ≈ pure Chain<N> instantiation cost
+  find_xxx  - node_only ≈ pure FindFirst traversal cost
+  foreach   - node_only ≈ forEach codegen cost
+
+                 N=10   N=25   N=50  N=100  N=200
+               ------ ------ ------ ------ ------
+baseline           80     94     88     92     83
+map                91     88     95     87     95
+find_first         88     95     89     94     93
+find_mid           92     92     96    100    120
+find_last          94     85     96    108    138
+foreach           101    135    306   1671  13445
+runeach           104    142    305   1608  13485
+node_only          97    126    301   1585  13319
+
+--- Runtime (-O2, REPS=100000) ---
+
+  N=50:
+    binary size: 107,0 KB
+    sizeof(FENode<50>): 1 bytes
+    sizeof(Chain<50>):  1 bytes
+    forEach  111.653 ns/call  (2.23306 ns/comp)
+    runEach  276.681 ns/call  (5.53362 ns/comp)  [table dispatch, threshold=8]
+
+  N=200:
+    binary size: 1110,8 KB
+    sizeof(FENode<200>): 1 bytes
+    sizeof(Chain<200>):  1 bytes
+    forEach  466.512 ns/call  (2.33256 ns/comp)
+    runEach  1493.8 ns/call  (7.469 ns/comp)  [table dispatch, threshold=8]
+
