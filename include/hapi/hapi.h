@@ -30,4 +30,27 @@ namespace hapi {
     using Expr = APIOf<API, typename Map<F, OO>::Expr...>;
   };
 
+  // ====================== At<I> ======================--
+
+  /// @brief Positional index tag — zero overhead (EBO), marks component I in a chain.
+  /// Place At<I> before the component it indexes:
+  ///   APIOf<API, At<0>, T0, At<1>, T1, ...>
+  /// Then find<TagIs<At<I>>>(node) returns a direct reference to Ti.
+  template<std::size_t I>
+  struct At {
+    template<typename O>
+    struct Part : O {
+      using Base = O;
+      using Base::Base;
+    };
+  };
+
+  /// @brief Free function: indexed access into an At<>-tagged chain.
+  /// Returns the value reference for the component tagged At<I>.
+  template<std::size_t I, typename C>
+  inline decltype(auto) idx(C& c) { return find<TagIs<At<I>>>(c); }
+
+  template<std::size_t I, typename C>
+  inline decltype(auto) idx(const C& c) { return find<TagIs<At<I>>>(c); }
+
 }; // namespace hapi
