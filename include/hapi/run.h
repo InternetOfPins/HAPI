@@ -121,6 +121,51 @@ namespace run {
     };
   };
 
+  // ====================== Mutation Pipeline ======================
+  // Mutate<F>: applies stateless functor F in-place to a value, then continues chain.
+  // Trans<F> is functional (returns new value); Mutate<F> is imperative (mutates ref).
+  // F must be default-constructible and stateless — zero storage via static constexpr.
+  // Terminal: MutBase (do nothing).
+  // Usage: APIOf<MutBase, Mutate<F1>, Mutate<F2>>::run(v) → F1(v); F2(v);
+
+  struct MutBase {
+    template<typename T>
+    constexpr void run(T&) const noexcept {}
+  };
+
+  template<typename F>
+  struct Mutate {
+    template<typename O>
+    struct Part : O {
+      using Base = O;
+      using Base::Base;
+      static constexpr F fn{};
+      template<typename T>
+      constexpr void run(T& v) const noexcept { fn(v); Base::run(v); }
+    };
+  };
+
+  // ====================== Ref Pipeline ======================
+  // Ref<T,F>: each component holds a runtime pointer to an external T.
+  // run() applies F to *target for each Op, then chains down.
+  // Targets set after construction (typically via forEach or direct assignment).
+  // Terminal: RefBase (do nothing).
+  // Usage: pipe.run() → F1(*t1); F2(*t2); ...
+
+  struct RefBase {
+    constexpr void run() const noexcept {}
+  };
+
+  template<typename T, typename F>
+  struct Ref {
+    template<typename O>
+    struct Part : O {
+      using Base = O;
+      T* target{};
+      static constexpr F fn{};
+      void run() noexcept { fn(*target); Base::run(); }
+    };
+  };
 
 } // namespace run
 } // namespace hapi
