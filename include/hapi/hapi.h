@@ -24,10 +24,29 @@ namespace hapi {
     static_assert(BuildRules<Chain<>,Chain<OO...>>::rules(), "HAPI: validation failed");
   };
 
-  // Map specialization to traverse directly through an APIOf boundary
+  template<typename F> struct Mapped;  // forward — defined after At<N>
+
+  // Detect type-level transformer: F::Apply<T>::Expr exists
+  template<typename F, typename = void>
+  struct is_type_transformer : std::false_type {};
+  template<typename F>
+  struct is_type_transformer<F, std::void_t<typename F::template Apply<Nil>::Expr>>
+      : std::true_type {};
+
+  // Map<F, APIOf<...>>:
+  //   Type-level F (has Apply<T>::Expr) → maps each component descriptor (existing behaviour)
+  //   Value-level F (constexpr callable, static &) → prepends Mapped<F> to the chain
+  //   Partial application: F is bound in the type; chain (Functor) is the free argument.
+  //   (a->b) -> F a -> F b   where F = APIOf<API, OO...>
   template<typename F, typename API, typename... OO>
   struct Map<F, APIOf<API, OO...>> {
-    using Expr = APIOf<API, typename Map<F, OO>::Expr...>;
+  private:
+    template<typename FF, bool = is_type_transformer<FF>::value>
+    struct Impl { using Expr = APIOf<API, typename Map<FF, OO>::Expr...>; };
+    template<typename FF>
+    struct Impl<FF, false> { using Expr = APIOf<API, Mapped<FF>, OO...>; };
+  public:
+    using Expr = typename Impl<F>::Expr;
   };
 
   // ====================== At<N> ======================--
