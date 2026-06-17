@@ -123,6 +123,24 @@ HAPI composes systems statically. Component relationships, ordering constraints,
 
 ---
 
+### Hardware Pipeline Synthesis
+
+Software pipelines built with HAPI collapse at compile time into instruction sequences that are architecturally equivalent to hardware pipelines: sequential, deterministic, no runtime dispatch, no indirection.
+
+The ATmega328P evaluation (see the published paper) demonstrates this directly. The synthesised pipeline consists exclusively of immediate-load and displacement-store instructions. Hardware peripheral control values are embedded as compile-time constants and written to I/O registers without any intermediate pointer dereference, stack frame, or virtual table lookup. The compiler produces what a hardware designer would produce by hand.
+
+This means HAPI pipelines are not *abstractions over* hardware — they *are* the hardware sequence, expressed in modular C++. The abstraction cost is paid once at compile time; the hardware receives the result.
+
+```
+HAPI composition → compiler synthesis → flat register sequence
+```
+
+The same model scales from 8-bit AVR registers to multi-core ARM peripherals. The pipeline topology is fixed in the type; the register addresses are compile-time template parameters; the instruction stream is the compiler's output.
+
+**Applicable to:** hardware abstraction layers, peripheral drivers, register-mapped control pipelines, device initialisation sequences, hardware co-design firmware.
+
+---
+
 ### FPGA & CPLD Register Interfacing
 
 Industrial systems often use CPLDs or FPGAs as register-mapped bus bridges. HAPI maps naturally to hardware register pipelines — the hardware address is a compile-time template parameter, embedded directly in the type signature.
@@ -240,6 +258,7 @@ HAPI's layer model makes dependencies explicit and ordering constraints compiler
 | Telecommunications | Layered composition, ordering constraints, zero dispatch overhead |
 | Robotics | Deterministic pipelines, explicit topology, stage isolation |
 | Medical Devices | Static composition, predictable execution, structural traceability |
+| Hardware Pipeline Synthesis | Compile-time collapse to hardware-equivalent instruction sequences |
 | FPGA / CPLD | Compile-time address embedding, zero-overhead register abstraction |
 | DSP / Audio | No framework overhead in cycle budget |
 | Edge AI / TinyML | Zero-overhead preprocessing pipelines |
