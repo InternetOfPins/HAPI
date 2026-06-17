@@ -42,8 +42,7 @@
 #include <type_traits>
 #include <tuple>
 #include <boost/hana.hpp>
-#include "hapi/chain.h"
-#include "hapi/meta.h"
+#include "hapi/hapi.h"
 #include "hapi/run.h"
 
 namespace hana = boost::hana;
@@ -151,6 +150,34 @@ constexpr auto make_hana_val_tuple(std::index_sequence<Is...>) {
 
 constexpr auto add_one = [](auto x) {
     return hana::int_c<decltype(x)::value + 1>;
+};
+
+// HAPI value-level map via Map<Inc, At<N> chain>
+// Inc is the same +1 operation as add_one, but as a named type for Map<>
+struct Inc { constexpr int operator()(int n) const { return n + 1; } };
+
+struct HapiBenchAPI {
+    template<typename O>
+    struct Part : O {
+        using O::O;
+        template<typename T> T&       operator[](std::size_t) noexcept       { __builtin_unreachable(); }
+        template<typename T> const T& operator[](std::size_t) const noexcept { __builtin_unreachable(); }
+    };
+};
+
+template<typename Seq> struct GenAtMapped;
+template<std::size_t... Is>
+struct GenAtMapped<std::index_sequence<Is...>> {
+    using Chain  = hapi::APIOf<HapiBenchAPI, hapi::At<Is>...>;
+    using Mapped = typename hapi::Map<Inc, Chain>::Expr;
+};
+
+// Trans<Inc> pipeline: N layers of +1 composed bottom-up, zero storage
+template<typename Seq> struct GenTransChain;
+template<std::size_t... Is>
+struct GenTransChain<std::index_sequence<Is...>> {
+    template<std::size_t> using TransInc = hapi::run::Trans<Inc>;
+    using Type = hapi::APIOf<hapi::run::Identity, TransInc<Is>...>;
 };
 
 // std::tuple value-level tuple for comparison
@@ -291,6 +318,17 @@ int main() {
     constexpr auto output = hana::transform(input, add_one);
     (void)output;
 
+#elif defined(TEST_HAPI_MAPPED)
+    // hapi::Map<Inc, At<N> chain> — value-level +1 via Mapped<Inc> wrapper
+    // same +1 operation as Hana's add_one, but HAPI stores in memory, Hana encodes in types
+    using Node = typename GenAtMapped<std::make_index_sequence<TEST_SIZE>>::Mapped;
+    { Node node{}; (void)node; }
+
+#elif defined(TEST_TRANS)
+    // hapi::run::Trans<Inc> — N-deep transform pipeline, zero storage, constexpr composition
+    using Node = typename GenTransChain<std::make_index_sequence<TEST_SIZE>>::Type;
+    { Node node{}; (void)node.transform(0); }
+
 #elif defined(TEST_HANA_VAL_FIND)
     // hana::find_if on N compile-time integer values — Hana's native domain
     constexpr auto input = make_hana_val_tuple(std::make_index_sequence<TEST_SIZE>{});
@@ -311,11 +349,6 @@ int main() {
     ForEachNode<C, DummyAPI> node;
     hapi::forEach<hapi::TagIs<AllTag>>(node, [](auto&){});
 
-#elif defined(TEST_RUN_EACH)
-    // hapi::run::runEach — same topology, runtime loop over compile-time dispatch table
-    using C = typename GenerateCompChain<std::make_index_sequence<TEST_SIZE>>::Type;
-    ForEachNode<C, DummyAPI> node;
-    hapi::run::runEach<hapi::TagIs<AllTag>>(node, [](auto&){});
 
 #elif defined(TEST_NODE_ONLY)
     // construct node only — isolates chain construction cost from traversal

@@ -7,7 +7,7 @@ include_dir = "../../include"
 sizes_map   = [10, 100, 200, 300]
 sizes_find  = [10, 100, 200, 300]
 sizes_tree  = [2, 5, 10, 14]        # B values, total = B² (max 196)
-sizes_val   = [10, 100, 200, 300]
+sizes_val   = [10, 20, 30, 50]
 
 def base_cmd(n, flag, tree=False):
     size_flag = f"-DTREE_B={n}" if tree else f"-DTEST_SIZE={n}"
@@ -63,10 +63,11 @@ tree_tests = [
 val_tests = [
     ("TEST_BASELINE",      "Baseline",                   "black",  "--", "x", sizes_val, False),
     ("TEST_HANA_VAL_MAP",  "Hana transform (value)",     "blue",   "-",  "^", sizes_val, False),
+    ("TEST_HAPI_MAPPED",   "HAPI Map<Inc> (value)",      "green",  "-",  "s", sizes_val, False),
+    ("TEST_TRANS",         "HAPI Trans<Inc> pipeline",   "purple", "-",  "P", sizes_val, False),
     ("TEST_HANA_VAL_FIND", "Hana find_if (value)",       "blue",   "-.", "D", sizes_val, False),
     ("TEST_STD_VAL_MAP",   "std::apply+tuple (value)",   "red",    "-",  "o", sizes_val, False),
-    ("TEST_HAPI_FOR_EACH", "HAPI forEach (type-level)",  "green",  "-",  "s", sizes_val, False),
-    ("TEST_RUN_EACH",      "HAPI runEach (hybrid)",      "orange", "-",  "D", sizes_val, False),
+    ("TEST_HAPI_FOR_EACH", "HAPI forEach (type-level)",  "green",  "-.", "D", sizes_val, False),
     ("TEST_NODE_ONLY",     "Node construction only",     "gray",   ":",  "x", sizes_val, False),
 ]
 

@@ -74,9 +74,9 @@ inline_max() {
     echo "  foreach   - node_only ≈ forEach codegen cost"
     echo ""
 
-    declare -a TESTS=( baseline map find_first find_mid find_last foreach runeach node_only at_array mapped )
+    declare -a TESTS=( baseline map find_first find_mid find_last foreach node_only at_array mapped )
     declare -a DEFS=(  TEST_BASELINE TEST_MAP TEST_FIND_FIRST TEST_FIND_MID TEST_FIND_LAST \
-                       TEST_FOREACH TEST_RUNEACH TEST_NODE_ONLY TEST_AT_ARRAY TEST_MAPPED )
+                       TEST_FOREACH TEST_NODE_ONLY TEST_AT_ARRAY TEST_MAPPED )
     read -ra SIZE_ARR <<< "${SIZES}"
 
     printf "%-14s" ""
