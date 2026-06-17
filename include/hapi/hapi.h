@@ -83,6 +83,29 @@ namespace hapi {
     };
   };
 
+  // ====================== Mapped<F> ======================--
+
+  /// @brief Lazy value-transform component — F is a type-level constant (constexpr functor).
+  /// static constexpr F fn{} means zero storage regardless of chain size.
+  /// value<K>() and operator[](i) apply fn to the result of the underlying walk.
+  /// For stateless functors (no captures): sizeof(fn)==0, pure compile-time, EBO-equivalent.
+  template<typename F>
+  struct Mapped {
+    template<typename O>
+    struct Part : O {
+      using Base = O;
+      using Base::Base;
+      static constexpr F fn{};
+
+      template<std::size_t K>
+      constexpr auto value() const { return fn(Base::template value<K>()); }
+
+      constexpr auto operator[](std::size_t i) const {
+        return fn(static_cast<const Base&>(*this)[i]);
+      }
+    };
+  };
+
   // ====================== IdxTag<I> ======================--
 
   /// @brief Positional index tag — zero overhead (EBO), marks component I in a chain.
