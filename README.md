@@ -4,7 +4,7 @@
 
 **A zero-overhead static composition engine for C++.**
 
-Enables modular, type-safe, and high-performance system design through advanced compile-time composition.
+Components compose into **type trees**. The compiler flattens them to optimal machine code. The structure never reaches runtime.
 
 ---
 
@@ -12,55 +12,99 @@ Enables modular, type-safe, and high-performance system design through advanced 
 #include <hapi/hapi.h>
 using namespace hapi;
 
-OutDef<
-  ScrollPrinter, ANSIFmt, ClearFreeFmt,
-  DataParser<>, CtrlChars, UTF8, TextWrap, Clip,
-  ColorTrack<int>, Cursor, Gate, ANSIOut,
-  ConsoleOut, StaticPos<20,10>, StaticArea<30,8>
-> out;
+// Each component declares open-ended inheritance
+struct Validate { template<typename O> struct Part : O { using O::O; }; };
+struct Log      { template<typename O> struct Part : O { using O::O; }; };
+struct Cache    { template<typename O> struct Part : O { using O::O; }; };
+
+// Flat chain
+using Node = APIOf<DriverAPI, Validate, Log, Cache>;
+
+// Or a tree — nested chains, natively traversable
+using Inner = Chain<Validate, Log>;
+using Tree  = APIOf<DriverAPI, Inner, Cache>;
+
+// Map a transform over any topology — tree structure preserved
+using Mapped = Map<MakePointer, Tree>::Expr;
 ```
 
 No virtual dispatch. No heap allocation. Wrong layer order → **named compile error**.
 
-The same pipeline compiles to AVR UART or POSIX stdout by swapping one layer.
-
 ---
 
-## Why HAPI?
+## The Central Idea
 
-Modern embedded and systems programming often forces a choice between clean architecture and runtime performance. HAPI provides a third path: **zero-overhead static composition**. Developers write modular, composable, high-level code — the compiler transforms it into flat, optimal machine instructions.
+Most heterogeneous composition libraries operate on **flat type lists**. HAPI operates on **type trees**.
 
----
+A nested `Chain<Branch<A,B>, Branch<C,D>>` is natively traversable — `Map`, `FindFirst`, `forEach` all preserve and traverse the tree topology without collapsing it. Libraries built on flat lists must `flatten` first, destroying structure they cannot reconstruct.
 
-## The Win-Win Architecture
-
-* **The developer wins** — expressive, modular, reusable code. Composition is declared, not wired.
-* **The hardware wins** — flat, optimal instruction sequences. No vtables, no dynamic allocation, no indirection.
-* **The compiler pays the price** — all abstraction cost is paid in build-time seconds. The final binary contains none of it.
-
-There is no such thing as a structurally broken HAPI program that compiles.
+This matters when structure *is* the semantics: layered protocols, nested menus, device hierarchies, validation pipelines.
 
 ---
 
 ## Open Chain Derivation
 
-The central mechanism of HAPI. An ordered list of feature types is folded into a single C++ class through recursive open-ended inheritance. Each feature contributes an inner `Part<O>` template inheriting from `O` — the layer below. The base is provided by the caller, not fixed by the chain.
+The central mechanism. Each component declares an inner `Part<O>` template that inherits from `O`. A chain folds these into a single C++ class through recursive inheritance — the **base is provided by the caller**, not fixed by the chain.
+
+```
+Chain<A, B, C>::Part<API>  ≡  A::Part<B::Part<C::Part<API>>>
+```
 
 The compiler sees the full resolved hierarchy and flattens it. The result is indistinguishable in performance from a hand-written monolith — because structurally, it is one.
-
-Chains are also first-class objects — mappable, filterable, and queryable at compile time. Any composed type that exposes its component list is automatically introspectable without manual registration.
 
 ---
 
 ## Core Pillars
 
-* **Static Composition** — assembled at compile time into flat, cache-friendly structures with full inlining.
-* **Type-Level Validation** — structural and semantic rules verified at compilation.
-* **Zero Runtime Cost** — no vtables, no dynamic allocation, predictable memory layout.
-* **Chain Transformation** — type lists are first-class. Inspect, categorise, filter, and restructure compositions at compile time with zero runtime cost.
-* **Functional Influence** — composition, immutability of structure, making invalid states irrepresentable.
+- **Type Tree Composition** — nested chains are first-class: mappable, filterable, queryable without losing structure.
+- **Zero Runtime Cost** — no vtables, no dynamic allocation. All abstraction paid at compile time.
+- **Type-Level Validation** — structural and semantic rules verified at compilation. Invalid compositions don't compile.
+- **Functional Operations** — `Map<F, Tree>`, `FindFirst<Q>`, `forEach<Q>`, `FilterIf<Q>` — all topology-aware.
+- **Value Transforms** — `At<N,T>` for indexed storage, `Mapped<F>` and `Trans<F>` for zero-storage constexpr pipelines.
 
-HAPI runs anywhere C++17 runs.
+HAPI runs anywhere C++17 runs — AVR, ESP32, Linux, bare metal.
+
+---
+
+## HAPI and Boost.Hana
+
+Complementary, not competing. Hana excels at value-level heterogeneous computation over flat sequences of type-encoded constants (`int_c`). HAPI excels at structural composition over arbitrary tree topologies.
+
+| | HAPI | Hana |
+|---|---|---|
+| Domain | Type trees, structural composition | Value sequences, integral constants |
+| Tree topology | Native — Map/Find preserve structure | Must flatten first |
+| Value computation | Delegates to Hana | Native |
+| Target | Embedded + systems, any C++17 | General C++ |
+
+The boundary is clean: HAPI owns the structure; Hana owns the value-level algebra.
+
+---
+
+## Runtime Companion (`run.h`)
+
+Composable runtime predicates and constexpr transform pipelines, same chain architecture:
+
+```cpp
+// Predicate fold: Equal AND Greater, terminal = True
+using Filter = APIOf<run::True, run::Equal<int>, run::Greater<int>>;
+
+// Constexpr transform pipeline: composed bottom-up, zero storage
+struct Inc { constexpr int operator()(int n) const { return n + 1; } };
+struct Dbl { constexpr int operator()(int n) const { return n * 2; } };
+using Pipeline = APIOf<run::Identity, run::Trans<Dbl>, run::Trans<Inc>>;
+// Pipeline::transform(3) == Dbl(Inc(3)) == 8
+```
+
+---
+
+## The Win-Win Architecture
+
+- **The developer wins** — expressive, modular, reusable code. Composition is declared, not wired.
+- **The hardware wins** — flat, optimal instruction sequences. No vtables, no dynamic allocation, no indirection.
+- **The compiler pays the price** — all abstraction cost is paid in build-time seconds. The final binary contains none of it.
+
+There is no such thing as a structurally broken HAPI program that compiles.
 
 ---
 
