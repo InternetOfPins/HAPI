@@ -143,9 +143,9 @@ The same model scales from 8-bit AVR registers to multi-core ARM peripherals. Th
 
 ### FPGA & CPLD Register Interfacing
 
-Industrial systems often use CPLDs or FPGAs as register-mapped bus bridges. HAPI maps naturally to hardware register pipelines — the hardware address is a compile-time template parameter, embedded directly in the type signature.
+Industrial systems often use CPLDs or FPGAs as register-mapped bus bridges. The pattern maps naturally to hardware register pipelines — hardware addresses as compile-time template parameters, embedded directly in the type signature.
 
-HAPI does not generate HDL and does not replace hardware-description languages or fabric synthesis engines. Its contribution is an elegant, zero-overhead abstraction layer for software components interfacing with register-mapped logic.
+This is a direction under exploration rather than a validated production target. The concept is sound and the example below illustrates the approach, but hardware validation on metal is ongoing. HAPI does not generate HDL and does not replace hardware-description languages or fabric synthesis engines.
 
 <details>
 <summary>Zero-Overhead Register-Mapped Interface Example</summary>
