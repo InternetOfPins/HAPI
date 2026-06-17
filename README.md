@@ -36,7 +36,7 @@ No virtual dispatch. No heap allocation. Wrong layer order → **named compile e
 
 Most heterogeneous composition libraries operate on **flat type lists**. HAPI operates on **type trees**.
 
-A nested `Chain<Branch<A,B>, Branch<C,D>>` is natively traversable — `Map`, `FindFirst`, `forEach` all preserve and traverse the tree topology without collapsing it. Libraries built on flat lists must `flatten` first, destroying structure they cannot reconstruct.
+A nested `Chain<Branch<A,B>, Branch<C,D>>` is natively traversable — `Map`, `FindFirst`, `forEach` all preserve and traverse the tree topology without collapsing it. Libraries built on flat lists lose tree topology internally: operations see a flat sequence regardless of original structure, with no way to recover the nesting.
 
 This matters when structure *is* the semantics: layered protocols, nested menus, device hierarchies, validation pipelines.
 
