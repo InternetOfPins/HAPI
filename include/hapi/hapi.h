@@ -77,13 +77,13 @@ namespace hapi {
       operator const T&() const noexcept { return data; }
 
       template<std::size_t K>
-      constexpr T& value() {
+      constexpr auto& value() {
         if constexpr (K == 0) return data;
         else                  return Base::template value<K-1>();
       }
 
       template<std::size_t K>
-      constexpr const T& value() const {
+      constexpr const auto& value() const {
         if constexpr (K == 0) return data;
         else                  return Base::template value<K-1>();
       }
