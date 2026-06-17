@@ -96,12 +96,11 @@ namespace run {
     constexpr T transform(T&& v) const { return std::forward<T>(v); }
   };
 
-  template<typename F>
+  template<auto fn>
   struct Trans {
     template<typename O>
     struct Part : O {
       using O::O;
-      static constexpr F fn{};
       template<typename T>
       constexpr auto transform(T&& v) const {
         return fn(O::transform(std::forward<T>(v)));
@@ -122,24 +121,23 @@ namespace run {
   };
 
   // ====================== Mutation Pipeline ======================
-  // Mutate<F>: applies stateless functor F in-place to a value, then continues chain.
-  // Trans<F> is functional (returns new value); Mutate<F> is imperative (mutates ref).
-  // F must be default-constructible and stateless — zero storage via static constexpr.
+  // Mutate<fn>: applies fn in-place to a value, then continues chain.
+  // fn is a non-type template parameter — function pointer, lambda, or functor instance.
+  // Trans<fn> is functional (returns new value); Mutate<fn> is imperative (mutates ref).
   // Terminal: MutBase (do nothing).
-  // Usage: APIOf<MutBase, Mutate<F1>, Mutate<F2>>::run(v) → F1(v); F2(v);
+  // Usage: APIOf<MutBase, Mutate<f1>, Mutate<f2>>::run(v) → f1(v); f2(v);
 
   struct MutBase {
     template<typename T>
     constexpr void run(T&) const noexcept {}
   };
 
-  template<typename F>
+  template<auto fn>
   struct Mutate {
     template<typename O>
     struct Part : O {
       using Base = O;
       using Base::Base;
-      static constexpr F fn{};
       template<typename T>
       constexpr void run(T& v) const noexcept { fn(v); Base::run(v); }
     };
@@ -164,6 +162,23 @@ namespace run {
       T* target{};
       static constexpr F fn{};
       void run() noexcept { fn(*target); Base::run(); }
+    };
+  };
+
+  // ====================== CtRef Pipeline ======================
+  // CtRef<I, T, F, Arr>: like Ref<T,F> but the array pointer is a NTTP —
+  // baked into the type at instantiation time, zero bytes in the object.
+  // Arr must have static storage duration (global/static array).
+  // Equivalent to DataRef<address> in OneMenu: no runtime indirection.
+  // Usage: APIOf<RefBase, CtRef<0,int,fn,g>, CtRef<1,int,fn,g>, ...>::run()
+  //   → g[0] += k0; g[1] += k1; ... all as direct addressing, no pointer loads.
+
+  template<std::size_t I, typename T, auto fn, T* Arr>
+  struct CtRef {
+    template<typename O>
+    struct Part : O {
+      using Base = O;
+      void run() noexcept { fn(Arr[I]); Base::run(); }
     };
   };
 

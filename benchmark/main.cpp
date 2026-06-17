@@ -176,7 +176,7 @@ struct GenAtMapped<std::index_sequence<Is...>> {
 template<typename Seq> struct GenTransChain;
 template<std::size_t... Is>
 struct GenTransChain<std::index_sequence<Is...>> {
-    template<std::size_t> using TransInc = hapi::run::Trans<Inc>;
+    template<std::size_t> using TransInc = hapi::run::Trans<Inc{}>;
     using Type = hapi::APIOf<hapi::run::Identity, TransInc<Is>...>;
 };
 

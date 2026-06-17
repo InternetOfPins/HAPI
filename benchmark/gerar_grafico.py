@@ -1,8 +1,9 @@
 import os, time, subprocess
 import matplotlib.pyplot as plt
 
-source      = "../main.cpp"
-include_dir = "../../include"
+BENCH_DIR   = os.path.dirname(os.path.abspath(__file__))
+source      = os.path.join(BENCH_DIR, "main.cpp")
+include_dir = os.path.join(BENCH_DIR, "..", "include")
 
 sizes_map   = [10, 100, 200, 300]
 sizes_find  = [10, 100, 200, 300]
@@ -12,7 +13,7 @@ sizes_val   = [10, 20, 30, 50]
 def base_cmd(n, flag, tree=False):
     size_flag = f"-DTREE_B={n}" if tree else f"-DTEST_SIZE={n}"
     return (
-        f"g++ -std=c++17 -fsyntax-only -ftemplate-depth=2000 "
+        f"g++ -std=c++20 -fsyntax-only -ftemplate-depth=2000 "
         f"-I{include_dir} {size_flag} -D{flag} {source}"
     )
 
