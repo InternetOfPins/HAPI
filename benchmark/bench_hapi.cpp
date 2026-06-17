@@ -25,8 +25,7 @@
   #include <iostream>
 #endif
 
-#include <hapi/chain.h>
-#include <hapi/meta.h>
+#include <hapi/hapi.h>
 #include <hapi/run.h>
 
 #ifndef TEST_SIZE
@@ -48,7 +47,20 @@ struct Comp : AllTag {
 
 struct DummyAPI {
     template<typename O>
-    struct Part : O { using O::O; };
+    struct Part : O {
+        using O::O;
+        template<typename T> T&       operator[](std::size_t) noexcept       { __builtin_unreachable(); }
+        template<typename T> const T& operator[](std::size_t) const noexcept { __builtin_unreachable(); }
+    };
+};
+
+struct Inc { constexpr int operator()(int n) const { return n + 1; } };
+
+template<typename Seq> struct GenAtChain;
+template<std::size_t... Is>
+struct GenAtChain<std::index_sequence<Is...>> {
+    using Type   = hapi::APIOf<DummyAPI, hapi::At<Is>...>;
+    using Mapped = hapi::APIOf<DummyAPI, hapi::Mapped<Inc>, hapi::At<Is>...>;
 };
 
 struct MakePointer {
@@ -122,6 +134,14 @@ int main() {
 #elif defined(TEST_NODE_ONLY)
     using C = typename GenChain<std::make_index_sequence<TEST_SIZE>>::Type;
     { FENode<C, DummyAPI> node; (void)node; }
+
+#elif defined(TEST_AT_ARRAY)
+    using Node = typename GenAtChain<std::make_index_sequence<TEST_SIZE>>::Type;
+    { Node node{}; (void)node; }
+
+#elif defined(TEST_MAPPED)
+    using Node = typename GenAtChain<std::make_index_sequence<TEST_SIZE>>::Mapped;
+    { Node node{}; (void)node; }
 
 #elif defined(TEST_RUNTIME)
     using SC = std::chrono::steady_clock;
