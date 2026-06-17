@@ -228,7 +228,8 @@ namespace hapi {
   }
 
   template<typename Q, typename Node>
-  constexpr const auto& find(const Node& node) noexcept {
+  constexpr auto find(const Node& node) noexcept
+      -> const typename FindFirst<Q, typename Node::Types::Tail, typename Node::Types::Head>::type& {
     using FullTypes = typename Node::Types;
     using API       = typename FullTypes::Head;
     using Hapis     = typename FullTypes::Tail;
