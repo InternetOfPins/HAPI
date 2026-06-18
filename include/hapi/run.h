@@ -182,5 +182,21 @@ namespace run {
     };
   };
 
+  // ====================== forEach alias + visitor marker ======================
+  // Checkable: inherit in the outer component struct to opt in to runEach visits.
+  // runEach<Q>(node, fn): call fn on every Q-matching component — thin alias for hapi::forEach.
+
+  struct Checkable {};
+
+  template<typename Q, typename Node, typename Fn>
+  void runEach(Node& node, Fn&& fn) {
+    hapi::forEach<Q>(node, std::forward<Fn>(fn));
+  }
+
+  template<typename Q, typename Node, typename Fn>
+  void runEach(const Node& node, Fn&& fn) {
+    hapi::forEach<Q>(node, std::forward<Fn>(fn));
+  }
+
 } // namespace run
 } // namespace hapi
