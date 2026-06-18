@@ -9,8 +9,7 @@ A HAPI component has two distinct parts: the **layer struct** (the feature defin
 ### The layer struct
 
 ```cpp
-struct A : Hapi<A> {                    // (1) outer struct — the layer identity, never instantiated directly
-                                        //     inheriting Hapi<A> makes A itself usable as a component
+struct A {                              // (1) outer struct — the layer identity, never instantiated directly
 
   template<typename O>                  // (2) O is the composed type of everything below in the stack
   struct Part : O {                     // (3) the actual mixin — single-inheritance from O
@@ -36,11 +35,11 @@ struct A : Hapi<A> {                    // (1) outer struct — the layer identi
 
 | # | Element | Required | Description |
 |---|---|---|---|
-| 1 | `struct A : Hapi<A>` | yes | The layer identity. Never instantiated directly. Inheriting `Hapi<A>` makes the outer struct itself usable as a component inside another chain (same mechanism `Chain<>` uses). |
-| 2 | `template<typename O>` | no | `O` is the composed type of everything below this layer. Omitted when `Part` is inherited via `Hapi<T>` or when the component adds no behavior. |
-| 3 | `struct Part : O` | no | The actual mixin — single-inheritance from `O` (mono_block topology). Omitted when inherited from `Hapi<T>`. |
+| 1 | `struct A` | yes | The layer identity. Never instantiated directly. |
+| 2 | `template<typename O>` | no | `O` is the composed type of everything below this layer. Omit only when the component adds no behavior. |
+| 3 | `struct Part : O` | no | The actual mixin — single-inheritance from `O` (mono_block topology). |
 | 4 | `using Base = O` | no | Convenience alias, used to call through |
-| 5 | `using Base::Base` | yes* | Essential for compound construction — propagates constructors from `O` up through every layer so the composed type can be instantiated with arguments. Without it the chain breaks at this level. Cannot be absorbed into `Hapi<T>` because `Hapi` wraps the outer `Part`, not the inner one. |
+| 5 | `using Base::Base` | yes* | Essential for compound construction — propagates constructors from `O` up through every layer so the composed type can be instantiated with arguments. Without it the chain breaks at this level. |
 | 6 | Method override | no | Add or transform behavior at this level |
 | 7 | `Base::method()` | no* | Forward to the layer below — omit only when intentionally suppressing |
 | 8 | `rules<Before,After>()` | no | Declare ordering constraints — detected automatically by `HasRules` |
@@ -48,12 +47,15 @@ struct A : Hapi<A> {                    // (1) outer struct — the layer identi
 
 #### Tagging: outer struct vs inner alias
 
-Two tagging styles exist. **Prefer outer struct inheritance** — it is visible to `query<>` without instantiating `Part`, which is important for `rules<>` validation:
+Two tagging styles exist. **Prefer outer struct inheritance** — it is visible to `query<>` and `rules<>` without instantiating `Part`:
 
 ```cpp
 // Preferred — outer struct inherits the tag; query<TagIs<aFormat>, Chain<...>> works
 struct aFormat {};
-struct MyFmt : aFormat { ... };
+struct MyFmt : aFormat {
+  template<typename O>
+  struct Part : O { ... };
+};
 
 // Older style — tag is a type alias inside Part; only visible after Part is instantiated
 struct MyFmt {
@@ -162,9 +164,9 @@ struct B {
 
   template<typename Before, typename After>
   static constexpr bool rules() {
-    static_assert(query<SameAs<A>, Before>, "B requires A before it");
-    static_assert(!query<SameAs<B>, After>, "B must not appear twice");
-    static_assert(!query<SameAs<A>, After>, "A must be placed before B");
+    static_assert(Requires<SameAs<A>, Before>,  "B requires A before it");
+    static_assert(Excludes<SameAs<B>, After>,   "B must not appear twice");
+    static_assert(Excludes<SameAs<A>, After>,   "A must be placed before B");
     return true;
   }
 };
@@ -255,49 +257,44 @@ struct Map<F, Chain<OO...>> {
 
 ---
 
-### Hapi\<T\> — component view wrapper
+### Sub-chain as component
 
-`Hapi<T>` wraps any type `T` as a component whose `Part<O>` delegates through `T::Part<O>`. A derived struct can hide or delete methods to create a restricted view of the chain:
+A `Chain<OO...>` can be used directly as a component inside another chain — its own `Part<T>` is defined on the struct, so no extra wrapping is needed:
 
 ```cpp
-struct ReadOnly : Hapi<Chain<Data, Store>> {
-  // hide the write path — only read is exposed
+using Inner = Chain<Data, Store>;
+using Outer = APIOf<API, Inner, Other>;   // Inner is expanded inline
+```
+
+To create a restricted view (hide or delete methods from a sub-chain), write an explicit wrapper struct:
+
+```cpp
+struct ReadOnly {
   template<typename O>
   struct Part : Chain<Data, Store>::template Part<O> {
     using Base = typename Chain<Data, Store>::template Part<O>;
-    void set(auto) = delete;
+    using Base::Base;
+    void set(auto) = delete;   // hide the write path
   };
 };
 ```
 
-`Chain<OO...>` itself inherits `Hapi<Chain<OO...>>`, making every chain directly usable as a component inside another chain without extra wrapping.
+### Introspection from a node
 
-#### Member sugar on `Hapi<T>::Part`
-
-Every composed node that passes through `Hapi<T>::Part` inherits these convenience members:
+HAPI provides free-function introspection — member `find`/`query` forms are not part of the core:
 
 ```cpp
-// find the first chain component satisfying Q; returns a reference
-template<typename Q> auto& find();
-template<typename Q> const auto& find() const;
-template<typename Q> auto& find(Q);          // tag-dispatch — deduces Q, no .template needed
-template<typename Q> const auto& find(Q) const;
+// compile-time predicate: true if Q matches anywhere in node's chain
+query<SameAs<WrapNav>, MyNodeType>
 
-// true if Q is satisfied anywhere in this node's chain
-template<typename Q> constexpr bool query() const;
-template<typename Q> constexpr bool query(Q) const;
+// locate the first matching component and return a reference
+hapi::find<SameAs<MyLayer>>(node)
+
+// visit all matching components
+hapi::forEach<TagIs<aWrapNav>>(node, [](auto& part) { part.enable(false); });
 ```
 
-The tag-dispatch forms (`find(Q{})`, `query(Q{})`) eliminate the `.template` keyword requirement in template contexts and allow the concise variable-template style:
-
-```cpp
-node.find(byId<sub>).enable(false);
-if constexpr (node.query(SameAs<WrapNav>{})) { /* ... */ }
-```
-
-**Shadowing rule:** a component that defines its own `find<Q>()` (e.g. `Menu::Part`, which also searches body items) **must** also define `find(Q)` explicitly — the tag overload is not inherited through a shadow.
-
-**Non-predicate guard:** `find(Q)` and `query(Q)` fire `is_predicate<Q>` static_assert if `Q` lacks a `Check` member, producing a human-readable error at the call site.
+**Non-predicate guard:** `find<Q>(node)` fires `is_predicate<Q>` `static_assert` if `Q` lacks a `Check` member, producing a human-readable error at the call site.
 
 ---
 
