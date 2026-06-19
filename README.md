@@ -50,7 +50,7 @@ The central mechanism. Each component declares an inner `Part<O>` template that 
 Chain<A, B, C>::Part<API>  ≡  A::Part<B::Part<C::Part<API>>>
 ```
 
-The compiler sees the full resolved hierarchy and flattens it. Composed fields are packed into a single contiguous block, sized exactly to what was declared. No heap, no fragmentation.
+The compiler sees the full resolved hierarchy and flattens it. Composed fields are packed into a single contiguous memory block, sized exactly to what was declared. No heap, no fragmentation.
 
 ---
 
