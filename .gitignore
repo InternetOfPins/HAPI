@@ -3,3 +3,5 @@
 benchmark/build/
 benchmark/*.png
 benchmark/*.zip
+benchmark/*.py
+benchmark/results/

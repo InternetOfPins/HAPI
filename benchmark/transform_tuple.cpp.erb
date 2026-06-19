@@ -1,8 +1,0 @@
-#include <tuple>
-
-int main() {
-    using Types = std::tuple<<%= (1..n).map { "int" }.join(', ') %>>;
-    using Transformed = std::tuple<<%= (1..n).map { "int*" }.join(', ') %>>;
-    [[maybe_unused]] Transformed t;
-    return 0;
-}

@@ -1,8 +1,0 @@
-// benchmark.cpp.erb
-#include <tuple>
-
-int main() {
-  // Gera uma tupla com <%= n %> elementos
-  auto tuple = std::make_tuple(<%= (1..n).map { |i| i }.join(', ') %>);
-  return 0;
-}

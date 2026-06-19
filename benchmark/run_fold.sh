@@ -6,7 +6,7 @@ set -euo pipefail
 
 BENCH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 HAPI_INCLUDE="${BENCH_DIR}/../include"
-SRC="${BENCH_DIR}/bench_fold.cpp"
+SRC="${BENCH_DIR}/bench_fold.cpp"   # Mutate / Ref / Trans pipelines
 RESULTS_DIR="${BENCH_DIR}/results"
 mkdir -p "${RESULTS_DIR}"
 
@@ -91,3 +91,5 @@ compile_ms() {
 
 echo ""
 echo "Results saved to: ${LOG}"
+
+python3 "${BENCH_DIR}/fold_chart.py" "${LOG}"

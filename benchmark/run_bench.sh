@@ -1,40 +1,32 @@
 #!/usr/bin/env bash
-# HAPI standalone benchmark runner
-# Usage: ./run_bench.sh [CXX=clang++] [SIZES="10 25 50 100 200"] [REPS=100000]
+# HAPI vs Hana compile-time benchmark (all test categories)
+# Usage: ./run_bench.sh [CXX=g++] [SIZES="10 25 50 100 200"] [TREE_SIZES="5 10 13"]
 #
-# Measures:
-#   compile time  — -fsyntax-only at N = 10 25 50 100 200
-#   runtime       — forEach / runEach throughput at N = 50, 200
-#   binary size   — stripped runtime binary
-#
-# Results are stored in benchmark/results/YYYY-MM-DD_HH-MM-SS.log
-# and diffed against the previous run.
+# Generates bench_compile.png with 4 panels:
+#   top-left:     Map type-level        (flat chain, N elements)
+#   top-right:    FindFirst first/mid/last (flat chain)
+#   bottom-left:  Tree topology B×B
+#   bottom-right: Value-level iteration vs type-level forEach
 
 set -euo pipefail
 
 BENCH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 HAPI_INCLUDE="${BENCH_DIR}/../include"
-SRC="${BENCH_DIR}/bench_hapi.cpp"
+SRC="${BENCH_DIR}/main.cpp"
 RESULTS_DIR="${BENCH_DIR}/results"
 mkdir -p "${RESULTS_DIR}"
 
 TIMESTAMP=$(date '+%Y-%m-%d_%H-%M-%S')
 LOG="${RESULTS_DIR}/${TIMESTAMP}.log"
-TMP=$(mktemp -d)
-trap 'rm -rf "${TMP}"' EXIT
 
 : "${CXX:=g++}"
 : "${SIZES:=10 25 50 100 200}"
-: "${REPS:=100000}"
-: "${RUNTIME_SIZES:=50 200}"
+: "${TREE_SIZES:=5 7 10 13}"
 
-FLAGS="-std=c++17 -ftemplate-depth=2000 -I${HAPI_INCLUDE}"
-
-# ── helpers ──────────────────────────────────────────────────────────────────
+FLAGS="-std=c++20 -ftemplate-depth=2000 -I${HAPI_INCLUDE}"
 
 ms_now() { date +%s%3N; }
 
-# compile with given flags, return elapsed ms or "ERR"
 compile_ms() {
     local rc=0 t0 t1
     t0=$(ms_now)
@@ -43,83 +35,91 @@ compile_ms() {
     [[ ${rc} -eq 0 ]] && echo $((t1 - t0)) || echo "ERR"
 }
 
-# read RunInlineMax from run.h (first numeric match)
-inline_max() {
-    grep 'RunInlineMax = [0-9]' "${HAPI_INCLUDE}/hapi/run.h" \
-        | grep -o '[0-9][0-9]*' | head -1 || echo "?"
-}
-
-# ── benchmark body (piped to tee) ────────────────────────────────────────────
-
 {
     CXX_VER=$("${CXX}" --version | head -1)
     HAPI_VER=$(grep '"version"' "${BENCH_DIR}/../library.json" 2>/dev/null \
                | sed 's/.*"\([0-9][0-9.]*\)".*/\1/' || echo "?")
 
-    echo "=== HAPI Standalone Benchmark ==="
-    echo "Date:         $(date '+%Y-%m-%d %H:%M:%S')"
-    echo "Host:         $(uname -n)"
-    echo "Compiler:     ${CXX_VER}"
-    echo "HAPI:         ${HAPI_VER}"
-    echo "RunInlineMax: $(inline_max)  (runEach uses table for N > this)"
-    echo "Flags:        ${FLAGS}"
+    echo "=== HAPI vs Hana Compile-time Benchmark ==="
+    echo "Date:     $(date '+%Y-%m-%d %H:%M:%S')"
+    echo "Host:     $(uname -n)"
+    echo "Compiler: ${CXX_VER}"
+    echo "HAPI:     ${HAPI_VER}"
+    echo "Flags:    ${FLAGS}"
     echo ""
 
-    # ── compile-time table ────────────────────────────────────────────────────
-
-    echo "--- Compile time (ms, -fsyntax-only -O0) ---"
-    echo "  baseline: HAPI include + compiler startup, no Chain<N>"
-    echo "  node_only - baseline ≈ pure Chain<N> instantiation cost"
-    echo "  find_xxx  - node_only ≈ pure FindFirst traversal cost"
-    echo "  foreach   - node_only ≈ forEach codegen cost"
-    echo ""
-
-    declare -a TESTS=( baseline map find_first find_mid find_last foreach node_only at_array mapped )
-    declare -a DEFS=(  TEST_BASELINE TEST_MAP TEST_FIND_FIRST TEST_FIND_MID TEST_FIND_LAST \
-                       TEST_FOREACH TEST_NODE_ONLY TEST_AT_ARRAY TEST_MAPPED )
     read -ra SIZE_ARR <<< "${SIZES}"
+    read -ra TREE_ARR <<< "${TREE_SIZES}"
 
-    printf "%-14s" ""
+    # ── flat-N section ────────────────────────────────────────────────────────
+
+    echo "### SECTION: flat ###"
+    printf "%-20s" ""
     for N in "${SIZE_ARR[@]}"; do printf "%7s" "N=${N}"; done
     echo ""
-    printf "%-14s" ""
+    printf "%-20s" ""
     for N in "${SIZE_ARR[@]}"; do printf "%7s" "------"; done
     echo ""
 
-    for i in "${!TESTS[@]}"; do
-        printf "%-14s" "${TESTS[$i]}"
+    declare -a FLAT_LABELS=( baseline     node_only
+                             hapi_type    hana_type
+                             hapi_first   hana_first
+                             hapi_mid     hana_mid
+                             hapi_last    hana_last
+                             hapi_foreach hapi_mapped
+                             hana_val_map std_val_map hana_val_find )
+    declare -a FLAT_DEFS=(   TEST_BASELINE     TEST_NODE_ONLY
+                             TEST_HAPI_TYPE    TEST_HANA_TYPE
+                             TEST_HAPI_FIRST   TEST_HANA_FIRST
+                             TEST_HAPI_MIDDLE  TEST_HANA_MIDDLE
+                             TEST_HAPI_LAST    TEST_HANA_LAST
+                             TEST_HAPI_FOR_EACH TEST_HAPI_MAPPED
+                             TEST_HANA_VAL_MAP TEST_STD_VAL_MAP TEST_HANA_VAL_FIND )
+
+    for i in "${!FLAT_LABELS[@]}"; do
+        printf "%-20s" "${FLAT_LABELS[$i]}"
         for N in "${SIZE_ARR[@]}"; do
-            ms=$(compile_ms -O0 -fsyntax-only "-DTEST_SIZE=${N}" "-D${DEFS[$i]}")
+            ms=$(compile_ms -O0 -fsyntax-only "-DTEST_SIZE=${N}" "-D${FLAT_DEFS[$i]}")
             printf "%7s" "${ms}"
         done
         echo ""
+        case "${FLAT_LABELS[$i]}" in node_only|hana_type|hana_first|hana_mid|hana_last|hapi_mapped)
+            echo ""
+        esac
     done
 
     echo ""
 
-    # ── runtime measurements ──────────────────────────────────────────────────
+    # ── tree-B section ────────────────────────────────────────────────────────
 
-    echo "--- Runtime (-O2, REPS=${REPS}) ---"
+    echo "### SECTION: tree ###"
+    printf "%-20s" ""
+    for B in "${TREE_ARR[@]}"; do printf "%7s" "B=${B}"; done
+    echo ""
+    printf "%-20s" ""
+    for B in "${TREE_ARR[@]}"; do printf "%7s" "------"; done
     echo ""
 
-    read -ra RT_SIZES <<< "${RUNTIME_SIZES}"
-    for N in "${RT_SIZES[@]}"; do
-        BIN="${TMP}/bench_rt_${N}"
-        echo "  N=${N}:"
-        if "${CXX}" ${FLAGS} -O2 -DTEST_RUNTIME "-DTEST_SIZE=${N}" "-DREPS=${REPS}" \
-                   -o "${BIN}" "${SRC}" 2>/dev/null; then
-            KB=$(wc -c < "${BIN}" | awk '{printf "%.1f", $1/1024}')
-            printf "    binary size: %s KB\n" "${KB}"
-            "${BIN}" | sed 's/^/    /'
-        else
-            echo "    [compile failed]"
-        fi
+    declare -a TREE_LABELS=( baseline
+                             hapi_tree_map hapi_tree_first hapi_tree_last
+                             hana_tree_map hana_tree_find )
+    declare -a TREE_DEFS=(   TEST_BASELINE
+                             TEST_HAPI_TREE_MAP TEST_HAPI_TREE_FIRST TEST_HAPI_TREE_LAST
+                             TEST_HANA_TREE_MAP TEST_HANA_TREE_FIND )
+
+    for i in "${!TREE_LABELS[@]}"; do
+        printf "%-20s" "${TREE_LABELS[$i]}"
+        for B in "${TREE_ARR[@]}"; do
+            ms=$(compile_ms -O0 -fsyntax-only "-DTREE_B=${B}" "-D${TREE_DEFS[$i]}")
+            printf "%7s" "${ms}"
+        done
         echo ""
+        case "${TREE_LABELS[$i]}" in baseline|hapi_tree_last)
+            echo ""
+        esac
     done
 
 } | tee "${LOG}"
-
-# ── compare with previous log ─────────────────────────────────────────────────
 
 PREV=$(ls -1t "${RESULTS_DIR}"/*.log 2>/dev/null | grep -vF "${LOG}" | head -1 || true)
 if [[ -n "${PREV}" ]]; then
@@ -130,3 +130,5 @@ fi
 
 echo ""
 echo "Saved: ${LOG}"
+
+python3 "${BENCH_DIR}/bench_chart.py" "${LOG}"
