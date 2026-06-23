@@ -212,6 +212,11 @@ namespace std {
 
   template<class T, T = T{0} + T{0}> struct is_integral : true_type {};
 
+  template<class T> struct is_floating_point : false_type {};
+  template<> struct is_floating_point<float>       : true_type {};
+  template<> struct is_floating_point<double>      : true_type {};
+  template<> struct is_floating_point<long double> : true_type {};
+
   template<class T> struct is_array : false_type {};
   template<class T> struct is_array<T[]> : true_type {};
   template<class T, size_t N> struct is_array<T[N]> : true_type {};
