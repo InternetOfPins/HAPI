@@ -8,6 +8,7 @@
 
 #include "hapi/base.h"
 
+//the happy API
 namespace hapi {
 
   template<typename... OO> struct Chain;
@@ -84,6 +85,7 @@ namespace hapi {
   /// @brief predicate: true if O publicly inherits Tag (outer struct declares `struct MyComp : Tag`)
   template<typename Tag>
   struct TagIs {
+    //verify predicate over O
     template<typename O>
     struct Check : std::is_base_of<Tag, O> {};
   };
