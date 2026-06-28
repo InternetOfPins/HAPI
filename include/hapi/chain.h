@@ -32,11 +32,9 @@ namespace hapi {
 
   template<typename... OO> struct Chain;
 
-  // Empty chain — anchors recursion: Part<T> : T
-  // Also inherits Hapi<Chain<>> so Chain<> is usable as a component.
-  // Own Part<T> shadows Hapi's to avoid circularity.
+  /// Empty chain
   template<>
-  struct Chain<> /*: Hapi<Chain<>>*/ {
+  struct Chain<> {
     template<typename T>
     struct Part : T { using T::T; };  // anchor: no more components, collapse to T
     using Types = Chain<>;
@@ -47,13 +45,9 @@ namespace hapi {
     template<template<typename> class M> using Map = Chain<>;
   };
 
-  /// @brief Non-empty chain.
-  ///        - Inherits Hapi<Chain<O,OO...>>: makes Chain usable as a component.
-  ///        - Defines own Part<T>: standard collapse O::Part<Chain<OO...>::Part<T>>.
-  ///          Own Part shadows Hapi's, so Hapi<Chain<O,OO...>>::Part<T>
-  ///          delegates here without circularity.
+  // list of types
   template<typename O, typename... OO>
-  struct Chain<O, OO...> /*: Hapi<Chain<O, OO...>>*/ {
+  struct Chain<O, OO...> {
     using Types = Chain<O, OO...>;
     using Head  = O;
     using Tail  = Chain<OO...>;
