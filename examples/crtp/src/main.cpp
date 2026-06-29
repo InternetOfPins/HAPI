@@ -52,7 +52,7 @@ using Parens=WrapWith<'(',')'>;
 using SqBracks=WrapWith<'[',']'>;
 using Bracks=WrapWith<'{','}'>;
 using Bars=WrapWith<'|','|'>;
-using Tag=WrapWith<'<','>'>;
+using XTag=WrapWith<'<','>'>;
 
 /// @brief Item pure virtual interface
 struct IItem {
@@ -79,10 +79,10 @@ struct ItemDef:APIOf<Item<CRTP<APIOf<Item<>,OO...>>>,OO...> {};
 ///////////////////////////////////////////////////////////////////////
 
 /// @brief static item definition
-ItemDef<Bars,Parens,SqBracks,Bracks,Tag> testItem;
+ItemDef<Bars,Parens,SqBracks,Bracks,XTag> testItem;
 
 /// @brief virtual item definitions
-using ItemA=IItemOf<Tag,Bars>;
+using ItemA=IItemOf<XTag,Bars>;
 using ItemB=IItemOf<Bracks,SqBracks>;
 
 ItemA a;

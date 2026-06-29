@@ -65,65 +65,6 @@ namespace hapi {
     };
   };
 
-  template<typename F, typename... OO>
-  struct Map<F, Chain<OO...>> {
-    using Expr = Chain<typename Map<F, OO>::Expr...>;
-  };
-
-  // forEach<Q>(node, fn): call fn on every Q-matching component in node's chain.
-  // Mirrors FindFirst but visits all matches. Threads API suffix so each cast is exact —
-  // O(N) instantiation depth, zero runtime overhead (all static_cast).
-
-  template<typename Q, typename API, typename Node, typename Fn>
-  void forEachIn(Chain<>, Node&, Fn&&) {}
-
-  template<typename Q, typename API, typename Node, typename Fn>
-  void forEachIn(Chain<>, const Node&, Fn&&) {}
-
-  template<typename Q, typename API, typename... Inner, typename... Rest, typename Node, typename Fn>
-  void forEachIn(Chain<Chain<Inner...>, Rest...>, Node& node, Fn&& fn) {
-    forEachIn<Q, typename Chain<Rest...>::template Part<API>>(Chain<Inner...>{}, node, fn);
-    forEachIn<Q, API>(Chain<Rest...>{}, node, fn);
-  }
-
-  template<typename Q, typename API, typename... Inner, typename... Rest, typename Node, typename Fn>
-  void forEachIn(Chain<Chain<Inner...>, Rest...>, const Node& node, Fn&& fn) {
-    forEachIn<Q, typename Chain<Rest...>::template Part<API>>(Chain<Inner...>{}, node, fn);
-    forEachIn<Q, API>(Chain<Rest...>{}, node, fn);
-  }
-
-  template<typename Q, typename API, typename O, typename... Rest, typename Node, typename Fn>
-  void forEachIn(Chain<O, Rest...>, Node& node, Fn&& fn) {
-    if constexpr (Q::template Check<O>::value) {
-      using Found = typename O::template Part<typename Chain<Rest...>::template Part<API>>;
-      fn(static_cast<Found&>(node));
-    }
-    forEachIn<Q, API>(Chain<Rest...>{}, node, fn);
-  }
-
-  template<typename Q, typename API, typename O, typename... Rest, typename Node, typename Fn>
-  void forEachIn(Chain<O, Rest...>, const Node& node, Fn&& fn) {
-    if constexpr (Q::template Check<O>::value) {
-      using Found = typename O::template Part<typename Chain<Rest...>::template Part<API>>;
-      fn(static_cast<const Found&>(node));
-    }
-    forEachIn<Q, API>(Chain<Rest...>{}, node, fn);
-  }
-
-  template<typename Q, typename Node, typename Fn>
-  void forEach(Node& node, Fn&& fn) {
-    using API   = typename Node::Types::Head;
-    using Hapis = typename Node::Types::Tail;
-    forEachIn<Q, API>(Hapis{}, node, fn);
-  }
-
-  template<typename Q, typename Node, typename Fn>
-  void forEach(const Node& node, Fn&& fn) {
-    using API   = typename Node::Types::Head;
-    using Hapis = typename Node::Types::Tail;
-    forEachIn<Q, API>(Hapis{}, node, fn);
-  }
-
   /// @brief provide circular reference to the whole chain if needed
   template<typename O>
   struct CRTP {

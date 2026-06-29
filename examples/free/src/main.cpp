@@ -43,15 +43,15 @@ using Parens  =WrapWith<'(',')'>;
 using SqBracks=WrapWith<'[',']'>;
 using Bracks  =WrapWith<'{','}'>;
 using Bars    =WrapWith<'|','|'>;
-using Tag     =WrapWith<'<','>'>;
+using XTag     =WrapWith<'<','>'>;
 
 //a composition of parts is also a part
 //until it is closed with a terminator
-using All=Chain<Parens>;//,SqBracks,Bracks,Bars,Tag>;
+using Full=Chain<Parens,SqBracks,Bracks,Bars,XTag>;
 
 //using terminator `Item`
 // All::template Part<Item> testItem;
-APIOf<Item,All> testItem;
+APIOf<Item,Full> testItem;
 
 #ifdef ARDUINO
   void setup() {
