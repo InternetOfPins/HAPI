@@ -21,6 +21,11 @@ namespace hapi {
     using Base = typename Chain<OO...>::template Part<API>;
     using Base::Base;
     using Types=Chain<API,OO...>;
+
+    /// @brief expose Part<T> for runtime find<Q> operations
+    template<typename T>
+    using Part = typename Chain<OO...>::template Part<T>;
+
     static_assert(BuildRules<Chain<>,Chain<OO...>>::rules(), "HAPI: validation failed");
   };
 

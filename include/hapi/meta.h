@@ -231,30 +231,66 @@ namespace hapi {
 
   // ── Runtime query functions ────────────────────────────────────────────────────--
 
+  /// @brief helper: drop first N elements from Chain<OO...> to get the tail
+  template<std::size_t N, typename T> struct DropN;
+  template<std::size_t N, typename... OO> struct DropN<N, Chain<OO...>> {
+    using Type = typename DropN<N-1, Chain<OO...>>::Type;
+  };
+  template<typename... OO> struct DropN<0, Chain<OO...>> { using Type = Chain<OO...>; };
+  template<> struct DropN<0, Chain<>> { using Type = Chain<>; };
+
+  /// @brief helper: count position of matching Q in chain, or -1 if not found
+  template<typename Q, typename T, std::size_t Idx=0> struct FindIndex;
+  template<typename Q, typename H, typename... TT, std::size_t Idx>
+  struct FindIndex<Q, Chain<H, TT...>, Idx> {
+    static constexpr std::size_t value =
+      Q::template Apply<H>::value ? Idx : FindIndex<Q, Chain<TT...>, Idx+1>::value;
+  };
+  template<typename Q, std::size_t Idx> struct FindIndex<Q, Chain<>, Idx> {
+    static constexpr std::size_t value = 999; // not found
+  };
+
   /// @brief find first match of Q in C's ::Types chain, return typed reference into C
+  /// Cast to Found::Part<TailChain> where TailChain is everything after Found in Types
   template<typename Q, typename C>
   decltype(auto) find(C& c) {
-    using Found = typename FindFirst<Q>::template Check<typename C::Types>;
-    return static_cast<typename C::template Part<Found>&>(c);
+    using Types = typename C::Types;
+    using Found = typename FindFirst<Q>::template Check<Types>;
+    constexpr std::size_t idx = FindIndex<Q, Types>::value;
+    using Tail = typename DropN<idx + 1, Types>::Type;
+    using FoundPart = typename Found::template Part<Tail>;
+    return static_cast<FoundPart&>(c);
   }
 
   template<typename Q, typename C>
   decltype(auto) find(const C& c) {
-    using Found = typename FindFirst<Q>::template Check<typename C::Types>;
-    return static_cast<const typename C::template Part<Found>&>(c);
+    using Types = typename C::Types;
+    using Found = typename FindFirst<Q>::template Check<Types>;
+    constexpr std::size_t idx = FindIndex<Q, Types>::value;
+    using Tail = typename DropN<idx + 1, Types>::Type;
+    using FoundPart = typename Found::template Part<Tail>;
+    return static_cast<const FoundPart&>(c);
   }
 
-  /// @brief find match of Q in C's ::Types chain via default if miss, return typed reference
+  /// @brief find match of Q in C's ::Types chain via default if miss, return reference
   template<typename Q, typename Default, typename C>
   decltype(auto) findOr(C& c) {
-    using Found = typename FindFirstOr<Q, Default>::template Check<typename C::Types>;
-    return static_cast<typename C::template Part<Found>&>(c);
+    using Types = typename C::Types;
+    using Found = typename FindFirstOr<Q, Default>::template Check<Types>;
+    constexpr std::size_t idx = FindIndex<Q, Types>::value;
+    using Tail = typename DropN<idx + 1, Types>::Type;
+    using FoundPart = typename Found::template Part<Tail>;
+    return static_cast<FoundPart&>(c);
   }
 
   template<typename Q, typename Default, typename C>
   decltype(auto) findOr(const C& c) {
-    using Found = typename FindFirstOr<Q, Default>::template Check<typename C::Types>;
-    return static_cast<const typename C::template Part<Found>&>(c);
+    using Types = typename C::Types;
+    using Found = typename FindFirstOr<Q, Default>::template Check<Types>;
+    constexpr std::size_t idx = FindIndex<Q, Types>::value;
+    using Tail = typename DropN<idx + 1, Types>::Type;
+    using FoundPart = typename Found::template Part<Tail>;
+    return static_cast<const FoundPart&>(c);
   }
 
 };
