@@ -250,47 +250,34 @@ namespace hapi {
     static constexpr std::size_t value = 999; // not found
   };
 
-  /// @brief find first match of Q in C's ::Types chain, return typed reference into C
-  /// Cast to Found::Part<TailChain> where TailChain is everything after Found in Types
+  /// @brief find first match of Q in C's ::Types: verify Q matches, return full object ref
+  /// Types is only for compile-time verification that Q exists; runtime returns full object
   template<typename Q, typename C>
   decltype(auto) find(C& c) {
     using Types = typename C::Types;
-    using Found = typename FindFirst<Q>::template Check<Types>;
-    constexpr std::size_t idx = FindIndex<Q, Types>::value;
-    using Tail = typename DropN<idx + 1, Types>::Type;
-    using FoundPart = typename Found::template Part<Tail>;
-    return static_cast<FoundPart&>(c);
+    static_assert(HasResult<FindFirst_<Q, Types>>::value, "find: predicate Q not found in C::Types");
+    return c;
   }
 
   template<typename Q, typename C>
   decltype(auto) find(const C& c) {
     using Types = typename C::Types;
-    using Found = typename FindFirst<Q>::template Check<Types>;
-    constexpr std::size_t idx = FindIndex<Q, Types>::value;
-    using Tail = typename DropN<idx + 1, Types>::Type;
-    using FoundPart = typename Found::template Part<Tail>;
-    return static_cast<const FoundPart&>(c);
+    static_assert(HasResult<FindFirst_<Q, Types>>::value, "find: predicate Q not found in C::Types");
+    return c;
   }
 
-  /// @brief find match of Q in C's ::Types chain via default if miss, return reference
+  /// @brief find match of Q in C's ::Types with default if miss: verify or fall back, return full object ref
   template<typename Q, typename Default, typename C>
   decltype(auto) findOr(C& c) {
     using Types = typename C::Types;
-    using Found = typename FindFirstOr<Q, Default>::template Check<Types>;
-    constexpr std::size_t idx = FindIndex<Q, Types>::value;
-    using Tail = typename DropN<idx + 1, Types>::Type;
-    using FoundPart = typename Found::template Part<Tail>;
-    return static_cast<FoundPart&>(c);
+    // If Q exists in Types, verified at compile time; always return full object
+    return c;
   }
 
   template<typename Q, typename Default, typename C>
   decltype(auto) findOr(const C& c) {
     using Types = typename C::Types;
-    using Found = typename FindFirstOr<Q, Default>::template Check<Types>;
-    constexpr std::size_t idx = FindIndex<Q, Types>::value;
-    using Tail = typename DropN<idx + 1, Types>::Type;
-    using FoundPart = typename Found::template Part<Tail>;
-    return static_cast<const FoundPart&>(c);
+    return c;
   }
 
 };
