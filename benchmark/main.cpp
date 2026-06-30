@@ -9,8 +9,8 @@
  *   HANA_VAL:  Hana on its own terrain — value-level heterogeneous transform/find
  *
  * Compile with:
- *   g++ -std=c++17 -fsyntax-only -ftemplate-depth=2000 -I<hapi_include> -DTEST_SIZE=N -DTEST_XXX main.cpp
- *   g++ -std=c++17 -fsyntax-only -ftemplate-depth=2000 -I<hapi_include> -DTREE_B=B  -DTEST_XXX main.cpp
+ *   g++ -std=c++20 -fsyntax-only -ftemplate-depth=2000 -I<hapi_include> -DTEST_SIZE=N -DTEST_XXX main.cpp
+ *   g++ -std=c++20 -fsyntax-only -ftemplate-depth=2000 -I<hapi_include> -DTREE_B=B  -DTEST_XXX main.cpp
  *
  * MAP tests (use TEST_SIZE):
  *   TEST_BASELINE           — compiler startup only
@@ -19,31 +19,30 @@
  *   TEST_HAPI_TYPE          — hapi::Map over Chain<int...>, type alias
  *
  * FIND tests (use TEST_SIZE):
- *   TEST_HAPI_FIRST         — FindFirst, match at position 1
- *   TEST_HAPI_MIDDLE        — FindFirst, match at position N/2
- *   TEST_HAPI_LAST          — FindFirst, match at position N
+ *   TEST_HAPI_FIRST         — FindFirstOr, match at position 1
+ *   TEST_HAPI_MIDDLE        — FindFirstOr, match at position N/2
+ *   TEST_HAPI_LAST          — FindFirstOr, match at position N
  *   TEST_HANA_FIRST         — hana::find_if, match at position 1
  *   TEST_HANA_MIDDLE        — hana::find_if, match at position N/2
  *   TEST_HANA_LAST          — hana::find_if, match at position N
  *
  * TREE tests (use TREE_B — total elements = TREE_B²):
  *   TEST_HAPI_TREE_MAP      — Map over B×B nested Chain (native tree walk)
- *   TEST_HAPI_TREE_FIRST    — FindFirst at first leaf  (O(2B) depth)
- *   TEST_HAPI_TREE_LAST     — FindFirst at last leaf   (O(2B) depth)
+ *   TEST_HAPI_TREE_FIRST    — FindFirstOr at first leaf
+ *   TEST_HAPI_TREE_LAST     — FindFirstOr at last leaf
  *   TEST_HANA_TREE_MAP      — hana::flatten + transform (must destroy tree)
  *   TEST_HANA_TREE_FIND     — hana::flatten + find_if  (must destroy tree)
  *
  * HANA VALUE-LEVEL tests (use TEST_SIZE) — Hana on its own terrain:
  *   TEST_HANA_VAL_MAP       — hana::transform on make_tuple of N values (constexpr)
  *   TEST_HANA_VAL_FIND      — hana::find_if   on make_tuple of N values (constexpr)
- *   TEST_HAPI_VAL_MAP       — hapi::Map value instantiation (HAPI paying value cost)
+ *   TEST_STD_VAL_MAP        — std::apply + std::tuple heterogeneous transform
  */
 
 #include <type_traits>
 #include <tuple>
 #include <boost/hana.hpp>
 #include "hapi/hapi.h"
-#include "hapi/run.h"
 
 namespace hana = boost::hana;
 
@@ -71,45 +70,22 @@ template<typename T, std::size_t... Is>
 auto make_hana_type_input(std::index_sequence<Is...>)
     -> decltype(hana::tuple_t<typename RepeatType<T, Is>::Type...>);
 
-struct MakePointer {
-    template<typename O>
-    struct Apply { using Expr = O*; };
-};
+template<typename O> struct MakePointer { using Type = O*; };
 
 // -----------------------------------------------------------------------
-// FIND / FOREACH: unique component types with Part<> for HAPI, raw tags for Hana
+// FIND: unique component types
 // -----------------------------------------------------------------------
 template<std::size_t I> struct Tag {};
 
-struct AllTag {};  // common base — forEach<TagIs<AllTag>> visits every TagComp<I>
-
 template<std::size_t I>
-struct TagComp : AllTag {
+struct TagComp {
     template<typename T>
     struct Part : T { using T::T; };
-};
-
-struct DummyAPI {
-    template<typename T>
-    struct Part : T { using T::T; };
-};
-
-// ForEachNode: wraps Chain<OO...> into an APIOf-compatible node for forEach<Q>
-// Types::Head = API (terminal), Types::Tail = Chain<OO...> (components)
-// App<API> prepends API: Chain<OO...>::App<API> = Chain<API, OO...>
-template<typename C, typename API>
-struct ForEachNode : C::template Part<API> {
-    using Base  = typename C::template Part<API>;
-    using Types = typename C::template App<API>;
-    ForEachNode() : Base() {}
 };
 
 template<std::size_t Target>
 struct MatchTagComp {
-    template<typename O>
-    struct Check {
-        static constexpr bool value = std::is_same_v<O, TagComp<Target>>;
-    };
+    template<typename O> using Apply = std::is_same<O, TagComp<Target>>;
 };
 
 template<std::size_t Target>
@@ -150,34 +126,6 @@ constexpr auto make_hana_val_tuple(std::index_sequence<Is...>) {
 
 constexpr auto add_one = [](auto x) {
     return hana::int_c<decltype(x)::value + 1>;
-};
-
-// HAPI value-level map via Map<Inc, At<N> chain>
-// Inc is the same +1 operation as add_one, but as a named type for Map<>
-struct Inc { constexpr int operator()(int n) const { return n + 1; } };
-
-struct HapiBenchAPI {
-    template<typename O>
-    struct Part : O {
-        using O::O;
-        template<typename T> T&       operator[](std::size_t) noexcept       { __builtin_unreachable(); }
-        template<typename T> const T& operator[](std::size_t) const noexcept { __builtin_unreachable(); }
-    };
-};
-
-template<typename Seq> struct GenAtMapped;
-template<std::size_t... Is>
-struct GenAtMapped<std::index_sequence<Is...>> {
-    using Chain  = hapi::APIOf<HapiBenchAPI, hapi::At<Is>...>;
-    using Mapped = typename hapi::Map<Inc, Chain>::Expr;
-};
-
-// Trans<Inc> pipeline: N layers of +1 composed bottom-up, zero storage
-template<typename Seq> struct GenTransChain;
-template<std::size_t... Is>
-struct GenTransChain<std::index_sequence<Is...>> {
-    template<std::size_t> using TransInc = hapi::run::Trans<Inc{}>;
-    using Type = hapi::APIOf<hapi::run::Identity, TransInc<Is>...>;
 };
 
 // std::tuple value-level tuple for comparison
@@ -243,24 +191,24 @@ int main() {
 
 #elif defined(TEST_HAPI_TYPE)
     using H_Input  = typename GenerateChainType<int, std::make_index_sequence<TEST_SIZE>>::Input;
-    using H_Output = typename hapi::Map<MakePointer, H_Input>::Expr;
+    using H_Output = typename hapi::Map<MakePointer>::template Check<H_Input>;
     (void)static_cast<H_Output*>(nullptr);
 
 // ---- FIND tests --------------------------------------------------------
 
 #elif defined(TEST_HAPI_FIRST)
     using C = typename GenerateCompChain<std::make_index_sequence<TEST_SIZE>>::Type;
-    using Found = typename hapi::FindFirst<MatchTagComp<0>, C, DummyAPI>::type;
+    using Found = typename hapi::FindFirstOr<MatchTagComp<0>, hapi::Nil>::template Check<C>;
     (void)static_cast<Found*>(nullptr);
 
 #elif defined(TEST_HAPI_MIDDLE)
     using C = typename GenerateCompChain<std::make_index_sequence<TEST_SIZE>>::Type;
-    using Found = typename hapi::FindFirst<MatchTagComp<TEST_SIZE/2>, C, DummyAPI>::type;
+    using Found = typename hapi::FindFirstOr<MatchTagComp<TEST_SIZE/2>, hapi::Nil>::template Check<C>;
     (void)static_cast<Found*>(nullptr);
 
 #elif defined(TEST_HAPI_LAST)
     using C = typename GenerateCompChain<std::make_index_sequence<TEST_SIZE>>::Type;
-    using Found = typename hapi::FindFirst<MatchTagComp<TEST_SIZE-1>, C, DummyAPI>::type;
+    using Found = typename hapi::FindFirstOr<MatchTagComp<TEST_SIZE-1>, hapi::Nil>::template Check<C>;
     (void)static_cast<Found*>(nullptr);
 
 #elif defined(TEST_HANA_FIRST)
@@ -282,17 +230,17 @@ int main() {
 
 #elif defined(TEST_HAPI_TREE_MAP)
     using Tree = typename GenTree<std::make_index_sequence<TREE_B>>::Type;
-    using TreeMapped = typename hapi::Map<MakePointer, Tree>::Expr;
+    using TreeMapped = typename hapi::Map<MakePointer>::template Check<Tree>;
     (void)static_cast<TreeMapped*>(nullptr);
 
 #elif defined(TEST_HAPI_TREE_FIRST)
     using Tree = typename GenTree<std::make_index_sequence<TREE_B>>::Type;
-    using TreeFound = typename hapi::FindFirst<MatchTagComp<0>, Tree, DummyAPI>::type;
+    using TreeFound = typename hapi::FindFirstOr<MatchTagComp<0>, hapi::Nil>::template Check<Tree>;
     (void)static_cast<TreeFound*>(nullptr);
 
 #elif defined(TEST_HAPI_TREE_LAST)
     using Tree = typename GenTree<std::make_index_sequence<TREE_B>>::Type;
-    using TreeFound = typename hapi::FindFirst<MatchTagComp<TREE_B*TREE_B-1>, Tree, DummyAPI>::type;
+    using TreeFound = typename hapi::FindFirstOr<MatchTagComp<TREE_B*TREE_B-1>, hapi::Nil>::template Check<Tree>;
     (void)static_cast<TreeFound*>(nullptr);
 
 #elif defined(TEST_HANA_TREE_MAP)
@@ -310,24 +258,12 @@ int main() {
 // ---- HANA VALUE-LEVEL tests — Hana on its own terrain -----------------
 // These use constexpr values, not type aliases.
 // This is what Hana was designed for — heterogeneous value computation.
-// HAPI has no equivalent; TEST_HAPI_VAL_MAP shows the cost when forced.
 
 #elif defined(TEST_HANA_VAL_MAP)
     // hana::transform on N compile-time integer values — Hana's native domain
     constexpr auto input  = make_hana_val_tuple(std::make_index_sequence<TEST_SIZE>{});
     constexpr auto output = hana::transform(input, add_one);
     (void)output;
-
-#elif defined(TEST_HAPI_MAPPED)
-    // hapi::Map<Inc, At<N> chain> — value-level +1 via Mapped<Inc> wrapper
-    // same +1 operation as Hana's add_one, but HAPI stores in memory, Hana encodes in types
-    using Node = typename GenAtMapped<std::make_index_sequence<TEST_SIZE>>::Mapped;
-    { Node node{}; (void)node; }
-
-#elif defined(TEST_TRANS)
-    // hapi::run::Trans<Inc> — N-deep transform pipeline, zero storage, constexpr composition
-    using Node = typename GenTransChain<std::make_index_sequence<TEST_SIZE>>::Type;
-    { Node node{}; (void)node.transform(0); }
 
 #elif defined(TEST_HANA_VAL_FIND)
     // hana::find_if on N compile-time integer values — Hana's native domain
@@ -342,19 +278,6 @@ int main() {
         [](auto... xs) { return std::make_tuple(std::integral_constant<int, xs.value+1>{}...); },
         std_input);
     (void)std_result;
-
-#elif defined(TEST_HAPI_FOR_EACH)
-    // hapi::forEach<TagIs<AllTag>> — visits every component; O(N) compile-time walk
-    using C = typename GenerateCompChain<std::make_index_sequence<TEST_SIZE>>::Type;
-    ForEachNode<C, DummyAPI> node;
-    hapi::forEach<hapi::TagIs<AllTag>>(node, [](auto&){});
-
-
-#elif defined(TEST_NODE_ONLY)
-    // construct node only — isolates chain construction cost from traversal
-    using C = typename GenerateCompChain<std::make_index_sequence<TEST_SIZE>>::Type;
-    ForEachNode<C, DummyAPI> node;
-    (void)node;
 
 #endif
     return 0;

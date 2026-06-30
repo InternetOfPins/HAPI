@@ -25,7 +25,8 @@ using Inner = Chain<Validate, Log>;
 using Tree  = APIOf<DriverAPI, Inner, Cache>;
 
 // Map a transform over any topology — tree structure preserved
-using Mapped = Map<MakePointer, Tree>::Expr;
+template<typename O> struct MakePointer { using Type = O*; };
+using Mapped = typename Map<MakePointer>::template Check<Tree>;
 ```
 
 No virtual dispatch. No heap allocation. Wrong layer order → **named compile error**.
@@ -59,8 +60,10 @@ The compiler sees the full resolved hierarchy and flattens it. Composed fields a
 - **Type Tree Composition** — nested chains are first-class: mappable, filterable, queryable without losing structure.
 - **Zero Runtime Cost** — no vtables, no dynamic allocation. All abstraction paid at compile time.
 - **Type-Level Validation** — structural and semantic rules verified at compilation. Invalid compositions don't compile.
-- **Functional Operations** — `Map<F, Tree>`, `FindFirst<Q>`, `forEach<Q>`, `FilterIf<Q>` — all topology-aware.
-- **Value Transforms** — `At<N,T>` for indexed storage, `Mapped<F>` and `Trans<F>` for zero-storage constexpr pipelines.
+- **Topology-Preserving Operations** — `Map<F>`, `FindFirst<Q>`, `Filter<Q>` traverse any tree shape natively.
+- **Query Machinery** — `SameAs<T>`, `IsInstanceOf<W>`, `FromTypes<Q>` for introspection; `And<A,B>`, `Or<A,B>`, `Not<Q>` for composition.
+- **Soft-Fail Variants** — `Exists<Q>` (bool), `FindFirstOr<Q, Default>` for non-fatal searches.
+- **Runtime References** — `find<Q>(object)` / `findOr<Q, Default>(object)` — compile-time query, runtime ref into composed object.
 
 HAPI runs anywhere C++17 runs — AVR, ESP32, Linux, bare metal.
 
@@ -81,20 +84,23 @@ The boundary is clean: HAPI owns the structure; Hana owns the value-level algebr
 
 ---
 
-## Runtime Companion (`run.h`)
+## Type-Level Queries & Runtime Resolution
 
-Composable runtime predicates and constexpr transform pipelines, same chain architecture:
+Predicates compose freely — check structure at compile time, resolve to runtime references:
 
 ```cpp
-// Predicate fold: Equal AND Greater, terminal = True
-using Filter = APIOf<run::True, run::Equal<int>, run::Greater<int>>;
+// Hard-fail query: find ItemDef containing a specific tag
+using ItemList = Chain<ItemDef<X>, ItemDef<Y>, ItemDef<Z>>;
+using Pred = And<IsInstanceOf<ItemDef>, FromTypes<SameAs<MyTag>>>;
+auto& found = find<Pred>(itemList);  // Compile-time walk, runtime reference
 
-// Constexpr transform pipeline: composed bottom-up, zero storage
-struct Inc { constexpr int operator()(int n) const { return n + 1; } };
-struct Dbl { constexpr int operator()(int n) const { return n * 2; } };
-using Pipeline = APIOf<run::Identity, run::Trans<Dbl>, run::Trans<Inc>>;
-// Pipeline::transform(3) == Dbl(Inc(3)) == 8
+// Soft-fail variant: check presence without error
+if constexpr (Exists<Pred, ItemList>::value) {
+  // Only instantiate this if the query can succeed
+}
 ```
+
+The compiler verifies the query is satisfiable; the code gets a typed reference into the runtime object graph.
 
 ---
 
