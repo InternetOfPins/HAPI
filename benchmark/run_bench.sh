@@ -61,20 +61,18 @@ compile_ms() {
     for N in "${SIZE_ARR[@]}"; do printf "%7s" "------"; done
     echo ""
 
-    declare -a FLAT_LABELS=( baseline     node_only
+    declare -a FLAT_LABELS=( baseline
                              hapi_type    hana_type
                              hapi_first   hana_first
                              hapi_mid     hana_mid
                              hapi_last    hana_last
-                             hapi_foreach hapi_mapped
-                             hana_val_map std_val_map hana_val_find )
-    declare -a FLAT_DEFS=(   TEST_BASELINE     TEST_NODE_ONLY
+                             hana_val_map hana_val_find )
+    declare -a FLAT_DEFS=(   TEST_BASELINE
                              TEST_HAPI_TYPE    TEST_HANA_TYPE
                              TEST_HAPI_FIRST   TEST_HANA_FIRST
                              TEST_HAPI_MIDDLE  TEST_HANA_MIDDLE
                              TEST_HAPI_LAST    TEST_HANA_LAST
-                             TEST_HAPI_FOR_EACH TEST_HAPI_MAPPED
-                             TEST_HANA_VAL_MAP TEST_STD_VAL_MAP TEST_HANA_VAL_FIND )
+                             TEST_HANA_VAL_MAP TEST_HANA_VAL_FIND )
 
     for i in "${!FLAT_LABELS[@]}"; do
         printf "%-20s" "${FLAT_LABELS[$i]}"
@@ -83,7 +81,7 @@ compile_ms() {
             printf "%7s" "${ms}"
         done
         echo ""
-        case "${FLAT_LABELS[$i]}" in node_only|hana_type|hana_first|hana_mid|hana_last|hapi_mapped)
+        case "${FLAT_LABELS[$i]}" in hana_type|hana_first|hana_mid|hana_last)
             echo ""
         esac
     done

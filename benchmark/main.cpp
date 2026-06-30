@@ -271,14 +271,6 @@ int main() {
     constexpr auto found = hana::find_if(input, HanaValMatch<TEST_SIZE/2>{});
     (void)found;
 
-#elif defined(TEST_STD_VAL_MAP)
-    // std::apply + std::tuple heterogeneous transform — stdlib baseline for value ops
-    constexpr auto std_input  = make_std_val_tuple(std::make_index_sequence<TEST_SIZE>{});
-    constexpr auto std_result = std::apply(
-        [](auto... xs) { return std::make_tuple(std::integral_constant<int, xs.value+1>{}...); },
-        std_input);
-    (void)std_result;
-
 #endif
     return 0;
 }
