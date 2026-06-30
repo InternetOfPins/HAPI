@@ -65,20 +65,6 @@ namespace hapi {
     template<typename... OO> using ApplyPack = Chain<OO...>;
   };
 
-  /// @brief drill into O::Types and apply Q to it; only true if O has ::Types
-  template<typename Q>
-  struct FromTypes {
-    template<typename O, typename = void>
-    struct Apply : std::false_type {};  // no ::Types member
-
-    template<typename O>
-    struct Apply<O, std::void_t<typename O::Types>>
-      : std::bool_constant<Exists<Q, typename O::Types>::value> {};
-
-    template<typename O> using Check = typename Traverse<FromTypes<Q>, O>::Beta;
-    template<typename... OO> using ApplyPack = Chain<OO...>;
-  };
-
   template<typename Q,template<typename> class L=Left,template<typename> class R=Right>
   struct Partition {
     template<typename O> using Check    = typename Traverse<Partition<Q>,O>::Beta;
@@ -212,6 +198,20 @@ namespace hapi {
   template<typename Q, typename Default>
   struct FindFirstOr {
     template<typename Input> using Check = typename FindFirstOrLeaf<Q,Default,Input>::Result;
+  };
+
+  /// @brief drill into O::Types and apply Q to it; only true if O has ::Types
+  template<typename Q>
+  struct FromTypes {
+    template<typename O, typename = void>
+    struct Apply : std::false_type {};  // no ::Types member
+
+    template<typename O>
+    struct Apply<O, std::void_t<typename O::Types>>
+      : std::bool_constant<Exists<Q, typename O::Types>::value> {};
+
+    template<typename O> using Check = typename Traverse<FromTypes<Q>, O>::Beta;
+    template<typename... OO> using ApplyPack = Chain<OO...>;
   };
 
   /// @brief compatibility shim for the rules system (Requires/Excludes/APIOf):
