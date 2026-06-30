@@ -62,10 +62,9 @@ struct GenerateHanaTuple<std::index_sequence<Is...>> {
 // -----------------------------------------------------------------------
 template<std::size_t Target>
 struct MatchTag {
-    template<typename O>
-    struct Check {
-        static constexpr bool value = std::is_same_v<O, Tag<Target>>;
-    };
+    template<typename O> using Apply = std::is_same<Tag<Target>, O>;
+    template<typename O> using Check = typename hapi::Traverse<MatchTag<Target>, O>::Beta;
+    template<typename... OO> using ApplyPack = hapi::Chain<OO...>;
 };
 
 // -----------------------------------------------------------------------
@@ -109,10 +108,9 @@ struct TagComp {
 // Predicate that matches TagComp<Target> by checking its TagType
 template<std::size_t Target>
 struct MatchTagComp {
-    template<typename O>
-    struct Check {
-        static constexpr bool value = std::is_same_v<O, TagComp<Target>>;
-    };
+    template<typename O> using Apply = std::is_same<TagComp<Target>, O>;
+    template<typename O> using Check = typename hapi::Traverse<MatchTagComp<Target>, O>::Beta;
+    template<typename... OO> using ApplyPack = hapi::Chain<OO...>;
 };
 
 // Generator using TagComp instead of raw Tag — each element has Part<>
@@ -135,19 +133,19 @@ int main() {
 #elif defined(TEST_HAPI_FIRST)
     // Match TagComp<0> — position 1, lazy FindFirst stops immediately
     using C = typename GenerateCompChain<std::make_index_sequence<TEST_SIZE>>::Type;
-    using Found = typename hapi::FindFirst<MatchTagComp<0>, C, DummyAPI>::type;
+    using Found = typename hapi::FindFirstOr<MatchTagComp<0>, hapi::Nil>::template Check<C>;
     (void)static_cast<Found*>(nullptr);
 
 #elif defined(TEST_HAPI_MIDDLE)
     // Match TagComp<N/2> — position N/2, lazy FindFirst walks half the chain
     using C = typename GenerateCompChain<std::make_index_sequence<TEST_SIZE>>::Type;
-    using Found = typename hapi::FindFirst<MatchTagComp<TEST_SIZE/2>, C, DummyAPI>::type;
+    using Found = typename hapi::FindFirstOr<MatchTagComp<TEST_SIZE/2>, hapi::Nil>::template Check<C>;
     (void)static_cast<Found*>(nullptr);
 
 #elif defined(TEST_HAPI_LAST)
     // Match TagComp<N-1> — position N, lazy FindFirst walks the entire chain
     using C = typename GenerateCompChain<std::make_index_sequence<TEST_SIZE>>::Type;
-    using Found = typename hapi::FindFirst<MatchTagComp<TEST_SIZE-1>, C, DummyAPI>::type;
+    using Found = typename hapi::FindFirstOr<MatchTagComp<TEST_SIZE-1>, hapi::Nil>::template Check<C>;
     (void)static_cast<Found*>(nullptr);
 
 // ---- Hana --------------------------------------------------------------
