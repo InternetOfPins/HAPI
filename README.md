@@ -4,6 +4,8 @@
 
 **A zero-overhead static composition engine for C++.**
 
+**v0.6.0:** New `Check/Apply/ApplyPack` introspection API (2026-Q2)
+
 Components compose into **type trees**. The compiler flattens them to optimal machine code. The structure never reaches runtime.
 
 ---
