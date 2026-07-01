@@ -1,5 +1,4 @@
 {
-  "$schema": "https://fundingjson.org/schema/v1.1.0.json",
   "version": "v1.1.0",
   "entity": {
     "type": "individual",
@@ -9,8 +8,7 @@
     "phone": "",
     "description": "Freelance embedded systems engineer with 35+ years of experience, based in the Azores, Portugal. Author of ArduinoMenu and the HAPI (Open Chain Derivation) compile-time composition framework, part of the InternetOfPins open source ecosystem (OneParse, OneMenu, OneChip, and related libraries) aimed at eliminating per-chip-variant fragmentation in embedded/IoT firmware.",
     "webpageUrl": {
-      "url": "https://r-site.net",
-      "wellKnown": ""
+      "url": "https://r-site.net"
     }
   },
   "projects": [
@@ -19,15 +17,49 @@
       "name": "HAPI (Open Chain Derivation)",
       "description": "A C++ metaprogramming framework enabling zero-overhead compile-time composition for embedded/IoT systems. Separates container traversal from operation logic under a single evaluation model, letting developers declaratively compose protocol parsers, menu systems, and peripheral abstractions that compile to code equivalent to hand-written, target-specific implementations -- eliminating the per-chip-variant fragmentation (forked code or runtime overhead) endemic to embedded firmware across MCU families like AVR, STM32, ESP32, and RP2040. Demonstrated in production-scale applications and benchmarked favorably against Boost.Hana. Flagship proof-points include OneParse (a JSON parser generated from a ~90-line declarative grammar, competitive with simdjson) and OneMenu (ArduinoMenu's next-generation architecture). Subject of a submission to IEEE Embedded Systems Letters on the underlying Open Chain Derivation pattern. Funding supports core R&D, compile-time diagnostics improvements, and multi-target hardware validation across the broader InternetOfPins library ecosystem (OneParse, OneMenu, OneChip, OneData, OneItem, OneOutput, OnePin, OneBit, OneBus).",
       "webpageUrl": {
-        "url": "https://github.com/InternetOfPins",
-        "wellKnown": ""
+        "url": "https://github.com/InternetOfPins"
       },
       "repositoryUrl": {
-        "url": "https://github.com/InternetOfPins/HAPI",
-        "wellKnown": ""
+        "url": "https://github.com/InternetOfPins/HAPI"
       },
-      "licenses": ["spdx:MIT"],
-      "tags": ["embedded", "iot", "cpp", "metaprogramming", "compile-time", "parser", "avr", "esp32", "stm32", "rp2040"]
+      "licenses": [
+        "spdx:MIT"
+      ],
+      "tags": [
+        "embedded",
+        "iot",
+        "cpp",
+        "metaprogramming",
+        "compile-time",
+        "parser",
+        "avr",
+        "esp32",
+        "stm32",
+        "rp2040"
+      ]
     }
-  ]
+  ],
+  "funding": {
+    "channels": [
+      {
+        "guid": "paypal",
+        "type": "payment-provider",
+        "address": "https://www.paypal.com/paypalme/ruihfazevedo",
+        "description": "PayPal.Me"
+      }
+    ],
+    "plans": [
+      {
+        "guid": "one-time",
+        "status": "active",
+        "name": "One-time donation",
+        "description": "Support ongoing development",
+        "amount": 0,
+        "currency": "EUR",
+        "frequency": "one-time",
+        "channels": null
+      }
+    ],
+    "history": []
+  }
 }
