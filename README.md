@@ -14,21 +14,28 @@ Components compose into **type trees**. The compiler flattens them to optimal ma
 #include <hapi/hapi.h>
 using namespace hapi;
 
-// Each component declares open-ended inheritance
-struct Validate { template<typename O> struct Part : O { using O::O; }; };
-struct Log      { template<typename O> struct Part : O { using O::O; }; };
-struct Cache    { template<typename O> struct Part : O { using O::O; }; };
+// Each component adds one behavior to whatever it's given
+struct Clamp  { template<typename O> struct Part : O {
+  using O::O;
+  int read() { int v = O::read(); return v < 0 ? 0 : v > 100 ? 100 : v; }
+}; };
 
-// Flat chain
-using Node = APIOf<DriverAPI, Validate, Log, Cache>;
+struct Smooth { template<typename O> struct Part : O {
+  using O::O;
+  int last = 0;
+  int read() { int v = O::read(); last = (last + v) / 2; return last; }
+}; };
 
-// Or a tree — nested chains, natively traversable
-using Inner = Chain<Validate, Log>;
-using Tree  = APIOf<DriverAPI, Inner, Cache>;
+struct Log    { template<typename O> struct Part : O {
+  using O::O;
+  int read() { int v = O::read(); Serial.println(v); return v; }
+}; };
 
-// Map a transform over any topology — tree structure preserved
-template<typename O> struct MakePointer { using Type = O*; };
-using Mapped = typename Map<MakePointer>::template Check<Tree>;
+// Compose: raw sensor -> clamp -> smooth -> log
+using Sensor = APIOf<AnalogPin<A0>, Clamp, Smooth, Log>;
+
+Sensor sensor;
+sensor.read();   // prints one clamped, smoothed reading — no vtable involved
 ```
 
 No virtual dispatch. No heap allocation. Wrong layer order → **named compile error**.
@@ -43,14 +50,24 @@ A nested `Chain<Branch<A,B>, Branch<C,D>>` is natively traversable — `Map`, `F
 
 This matters when structure *is* the semantics: layered protocols, nested menus, device hierarchies, validation pipelines.
 
+The sensor example above is a flat chain. Nesting works the same way — a sub-chain is just another component:
+
+```cpp
+using Filtering = Chain<Clamp, Smooth>;      // reusable sub-chain
+using Sensor    = APIOf<AnalogPin<A0>, Filtering, Log>;
+```
+
+`Filtering` can be reused across multiple sensors, tested on its own, or swapped out — and `Map`/`FindFirst` still see and traverse into it as a nested branch, not a flattened blob.
+
 ---
 
 ## Open Chain Derivation
 
-The central mechanism. Each component declares an inner `Part<O>` template that inherits from `O`. A chain folds these into a single C++ class through recursive inheritance — the **base is provided by the caller**, not fixed by the chain.
+The mechanism behind the example above. Each component declares an inner `Part<O>` template that inherits from `O`. A chain folds these into a single C++ class through recursive inheritance — the **base is provided by the caller**, not fixed by the chain.
 
 ```
-Chain<A, B, C>::Part<API>  ≡  A::Part<B::Part<C::Part<API>>>
+Chain<Clamp, Smooth, Log>::Part<AnalogPin<A0>>
+  ≡  Clamp::Part<Smooth::Part<Log::Part<AnalogPin<A0>>>>
 ```
 
 The compiler sees the full resolved hierarchy and flattens it. Composed fields are packed into a single contiguous memory block, sized exactly to what was declared. No heap, no fragmentation.
@@ -91,13 +108,12 @@ The boundary is clean: HAPI owns the structure; Hana owns the value-level algebr
 Predicates compose freely — check structure at compile time, resolve to runtime references:
 
 ```cpp
-// Hard-fail query: find ItemDef containing a specific tag
-using ItemList = Chain<ItemDef<X>, ItemDef<Y>, ItemDef<Z>>;
-using Pred = And<IsInstanceOf<ItemDef>, FromTypes<SameAs<MyTag>>>;
-auto& found = find<Pred>(itemList);  // Compile-time walk, runtime reference
+// Hard-fail query: find the Log stage inside a composed sensor
+using Pred = IsInstanceOf<Log>;
+auto& logger = find<Pred>(sensor);  // Compile-time walk, runtime reference
 
 // Soft-fail variant: check presence without error
-if constexpr (Exists<Pred, ItemList>::value) {
+if constexpr (Exists<Pred, Sensor>::value) {
   // Only instantiate this if the query can succeed
 }
 ```
@@ -128,12 +144,10 @@ There is no such thing as a structurally broken HAPI program that compiles.
 
 | Project | Description |
 |---|---|
-| [ArduinoMenu v5 (AM5)](https://github.com/neu-rah/AM5) | Full TUI menu framework built on HAPI |
 | [ArduinoMenu v4](https://github.com/neu-rah/ArduinoMenu) | Previous generation — 1k★, 197 forks, GitHub Arctic Code Vault |
-| [OneList](https://github.com/InternetOfPins/OneList) | Heterogeneous runtime list with compile-time type mirror |
 | [streamFlow](https://github.com/neu-rah/streamFlow) | Lightweight `<<` stream operator for Arduino |
 
 ---
 
-*Made with obsession in the Azores* 🇵🇹  
+*Made with obsession in the Azores* 🇵🇹
 By [Rui Azevedo](https://github.com/neu-rah) · [@ruihfazevedo](https://x.com/ruihfazevedo)
