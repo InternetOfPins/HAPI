@@ -131,6 +131,8 @@ The ATmega328P evaluation (see the published paper) demonstrates this directly. 
 
 This means HAPI pipelines are not *abstractions over* hardware — they *are* the hardware sequence, expressed in modular C++. The abstraction cost is paid once at compile time; the hardware receives the result.
 
+A minimal, live example: [a CRC-6 chain on Compiler Explorer](https://godbolt.org/z/d5Y5Gc44M) — a stack of stateless HAPI components collapses into a straight-line, branchless instruction sequence, with no call, jump, or virtual dispatch anywhere in the disassembly.
+
 ```
 HAPI composition → compiler synthesis → flat register sequence
 ```
@@ -290,6 +292,7 @@ The domains described here are examples, not boundaries. Wherever software can b
 - [README](../README.md) — What HAPI is and how to use it
 - [COMPONENTS.md](COMPONENTS.md) — Component anatomy and implementation patterns
 - [REFERENCE.md](REFERENCE.md) — Complete API reference
+- [Live Godbolt example](https://godbolt.org/z/d5Y5Gc44M) — CRC-6 HAPI chain collapsing to branchless assembly
 
 ---
 
