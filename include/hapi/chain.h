@@ -15,19 +15,6 @@ namespace hapi {
   /// @brief sentinel empty type
   struct Nil {};
 
-  // ====================== COMPONENT ======================--
-
-  /// @brief Wrap T as a component: Part<O> delegates through T::Part<O>.
-  ///        Derived from Hapi<T> can delete or hide methods to create restricted views.
-  // template<typename T>
-  // struct Hapi {
-  //   // template<typename O>
-  //   // struct Part : T::template Part<O> {
-  //   //   using Base = typename T::template Part<O>;
-  //   //   using Base::Base;
-  //   // };
-  // };
-
   // ====================== CHAIN ======================--
 
   template<typename... OO> struct Chain;
