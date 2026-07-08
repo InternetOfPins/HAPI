@@ -15,9 +15,6 @@
 - [Rules System](#rules-system)
 - [Composition](#composition)
 - [Introspection](#introspection)
-- [Indexed Storage](#indexed-storage)
-- [Topology Visitors](#topology-visitors)
-- [Runtime Pipeline](#runtime-pipeline)
 - [Writing a Layer](#writing-a-layer)
 - [Writing Rules](#writing-rules)
 
@@ -116,8 +113,6 @@ struct MyFmt : aFormat {           // outer struct inherits the tag
 
 query<TagIs<aFormat>, Chain<MyFmt, Other>>  // true — no Part instantiation needed
 ```
-
-Used by `idx<I>()` internally: `find<TagIs<IdxTag<I>>>(node)`.
 
 ### `is_predicate<Q>`
 
@@ -372,7 +367,7 @@ Closes the chain. Collapses `OO...` into a single class deriving from `API`. Tri
 | `API` | Innermost base — provides the public interface surface |
 | `OO...` | Feature layers, outermost-first |
 
-`APIOf` exposes `using Types = Chain<API, OO...>` where `Head = API` (the terminal) and `Tail = Chain<OO...>` (the component list). `find<>` and `forEach<>` use this split to search only the component list.
+`APIOf` exposes `using Types = Chain<API, OO...>` where `Head = API` (the terminal) and `Tail = Chain<OO...>` (the component list). `find<>` uses this split to search only the component list.
 
 ### `CRTP<O>`
 
@@ -452,267 +447,13 @@ hapi::find<SameAs<Id<42>>>(node)
 
 ### `node.query<Q>()` / `node.query(Q{})`
 
-Member query forms are **not** provided by HAPI core (the `Hapi<T>` wrapper that would supply them is currently disabled). Use the `query<Q, NodeType>` variable template directly:
+Member query forms are **not** provided by HAPI core. Use the `query<Q, NodeType>` variable template directly:
 
 ```cpp
 if constexpr (query<SameAs<WrapNav>, decltype(node)>) { /* ... */ }
 // or with full type:
 if constexpr (query<SameAs<WrapNav>, MyNodeType>) { /* ... */ }
 ```
-
----
-
-## Indexed Storage
-
-Heterogeneous indexed access for homogeneous-type chains. `value<K>()` counts down through the chain, giving O(1) access to element K. `operator[](i)` provides runtime index dispatch with the same mechanism.
-
-### `At<N, T>`
-
-```cpp
-template<std::size_t N, typename T = int>
-struct At {
-  template<typename O>
-  struct Part : O {
-    T data{};
-
-    T&       get()       noexcept;
-    const T& get() const noexcept;
-    void     set(const T& v) noexcept;
-    operator T&()       noexcept;        // implicit conversion
-    operator const T&() const noexcept;
-
-    template<std::size_t K> constexpr auto& value();        // K==0 → data; K>0 → Base::value<K-1>()
-    template<std::size_t K> constexpr const auto& value() const;
-    template<typename TT = T> constexpr TT& operator[](std::size_t i);
-    template<typename TT = T> constexpr const TT& operator[](std::size_t i) const;
-  };
-};
-```
-
-`N` is a logical index that allows reordering without changing the chain position. Three `At<0,T>`, `At<1,T>`, `At<2,T>` in a chain produce a 3-element typed array accessible via `value<K>()`.
-
-**Constructor:** `Part` accepts a leading value argument for `data`, forwarding the rest to `Base`. This enables aggregate-style initialisation of the whole chain.
-
-### `Mapped<F>`
-
-```cpp
-template<typename F>
-struct Mapped {
-  template<typename O>
-  struct Part : O {
-    static constexpr F fn{};   // zero storage: EBO for stateless functors
-
-    template<std::size_t K>
-    constexpr auto value() const { return fn(Base::template value<K>()); }
-
-    constexpr auto operator[](std::size_t i) const {
-      return fn(static_cast<const Base&>(*this)[i]);
-    }
-  };
-};
-```
-
-Wraps the underlying `value<K>()` / `operator[]` walk and applies `F` to every result. Inserted automatically by `Map<F, APIOf<...>>` when `F` is a value-level functor (no `Apply<T>::Expr`).
-
-### `IdxTag<I>` and `idx<I>(c)`
-
-```cpp
-template<std::size_t I>
-struct IdxTag {
-  template<typename O>
-  struct Part : O { using Base::Base; };   // zero overhead (EBO)
-};
-
-// Free function: find the component tagged IdxTag<I>
-template<std::size_t I, typename C>
-inline decltype(auto) idx(C& c);         // → find<TagIs<IdxTag<I>>>(c)
-
-template<std::size_t I, typename C>
-inline decltype(auto) idx(const C& c);
-```
-
-Place `IdxTag<I>` immediately before the component it names, then use `idx<I>(node)` to obtain a direct reference to that component's `Part` base:
-
-```cpp
-using MyNode = APIOf<API, IdxTag<0>, Sensor, IdxTag<1>, Actuator>;
-MyNode node;
-idx<0>(node).read();    // → Sensor::Part<...>&
-idx<1>(node).write(v);  // → Actuator::Part<...>&
-```
-
----
-
-## Topology Visitors
-
-### `forEach<Q>(node, fn)`
-
-```cpp
-template<typename Q, typename Node, typename Fn>
-void forEach(Node& node, Fn&& fn);
-
-template<typename Q, typename Node, typename Fn>
-void forEach(const Node& node, Fn&& fn);
-```
-
-Visits every component in `node`'s chain that satisfies predicate `Q`, calling `fn(part)` on each. `fn` receives a reference to the component's collapsed `Part<...>` base — same type that `find<Q>` returns, so all methods of that component and everything below it in the chain are accessible.
-
-Uses `static_cast` throughout — zero runtime overhead (all casts are resolved at compile time via the mono_block topology).
-
-```cpp
-// call enable(false) on every WrapNav component
-forEach<TagIs<aWrapNav>>(node, [](auto& part) { part.enable(false); });
-```
-
-**Implementation:** `forEachIn<Q, API>(Chain<...>{}, node, fn)` recursively walks the component list. Nested sub-chains are descended into. The `API` suffix is threaded through so each cast targets the exact collapsed type.
-
----
-
-## Runtime Pipeline
-
-**Header:** `include/hapi/run.h` · **Namespace:** `hapi::run`
-
-A set of HAPI layers for composing runtime value predicates and transform pipelines without virtual dispatch. All components use the same `Chain::Part` mechanism as compile-time HAPI.
-
-### Fold Terminals
-
-```cpp
-struct True {
-  template<typename T> constexpr bool check(const T&) const { return true; }
-};
-
-struct False {
-  template<typename T> constexpr bool check(const T&) const { return false; }
-};
-```
-
-Use `True` as the terminal for AND-folded predicate chains, `False` for OR-folded chains.
-
-### Runtime Predicates (AND fold)
-
-Each component holds a runtime `q` data member and folds its result into `O::check(v)` via `&&`.
-
-```cpp
-template<typename Q> struct Equal   { template<typename O> struct Part : O { Q q{}; bool check(const Q& v) const; }; };
-template<typename Q> struct Less    { template<typename O> struct Part : O { Q q{}; bool check(const Q& v) const; }; };
-template<typename Q> struct Greater { template<typename O> struct Part : O { Q q{}; bool check(const Q& v) const; }; };
-```
-
-Set `q` after construction; the check returns `(v op q) && O::check(v)`.
-
-```cpp
-// range: v > 2 && v < 10
-using Range = hapi::APIOf<True, Greater<int>, Less<int>>;
-Range r;
-hapi::find<hapi::SameAs<Greater<int>>>(r).q = 2;
-hapi::find<hapi::SameAs<Less<int>>>(r).q = 10;
-r.check(5);   // true
-r.check(10);  // false
-```
-
-### Runtime Predicates (OR fold)
-
-Same shape but folds via `||`. Use `False` as terminal.
-
-```cpp
-template<typename Q> struct EqualOr   { ... bool check(const Q& v) const { return (v == q) || O::check(v); } };
-template<typename Q> struct LessOr    { ... };
-template<typename Q> struct GreaterOr { ... };
-```
-
-### `run::Not<P>`
-
-```cpp
-template<typename P>
-struct Not {
-  template<typename O>
-  struct Part : P::template Part<O> {
-    template<typename T>
-    bool check(const T& v) const { return !Base::check(v); }
-  };
-};
-```
-
-Wraps `P`'s Part and inverts its `check` result.
-
-### Constexpr Transform Pipeline
-
-```cpp
-struct Identity {
-  template<typename T> constexpr T transform(T&& v) const { return std::forward<T>(v); }
-};
-
-template<auto fn>   // fn is an NTTP — function pointer, constexpr lambda, or functor instance
-struct Trans {
-  template<typename O>
-  struct Part : O {
-    template<typename T>
-    constexpr auto transform(T&& v) const { return fn(O::transform(std::forward<T>(v))); }
-  };
-};
-```
-
-Compose a chain of stateless transforms. Outermost `Trans` applies last. Terminal: `Identity`.
-
-```cpp
-using Pipeline = hapi::APIOf<Identity, Trans<double_it>, Trans<add_one>>;
-Pipeline p;
-p.transform(3);  // → add_one(double_it(3)) = 7
-```
-
-### Mutation Pipeline
-
-Imperative in-place mutation: `fn(v)` is called for each component in chain order.
-
-```cpp
-struct MutBase {
-  template<typename T> constexpr void run(T&) const noexcept {}
-};
-
-template<auto fn>
-struct Mutate {
-  template<typename O>
-  struct Part : O {
-    template<typename T>
-    constexpr void run(T& v) const noexcept { fn(v); Base::run(v); }
-  };
-};
-```
-
-```cpp
-using Pipe = hapi::APIOf<MutBase, Mutate<clamp>, Mutate<log_value>>;
-Pipe p;
-p.run(val);  // clamp(val); log_value(val);
-```
-
-### Ref / CtRef Pipeline
-
-Each component holds a runtime pointer to an external `T`; `run()` applies `F` to `*target` for each.
-
-```cpp
-struct RefBase { constexpr void run() const noexcept {} };
-
-template<typename T, typename F>
-struct Ref {
-  template<typename O>
-  struct Part : O {
-    T* target{};
-    static constexpr F fn{};
-    void run() noexcept { fn(*target); Base::run(); }
-  };
-};
-
-// CtRef: array pointer baked into the type as NTTP — zero bytes in the object.
-// Arr must have static storage duration.
-template<std::size_t I, typename T, auto fn, T* Arr>
-struct CtRef {
-  template<typename O>
-  struct Part : O {
-    void run() noexcept { fn(Arr[I]); Base::run(); }
-  };
-};
-```
-
-`Ref<T,F>` stores the pointer at runtime (set after construction, e.g. via `forEach`). `CtRef<I,T,fn,Arr>` bakes the array address as a NTTP — equivalent to `DataRef<address>` in OneMenu, with no runtime indirection.
 
 ---
 
