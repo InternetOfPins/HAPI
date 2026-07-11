@@ -1,6 +1,7 @@
 # HAPI — Happy API
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![PlatformIO Registry](https://badges.registry.platformio.org/packages/neu-rah/library/HAPI.svg)](https://registry.platformio.org/libraries/neu-rah/HAPI)
 
 **A zero-overhead static composition engine for C++.**
 
