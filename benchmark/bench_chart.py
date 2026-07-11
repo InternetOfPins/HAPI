@@ -112,7 +112,7 @@ def plot_panel(ax, x_vals, data, baseline, series, xlabel, title):
 
 fig, axes_flat = plt.subplots(1, 3, figsize=(22, 7), layout="constrained")
 fig.suptitle(
-    f"HAPI v{hapi_ver} vs Boost.Hana vs Spirit.X3 — Compile-time type-level performance\n"
+    f"HAPI v{hapi_ver} vs Boost.Hana — Compile-time type-level performance\n"
     "All measurements: template instantiation cost only "
     "(g++ −fsyntax−only, no runtime values)",
     fontsize=11
