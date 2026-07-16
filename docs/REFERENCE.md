@@ -1,522 +1,63 @@
-# HAPI Reference Manual
+# HAPI API Reference
 
-> **File:** `include/hapi/hapi.h` · **Namespace:** `hapi` · **Requires:** C++17
+Hardware Abstraction Pattern Interface. Zero-cost template metaprogramming for composable hardware layers.
 
----
+## Core Concept
 
-## Contents
+HAPI composes hardware functionality into compile-time chains. Each layer wraps and extends the layer below it, forming a heterogeneous linked list at compile-time that optimizes to direct hardware access.
 
-- [Core Types](#core-types)
-- [Chain](#chain)
-- [Predicates](#predicates)
-- [Logical Combinators](#logical-combinators)
-- [Monadic Channels](#monadic-channels)
-- [Chain Transformations](#chain-transformations)
-- [Rules System](#rules-system)
-- [Composition](#composition)
-- [Introspection](#introspection)
-- [Writing a Layer](#writing-a-layer)
-- [Writing Rules](#writing-rules)
+## Building Blocks
 
----
+### Chains
 
-## Core Types
+| Type | Purpose |
+|------|---------|
+| `Chain<Components...>` | Compose multiple components in order |
+| `APIOf<Terminal, Components...>` | Attach components to a terminal API |
+| `Part<O>` | CRTP wrapper for a component within a chain |
 
-### `Nil`
+### Traversal & Querying
 
-```cpp
-struct Nil {};
-```
+| Return | Function | Params | Description |
+|--------|----------|--------|-------------|
+| `T*` | `FindFirst<Predicate>(chain)` | predicate | Find first component matching condition |
+| `void` | `Traverse<fn>(chain)` | function | Visit every component in chain |
+| `bool` | `Any<Predicate>(chain)` | predicate | Does any component match? |
 
-Sentinel empty type. Use as a neutral base or default template argument.
+### Functional Transforms
 
----
+| Type | Purpose |
+|------|---------|
+| `Map<Fn, Chain>` | Transform each component |
+| `Filter<Predicate, Chain>` | Keep components matching condition |
+| `At<Index, Default>` | Get indexed component or default |
 
-### `SizeT`
+## Tag-Based Filtering
 
-```cpp
-// AVR:    using SizeT = unsigned int;
-// Other:  using SizeT = size_t;
-```
+Mark components with compile-time tags for later lookup.
 
-Cross-platform size type. Use instead of `size_t` in layer code for AVR compatibility.
+**Common Tags**:
+| Tag | Meaning |
+|-----|---------|
+| `asCursor` | Tracks selection position |
+| `asFormat` | Applies text formatting |
+| `asPrinter` | Renders output |
+| `asParser` | Parses input |
 
----
+## Integration with IOP Libraries
 
-## Chain
+- **OnePin**: Composes port and mask layers via APIOf
+- **OneMenu**: Chains menu printers and item definitions
+- **OneOutput**: Formats and buffers output via component layers
 
-### `Chain<O, OO...>`
+## Rationale
 
-```cpp
-template<typename O, typename... OO>
-struct Chain<O, OO...>;
-```
-
-Compile-time ordered type list. The foundation of open chain derivation.
-
-| Member | Kind | Description |
-|---|---|---|
-| `Types` | type alias | `Chain<O, OO...>` — the list itself |
-| `Head` | type alias | First type: `O` |
-| `Tail` | type alias | Remaining types: `Chain<OO...>` |
-| `size` | `constexpr SizeT` | Number of types |
-| `App<XX...>` | alias template | Prepend: `Chain<XX..., O, OO...>` |
-| `Ins<XX...>` | alias template | Append: `Chain<O, OO..., XX...>` |
-| `Map<M>` | alias template | Apply `M<>` to each type: `Chain<M<O>, M<OO>...>` |
-| `Build<W>` | alias template | Unpack into wrapper: `W<O, OO...>` |
-| `Part<T>` | struct template | Fold into mixin inheritance hierarchy over `T` |
-
-#### `Chain<O,OO...>::Part<T>`
-
-Folds the type list into a single class by recursive inheritance.
-`Chain<A, B, C>::Part<Base>` expands to `A::Part< B::Part< C::Part<Base> > >`.
-`A` is outermost — receives calls first. `Base` is innermost.
-
-Each `Part<T>` also exposes `using Types = Chain<O, OO...>` so `query<>` can traverse it automatically.
+HAPI provides compile-time composition that looks like inheritance but generates zero-overhead machine code. Drivers are modular and reusable while remaining as fast as hand-written assembly.
 
 ---
 
-## Predicates
-
-A predicate is any type exposing `template<typename O> struct Check { static constexpr bool value; }`.
-
-### `SameAs<Q>`
-
-```cpp
-template<typename Q> struct SameAs {
-  template<typename O> struct Check {
-    static constexpr const bool value{std::is_same_v<O, Q>};
-  };
-};
-```
-
-True when target type `O` is exactly `Q`.
-
-### `TagIs<Tag>`
-
-```cpp
-template<typename Tag>
-struct TagIs {
-  template<typename O>
-  struct Check : std::is_base_of<Tag, O> {};
-};
-```
-
-True when `O` publicly inherits `Tag`. Use with tag structs declared on the outer component struct (not inside `Part`) so the predicate is visible to `query<>` and `rules<>` without instantiating `Part`:
-
-```cpp
-struct aFormat {};
-struct MyFmt : aFormat {           // outer struct inherits the tag
-  template<typename O>
-  struct Part : O { ... };
-};
-
-query<TagIs<aFormat>, Chain<MyFmt, Other>>  // true — no Part instantiation needed
-```
-
-### `is_predicate<Q>`
-
-```cpp
-template<typename Q, typename = void>
-struct is_predicate : std::false_type {};
-template<typename Q>
-struct is_predicate<Q, std::void_t<decltype(Q::template Check<void>::value)>>
-  : std::true_type {};
-```
-
-Detects whether `Q` is a valid HAPI predicate (has a nested `Check<O>::value`). Used by `find(Q)` tag-dispatch overloads to give a readable `static_assert` when a non-predicate type is accidentally passed.
-
----
-
-## Logical Combinators
-
-Compose predicates without writing new structs.
-
-### `Not<P>`
-
-```cpp
-template<typename P> struct Not {
-  template<typename O> struct Check {
-    static constexpr const bool value{!P::template Check<O>::value};
-  };
-};
-```
-
-True when `P` is false for `O`.
-
-### `And<Ps...>`
-
-```cpp
-template<typename... Ps> struct And {
-  template<typename O> struct Check {
-    static constexpr const bool value{(Ps::template Check<O>::value && ... && true)};
-  };
-};
-```
-
-True when all predicates in `Ps...` are true for `O`. Empty pack → true.
-
-### `Or<Ps...>`
-
-```cpp
-template<typename... Ps> struct Or {
-  template<typename O> struct Check {
-    static constexpr const bool value{(Ps::template Check<O>::value || ...)};
-  };
-};
-```
-
-True when at least one predicate in `Ps...` is true for `O`.
-
-**Usage:**
-
-```cpp
-query<Not<SameAs<A>>, Chain<B, C>>              // true
-query<And<SameAs<A>, Not<SameAs<B>>>, T>        // true if T==A and T!=B
-query<Or<SameAs<A>, SameAs<B>>, Chain<A, C>>    // true
-```
-
----
-
-## Monadic Channels
-
-Tagged wrapper types used to categorise elements during chain transformation.
-
-### `Left<T>` / `Right<T>`
-
-```cpp
-template<typename T> struct Left  { using Type = T; ... };
-template<typename T> struct Right { using Type = T; ... };
-```
-
-Wrap a type to mark it as unmatched (`Left`) or matched (`Right`) during a `Partition` or `FilterIf` pass. Each carries a `Check` that matches both the wrapper and the inner type.
-
-### `IsInstanceOf<Wrapper>`
-
-```cpp
-template<template<typename...> class Wrapper>
-struct IsInstanceOf;
-```
-
-True when the target type is a specialisation of `Wrapper`.
-
-```cpp
-IsInstanceOf<Left>::Check<Left<int>>::value   // true
-IsInstanceOf<Left>::Check<Right<int>>::value  // false
-```
-
-**Convenience aliases:**
-
-```cpp
-struct IsLeft  : IsInstanceOf<Left>  {};
-struct IsRight : IsInstanceOf<Right> {};
-```
-
----
-
-## Chain Transformations
-
-### `Partition<Q>`
-
-```cpp
-template<typename Q> struct Partition {
-  template<typename O> struct Apply {
-    static constexpr bool value = Q::template Check<O>::value;
-    using Expr = std::conditional_t<value, Right<O>, Left<O>>;
-  };
-};
-```
-
-Maps each type to `Right<T>` if it satisfies `Q`, or `Left<T>` if it does not. Used as the transformation argument to `Map`.
-
-### `Map<F, Target>`
-
-```cpp
-// Single type (primary template — F must expose Apply<T>::Expr)
-template<typename F, typename O>
-struct Map { using Expr = typename F::template Apply<O>::Expr; };
-
-// Chain specialisation
-template<typename F, typename... OO>
-struct Map<F, Chain<OO...>> {
-  using Expr = Chain<typename Map<F, OO>::Expr...>;
-};
-
-// APIOf specialisation — two dispatch paths:
-//   type-level F (has Apply<T>::Expr):  maps each component descriptor
-//   value-level F (constexpr callable): prepends Mapped<F> to the chain
-template<typename F, typename API, typename... OO>
-struct Map<F, APIOf<API, OO...>> {
-  using Expr = /* APIOf<API, Map<F,OO>...>  or  APIOf<API, Mapped<F>, OO...> */;
-};
-```
-
-Type-level detection via `is_type_transformer<F>`: if `F::template Apply<Nil>::Expr` exists, `F` is treated as a type transformer (existing component-mapping behaviour). Otherwise `F` is treated as a constexpr value functor and `Mapped<F>` is prepended as a chain component.
-
-### `FilterIf<P, Chain<...>>`
-
-```cpp
-template<typename P, typename C, typename Enable = void>
-struct FilterIf;
-```
-
-Traverses a chain and extracts types that satisfy predicate `P`, unwrapping their inner type in the process.
-
-Three cases handled:
-
-| Case | Input | Output |
-|---|---|---|
-| Empty chain | `Chain<>` | `Chain<>` |
-| Monadic wrapper `Wrapper<T>` | matches `P` → extract `T`; no match → skip | accumulated `Chain` |
-| Nested `Chain<OO...>` | recurse into sub-chain | flattened into result |
-
-SFINAE on the monadic wrapper case prevents ambiguity with the nested chain case.
-
----
-
-## Rules System
-
-The rules system validates layer ordering at compile time. Detection and execution are fully automatic.
-
-### `Requires<X, Chains...>`
-
-```cpp
-template<typename X, typename... Chains>
-inline constexpr bool Requires = (query<X, Chains> || ...);
-```
-
-True when predicate `X` matches at least one element in any of `Chains`. Convenience wrapper over `query<>` for `rules()` expressions.
-
-### `Excludes<X, Chains...>`
-
-```cpp
-template<typename X, typename... Chains>
-inline constexpr bool Excludes = (!query<X, Chains> && ...);
-```
-
-True when predicate `X` matches no element in any of `Chains`.
-
-```cpp
-template<typename Before, typename After>
-static constexpr bool rules() {
-  static_assert(Requires<TagIs<aFormat>, After>,       "format layer required below");
-  static_assert(Excludes<SameAs<MyLayer>, Before>,     "MyLayer must not precede this");
-  static_assert(Excludes<SameAs<MyLayer>, After>,      "MyLayer must appear only once");
-  return true;
-}
-```
-
-### `HasRules<T>`
-
-```cpp
-template<typename T, typename = void>
-struct HasRules : std::false_type {};
-
-template<typename T>
-struct HasRules<T, std::void_t<decltype(T::template rules<void,void>())>>
-  : std::true_type {};
-```
-
-Detects whether `T` has a `rules<Before, After>()` static method via SFINAE. No tag or marker needed on the layer.
-
-### `RuleLayer<Current, Before, After, true>`
-
-```cpp
-template<typename Current, typename Before, typename After>
-struct RuleLayer<Current, Before, After, true> {
-  template<typename O> struct Part : O {
-    static constexpr bool rules() {
-      return Current::template rules<Before, After>() && O::rules();
-    }
-  };
-};
-```
-
-Composes `Current`'s rules with the chain below. Only instantiated when `HasRules<Current>` is true. The false specialisation passes `O::rules` through unchanged.
-
-### `BuildRules<Before, After>`
-
-Walks the chain threading `Before` forward at each step:
-
-```
-BuildRules< Chain<>, Chain<A, B, C> >
-  step 1: Current=A, Before=Chain<>,    After=Chain<B,C>
-  step 2: Current=B, Before=Chain<A>,   After=Chain<C>
-  step 3: Current=C, Before=Chain<B,A>, After=Chain<>
-```
-
-`Before` is built via `App<Head>` which prepends — so elements accumulate in reverse insertion order (`Chain<B,A>` not `Chain<A,B>`). This has no effect on rule correctness: `query` ORs over the chain and is order-agnostic.
-
-Triggered automatically by `APIOf` — never instantiate directly.
-
----
-
-## Composition
-
-### `APIOf<API, OO...>`
-
-```cpp
-template<typename API, typename... OO>
-struct APIOf : Chain<OO...>::template Part<API>;
-```
-
-Closes the chain. Collapses `OO...` into a single class deriving from `API`. Triggers `BuildRules` validation at instantiation. If any `rules<>()` fires a `static_assert`, the error is reported here.
-
-| Parameter | Description |
-|---|---|
-| `API` | Innermost base — provides the public interface surface |
-| `OO...` | Feature layers, outermost-first |
-
-`APIOf` exposes `using Types = Chain<API, OO...>` where `Head = API` (the terminal) and `Tail = Chain<OO...>` (the component list). `find<>` uses this split to search only the component list.
-
-### `CRTP<O>`
-
-```cpp
-template<typename O> struct CRTP {
-  using Obj = O;
-  O&       obj();
-  const O& obj() const;
-  O*       operator->();
-  const O* operator->() const;
-};
-```
-
-Optional. Provides self-reference from any layer back to the fully-composed object via `obj()`. Use only when a layer needs to call methods on the outermost type.
-
-> **Note:** Increases error message size significantly. Can cause infinite loops if `obj()` re-enters the same method. Use sparingly.
-
----
-
-## Introspection
-
-### `query<Q, O>`
-
-Universal compile-time predicate query. Three resolution paths:
-
-```cpp
-// 1. Direct: test O against predicate Q
-template<typename Q, typename O, typename = void>
-constexpr bool query = Q::template Check<O>::value;
-
-// 2. Auto-traversal: if O exposes ::Types, check O itself then search its chain
-template<typename Q, typename O>  // selected when O::Types exists
-constexpr bool query<Q, O, std::void_t<typename O::Types>> = []() {
-  return Q::template Check<O>::value || query<Q, typename O::Types>;
-}();
-
-// 3. Chain fold: OR across all elements (recursive — handles nested sub-chains)
-template<typename Q, typename... XX>
-constexpr bool query<Q, Chain<XX...>> = (query<Q, XX> || ...);
-```
-
-Path 3 recurses via `query<Q, XX>` (not just `Check<XX>::value`), so nested `Chain<...>` elements inside the chain are also searched transitively.
-
-Any composed type that exposes `Types` (which `Chain::Part` does) is automatically queryable without a manual specialisation.
-
-**Usage:**
-
-```cpp
-query<SameAs<A>, Chain<A, B, C>>     // true
-query<SameAs<A>, MyDevice>           // true if Q matches MyDevice directly, or if MyDevice::Types contains A
-query<Not<SameAs<B>>, Before>        // true if B is not in Before
-```
-
-### `find<Q>(node)`
-
-```cpp
-template<typename Q, typename Node>
-constexpr auto& find(Node& node) noexcept;
-
-template<typename Q, typename Node>
-constexpr auto& find(const Node& node) noexcept;
-```
-
-Locates the first component in `node`'s chain satisfying predicate `Q` and returns a reference to the collapsed `Part<...>` base. The cast is a `static_cast` — zero runtime overhead.
-
-```cpp
-hapi::find<SameAs<Id<42>>>(node)
-```
-
-**Requirements on `node`:** must be an `APIOf` node. Passing a raw `Chain::Part` fires a `static_assert`.
-
-**Guard:** asserts `query<Q, Hapis>` at compile time so missing components produce a clear error rather than a substitution failure wall.
-
-**Body items:** if `Q` matches a body item rather than a chain component, `find` fires a `static_assert` referencing `findBody<>`. Override `find` in the containing wrapper to fall back to a body search.
-
-**Non-predicate guard:** fires `is_predicate` `static_assert` with a descriptive message when a non-predicate type is passed.
-
-### `node.query<Q>()` / `node.query(Q{})`
-
-Member query forms are **not** provided by HAPI core. Use the `query<Q, NodeType>` variable template directly:
-
-```cpp
-if constexpr (query<SameAs<WrapNav>, decltype(node)>) { /* ... */ }
-// or with full type:
-if constexpr (query<SameAs<WrapNav>, MyNodeType>) { /* ... */ }
-```
-
----
-
-## Writing a Layer
-
-```cpp
-struct MyLayer {
-  // Optional: validate stack ordering
-  template<typename Before, typename After>
-  static constexpr bool rules() {
-    static_assert(Requires<TagIs<aRequiredTag>, Before>,
-      "a tagged component must come before MyLayer");
-    return true;
-  }
-
-  template<typename O>
-  struct Part : O {
-    using Base = O;
-    using Base::Base;
-
-    void myMethod() {
-      // ...
-      Base::myMethod();  // forward — omit only when intentionally suppressing
-    }
-  };
-};
-```
-
-- Forward to `Base::method()` unless intentionally suppressing
-- Declare tags on the outer struct (not inside `Part`) for `rules<>` / `query<>` visibility: `struct MyLayer : aTag { ... }`
-- Keep `Part` stateless where possible — data members cost RAM on every instance
-- Use `SizeT` instead of `size_t` for AVR compatibility
-
----
-
-## Writing Rules
-
-```cpp
-struct B {
-  template<typename Before, typename After>
-  static constexpr bool rules() {
-    static_assert(Requires<SameAs<A>, Before>,     "B requires A before it");
-    static_assert(Excludes<SameAs<B>, Before>,     "B must not appear twice");
-    static_assert(Excludes<SameAs<B>, After>,      "B must not appear twice");
-    return true;
-  }
-  // ...
-};
-```
-
-| Expression | Meaning |
-|---|---|
-| `Requires<X, Before>` | `X` matches something before this layer |
-| `Requires<X, After>` | `X` matches something after this layer |
-| `Excludes<X, Before>` | `X` matches nothing before this layer |
-| `Excludes<X, After>` | `X` matches nothing after this layer |
-| `Requires<MyPredicate, Before>` | any type in `Before` satisfies `MyPredicate` |
-
-`Requires` and `Excludes` are thin wrappers over `query<>` — you can use `query<>` directly for multi-chain checks or other compositions.
-
-Rule failures are `static_assert` errors reported at the `APIOf` instantiation site — zero runtime cost.
-
----
-
-*Part of the [InternetOfPins](https://github.com/InternetOfPins) project family.*  
-*Author: Rui Azevedo (neu-rah) · Azores, Portugal · MIT License*
+## See Also
+
+- [OneChip](../../../OneChip/docs/REFERENCE.md) — Hardware platform layers
+- [OneMenu](../../../OneMenu/docs/REFERENCE.md) — Menu framework
+- [OneData](../../../OneData/docs/REFERENCE.md) — Data observation layer
