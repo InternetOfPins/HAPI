@@ -1,6 +1,4 @@
-# HAPI — Happy API
-
-<img src="logo.png" alt="HAPI logo" width="64" height="64">
+# <img src="logo.png" alt="HAPI logo" width="32" height="32"> HAPI — Happy API
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![PlatformIO Registry](https://badges.registry.platformio.org/packages/neu-rah/library/HAPI.svg)](https://registry.platformio.org/libraries/neu-rah/HAPI)
