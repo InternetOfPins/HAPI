@@ -147,9 +147,9 @@ The same model scales from 8-bit AVR registers to multi-core ARM peripherals. Th
 
 Industrial systems often use CPLDs or FPGAs as register-mapped bus bridges. The pattern maps naturally to hardware register pipelines — hardware addresses as compile-time template parameters, embedded directly in the type signature.
 
-HAPI's compile-time composition layer (`Chain`, `APIOf`) is directly synthesizable by high-level-synthesis (HLS) toolchains. [`examples/hls_smoke`](../examples/hls_smoke) is a runnable, verified proof: a 5-layer `Chain<>`/`APIOf<>` composition synthesized end-to-end through [PandA-Bambu](https://github.com/ferrandi/PandA-bambu) into real Verilog RTL. The recursive inheritance collapse produces hardware proportional to the underlying computation — the example's 5 composed layers collapse to a single adder in the generated RTL, with no structural bloat from the composition depth. As with any HLS input, code reachable from the synthesis entry point has to stay within what the backend can map to hardware — I/O and OS calls have no synthesis target, in HAPI or in any other HLS flow.
+HAPI's compile-time composition layer (`Chain`, `APIOf`) is synthesizable by a high-level-synthesis (HLS) toolchain, verified against [PandA-Bambu](https://github.com/ferrandi/PandA-bambu) 2024.10 (clang16 frontend). [`examples/hls_smoke`](../examples/hls_smoke) is a runnable, verified proof: a 5-layer `Chain<>`/`APIOf<>` composition synthesized end-to-end into real Verilog RTL. The recursive inheritance collapse produces hardware proportional to the underlying computation — the example's 5 composed layers collapse to a single adder in the generated RTL, with no structural bloat from the composition depth. As with any HLS input, code reachable from the synthesis entry point has to stay within what the backend can map to hardware — I/O and OS calls have no synthesis target, in HAPI or in any other HLS flow.
 
-HAPI does not generate HDL directly and is not itself a synthesis engine — it produces plain, flattened C++ that existing HLS toolchains consume like any other input. Hardware validation on physical fabric remains ongoing; `examples/hls_smoke` validates the synthesis path, not deployment on a specific device.
+HAPI does not generate HDL directly and is not itself a synthesis engine — it produces plain, flattened C++ that an HLS toolchain can consume like any other input. Only Bambu has been verified so far; other HLS toolchains and frontends are untested, not confirmed working. Hardware validation on physical fabric also remains ongoing; `examples/hls_smoke` validates the synthesis path, not deployment on a specific device.
 
 <details>
 <summary>Zero-Overhead Register-Mapped Interface Example</summary>
@@ -263,7 +263,7 @@ HAPI's layer model makes dependencies explicit and ordering constraints compiler
 | Robotics | Deterministic pipelines, explicit topology, stage isolation |
 | Medical Devices | Static composition, predictable execution, structural traceability |
 | Hardware Pipeline Synthesis | Compile-time collapse to hardware-equivalent instruction sequences |
-| FPGA / CPLD | Compile-time address embedding, zero-overhead register abstraction, verified HLS synthesis |
+| FPGA / CPLD | Compile-time address embedding, zero-overhead register abstraction, verified Bambu HLS synthesis |
 | DSP / Audio | No framework overhead in cycle budget |
 | Edge AI / TinyML | Zero-overhead preprocessing pipelines |
 | ATE / Instrumentation | Type-safe pipeline configuration, compile-time topology validation |
