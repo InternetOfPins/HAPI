@@ -217,6 +217,8 @@ DSP systems operate under tight latency and jitter constraints. HAPI does not ma
 
 Available processor time is dedicated entirely to signal-processing work. In resource-constrained designs, eliminating framework overhead can enable lower clock rates, smaller devices, reduced power consumption, or more complex pipelines within the same real-time budget.
 
+[`examples/hls_fir`](../examples/hls_fir) extends the HLS verification above from stateless composition to a stateful one: an N-tap FIR filter where each tap is a `Chain<>` layer owning its own delay register, synthesized end-to-end through the same Bambu flow. It also verifies both sides of a real DSP-inference question: with compile-time coefficients, Bambu's own scheduler strength-reduces every tap's multiply into shift+add (zero DSPs); with the identical filter reading coefficients from a runtime table instead, a genuine DSP-mappable multiplier is synthesized (`mult_expr_FU`/`Estimated number of DSPs: 2`), time-shared across all four taps. Which one a real design gets depends entirely on whether its coefficients are fixed at compile time or configurable at runtime — both are verified, not assumed.
+
 **Applicable to:** audio effect chains, DSP filter pipelines, embedded synthesisers, SDR preprocessing, codec middleware.
 
 ---
