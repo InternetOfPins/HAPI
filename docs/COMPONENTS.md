@@ -189,19 +189,23 @@ The `print` call chain follows the type list order: `A::Part::print` → `B::Par
 
 HAPI uses a two-tier metaprogramming system to manage component discovery and structural manipulation:
 
-- **Predicates** — define capabilities or search criteria. Structured as type-traits returning a boolean `value`, used with `query<>` to introspect the stack.
-- **Transformations** — define how the type list is processed or manipulated. Recursive templates that walk the chain to map, filter, or extract type-level information.
+- **Predicates** — define capabilities or search criteria. Structured as types with `Apply`/`Check`/`ApplyPack` members, used with `query<>` to introspect the stack.
+- **Transformations** — define how the type list is processed or manipulated. `Traverse`-based templates that walk the chain to map, filter, or extract type-level information.
 
 #### Predicate Anatomy
+
+A predicate has three members, so `Traverse` can plug it in generically — `Apply<O>` is the actual leaf-level test; `Check<O>` is the whole-tree walk built on top of it via `Traverse`; `ApplyPack<OO...>` tells `Traverse` how to fold results back together over a `Chain`:
 
 ```cpp
 template<typename Q>
 struct SameAs {
-  template<typename O> struct Check {
-    static constexpr const bool value{std::is_same_v<O, Q>};
-  };
+  template<typename O> using Apply    = std::is_same<Q,O>;                     // the leaf test
+  template<typename O> using Check    = typename Traverse<SameAs<Q>,O>::Beta;  // walks the whole tree
+  template<typename... OO> using ApplyPack = Chain<OO...>;                     // how Traverse folds a Chain
 };
 ```
+
+`query<Q, O>` (used by `Requires`/`Excludes`) resolves to `Exists<Q,O>::value`, which folds `Apply` over the whole tree via `Any<Q>` — it does not call `Check` directly, but the effect is the same: a presence test that never fails to compile.
 
 HAPI provides built-in logical combinators for composing predicates:
 
@@ -211,45 +215,29 @@ query<And<SameAs<A>, SameAs<B>>, Chain<...>> // conjunction
 query<Or<SameAs<A>, SameAs<B>>, Chain<...>>  // disjunction
 ```
 
-#### Variable-template shorthands
-
-Predicates are empty types; constructing them with `{}` can be noisy. Downstream libraries define their own variable templates for frequent predicates (e.g. `byId<V>` in OneItem). HAPI itself does not ship any — `SameAs<Q>{}` is the baseline:
-
-```cpp
-node.find(SameAs<MyLayer>{})           // tag-dispatch — no .template needed
-node.template find<SameAs<MyLayer>>()  // explicit template arg — needs .template in template context
-```
-
-#### `is_predicate<Q>`
-
-```cpp
-template<typename Q, typename = void> struct is_predicate : std::false_type {};
-template<typename Q>
-struct is_predicate<Q, std::void_t<decltype(Q::template Check<void>::value)>>
-  : std::true_type {};
-```
-
-Detects valid predicates. Used by `find(Q)` and `query(Q)` tag-dispatch overloads to give a clear `static_assert` error rather than a template instantiation wall when a non-predicate type is accidentally passed.
+Predicates are always used as bare types — `SameAs<Q>`, never `SameAs<Q>{}` — passed as template arguments to `query<>`, `find<>`, `FindFirst<>`, etc. There is no runtime predicate-instance or tag-dispatch form in the core API.
 
 #### Transformation Anatomy
 
-Transformations provide a recursive interface to walk and rewrite the stack:
+Transformations plug into the same `Traverse<Op,Input>` recursion point predicates use — `Traverse` calls `Op::Apply<Input>` on a leaf, or folds `Op::ApplyPack<...>` over a `Chain<OO...>`'s already-transformed elements, recursing structurally into any nested `Chain`:
 
 ```cpp
-// Map a transformation F over a single type
-template<typename F, typename O>
+// hapi::Map<F> — F is a template-template parameter (must expose ::Type), not an object
+template<template<typename> class F>
 struct Map {
-  using Expr = typename F::template Apply<O>::Expr;
+  template<typename O> using Apply    = typename F<O>::Type;              // leaf: unwrap F<O>::Type
+  template<typename O> using Check    = typename Traverse<Map<F>,O>::Beta;
+  template<typename... OO> using ApplyPack = Chain<OO...>;                 // rebuild the Chain shape
 };
 
-// Map a transformation F over every type in a Chain
-template<typename F, typename... OO>
-struct Map<F, Chain<OO...>> {
-  using Expr = Chain<typename Map<F, OO>::Expr...>;
-};
+// usual way to invoke it:
+template<template<typename> class F, typename Input>
+using Transform = Eval<Map<F>, Input>;
 ```
 
-`Partition<Q>` categorises each type as `Right<T>` (matches) or `Left<T>` (doesn't). `FilterIf<P, Chain<...>>` extracts matching types, unwrapping their inner type in the process.
+`Partition<Q,L=Left,R=Right>` wraps every element: `Q`-matches become `L<O>` (default `Left<O>`), non-matches become `R<O>` (default `Right<O>`). `Filter<Q>` keeps only the matching elements as-is (no wrapping), splicing any nested `Chain`'s matches back into one flat result.
+
+> `Chain<O,OO...>` also has its own member alias `Map<M>` (`chain.h`) — a *shallow*, single-level `Chain<M<O>, M<OO>...>` that applies `M<O>` directly (no `::Type` unwrap, no recursion into nested `Chain`s). It's an older, unrelated mechanism to `hapi::Map<F>` above — same name, different shape. If you need structural recursion into nested chains, reach for `hapi::Map`/`Transform`, not `Chain::Map`.
 
 #### Why this separation?
 
@@ -287,14 +275,11 @@ HAPI provides free-function introspection — member `find`/`query` forms are no
 // compile-time predicate: true if Q matches anywhere in node's chain
 query<SameAs<WrapNav>, MyNodeType>
 
-// locate the first matching component and return a reference
+// verify Q exists in node's chain, then return node itself unchanged
 hapi::find<SameAs<MyLayer>>(node)
-
-// visit all matching components
-hapi::forEach<TagIs<aWrapNav>>(node, [](auto& part) { part.enable(false); });
 ```
 
-**Non-predicate guard:** `find<Q>(node)` fires `is_predicate<Q>` `static_assert` if `Q` lacks a `Check` member, producing a human-readable error at the call site.
+`find<Q>(C& c)` is **not** extraction — it's a compile-time existence gate attached to a pass-through reference. `static_assert(HasResult<FindFirst_<Q, typename C::Types>>::value, ...)` hard-fails compilation with a named error if `Q` doesn't match anything in `C::Types`; on success it just returns `c` itself (by reference, same const-ness as the argument). There is no drill-down to a matched sub-object and no `forEach`/visitor form in HAPI core — a composition, not a component, is what `find` surfaces.
 
 ---
 
