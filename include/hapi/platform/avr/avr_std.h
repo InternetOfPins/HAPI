@@ -210,7 +210,27 @@ namespace std {
       (is_void<From>::value && is_void<To>::value)
   > {};
 
-  template<class T, T = T{0} + T{0}> struct is_integral : true_type {};
+  namespace detail {
+    template<class T> struct is_integral_helper : false_type {};
+    template<> struct is_integral_helper<bool>               : true_type {};
+    template<> struct is_integral_helper<char>                : true_type {};
+    template<> struct is_integral_helper<signed char>         : true_type {};
+    template<> struct is_integral_helper<unsigned char>       : true_type {};
+    template<> struct is_integral_helper<wchar_t>              : true_type {};
+    template<> struct is_integral_helper<char16_t>             : true_type {};
+    template<> struct is_integral_helper<char32_t>             : true_type {};
+    template<> struct is_integral_helper<short>                : true_type {};
+    template<> struct is_integral_helper<unsigned short>       : true_type {};
+    template<> struct is_integral_helper<int>                  : true_type {};
+    template<> struct is_integral_helper<unsigned int>         : true_type {};
+    template<> struct is_integral_helper<long>                 : true_type {};
+    template<> struct is_integral_helper<unsigned long>        : true_type {};
+    template<> struct is_integral_helper<long long>            : true_type {};
+    template<> struct is_integral_helper<unsigned long long>   : true_type {};
+  }
+  template<class T> struct is_integral : detail::is_integral_helper<typename remove_cv<T>::type> {};
+
+  template<class T> constexpr bool is_integral_v = is_integral<T>::value;
 
   template<class T> struct is_floating_point : false_type {};
   template<> struct is_floating_point<float>       : true_type {};
