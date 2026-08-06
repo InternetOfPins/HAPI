@@ -82,7 +82,7 @@ The compiler sees the full resolved hierarchy and flattens it. Composed fields a
 - **Topology-Preserving Operations** — `Map<F>`, `FindFirst<Q>`, `Filter<Q>` traverse any tree shape natively.
 - **Query Machinery** — `SameAs<T>`, `IsInstanceOf<W>`, `FromTypes<Q>` for introspection; `And<A,B>`, `Or<A,B>`, `Not<Q>` for composition.
 - **Soft-Fail Variants** — `Exists<Q>` (bool), `FindFirstOr<Q, Default>` for non-fatal searches.
-- **Runtime References** — `find<Q>(object)` / `findOr<Q, Default>(object)` — compile-time query, runtime ref into composed object.
+- **Runtime References** — `find<Q>(object)` — compile-time query, runtime ref into composed object.
 
 HAPI runs anywhere C++17 runs — AVR, ESP32, Linux, bare metal. Its compile-time composition layer also synthesizes to hardware, verified against [PandA-Bambu](https://github.com/ferrandi/PandA-bambu) HLS — see [Industry Applications](docs/INDUSTRY.md#fpga--cpld-register-interfacing).
 
