@@ -252,15 +252,10 @@ namespace hapi {
 
   /// @brief find first match of Q in C's ::Types: verify Q matches, return full object ref
   /// Types is only for compile-time verification that Q exists; runtime returns full object
+  /// single overload: C deduces const-qualified when called with a const object, so
+  /// decltype(auto) already returns the right const-ness without a separate overload
   template<typename Q, typename C>
   decltype(auto) find(C& c) {
-    using Types = typename C::Types;
-    static_assert(HasResult<FindFirst_<Q, Types>>::value, "find: predicate Q not found in C::Types");
-    return c;
-  }
-
-  template<typename Q, typename C>
-  decltype(auto) find(const C& c) {
     using Types = typename C::Types;
     static_assert(HasResult<FindFirst_<Q, Types>>::value, "find: predicate Q not found in C::Types");
     return c;
