@@ -266,15 +266,4 @@ namespace hapi {
     return c;
   }
 
-  /// @brief find match of Q in C's ::Types with default if miss: verify or fall back, return full object ref
-  template<typename Q, typename Default, typename C>
-  decltype(auto) findOr(C& c) {
-    return c;
-  }
-
-  template<typename Q, typename Default, typename C>
-  decltype(auto) findOr(const C& c) {
-    return c;
-  }
-
 };
