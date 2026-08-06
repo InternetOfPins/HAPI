@@ -231,25 +231,6 @@ namespace hapi {
 
   // ── Runtime query functions ────────────────────────────────────────────────────--
 
-  /// @brief helper: drop first N elements from Chain<OO...> to get the tail
-  template<std::size_t N, typename T> struct DropN;
-  template<std::size_t N, typename... OO> struct DropN<N, Chain<OO...>> {
-    using Type = typename DropN<N-1, Chain<OO...>>::Type;
-  };
-  template<typename... OO> struct DropN<0, Chain<OO...>> { using Type = Chain<OO...>; };
-  template<> struct DropN<0, Chain<>> { using Type = Chain<>; };
-
-  /// @brief helper: count position of matching Q in chain, or -1 if not found
-  template<typename Q, typename T, std::size_t Idx=0> struct FindIndex;
-  template<typename Q, typename H, typename... TT, std::size_t Idx>
-  struct FindIndex<Q, Chain<H, TT...>, Idx> {
-    static constexpr std::size_t value =
-      Q::template Apply<H>::value ? Idx : FindIndex<Q, Chain<TT...>, Idx+1>::value;
-  };
-  template<typename Q, std::size_t Idx> struct FindIndex<Q, Chain<>, Idx> {
-    static constexpr std::size_t value = 999; // not found
-  };
-
   /// @brief find first match of Q in C's ::Types: verify Q matches, return full object ref
   /// Types is only for compile-time verification that Q exists; runtime returns full object
   /// single overload: C deduces const-qualified when called with a const object, so
