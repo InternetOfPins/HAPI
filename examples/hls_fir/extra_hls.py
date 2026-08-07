@@ -8,6 +8,9 @@ tap counts are runnable as:
     pio run -e hls -t synthesize-fir4
     pio run -e hls -t synthesize-fir8
     pio run -e hls -t synthesize-fir4-rtcoeff
+    pio run -e hls -t synthesize-fir-lpf4
+    pio run -e hls -t synthesize-fir-lpf8
+    pio run -e hls -t synthesize-fir-lpf-cascade2
 
 Requires the BAMBU_APPIMAGE environment variable pointing at a bambu
 AppImage (see README.md -- no bundled/auto-installed toolchain here,
@@ -85,5 +88,52 @@ env.AddCustomTarget(
                  "template NTTP -- checks whether a real DSP-mappable "
                  "multiplier gets inferred when Bambu can't constant-fold "
                  "the coefficient. See README.md.",
+    always_build=True,
+)
+
+env.AddCustomTarget(
+    name="synthesize-fir-lpf4",
+    dependencies=None,
+    actions=[_bambu_cmd(
+        "firLpf4Top",
+        os.path.join(HERE, "hls", "fir_lpf4_top.cpp"),
+        os.path.join(HERE, ".hls_out_fir_lpf4"),
+    )],
+    title="HLS: synthesize 4-tap Hamming-LPF FIR",
+    description="Chain<Tap<10>,Tap<118>,Tap<118>,Tap<10>> -- real "
+                 "Hamming-windowed-sinc low-pass coefficients (fc=1000Hz/"
+                 "fs=8000Hz, Q8) instead of the fir4/fir8 binomial "
+                 "placeholders. See README.md.",
+    always_build=True,
+)
+
+env.AddCustomTarget(
+    name="synthesize-fir-lpf8",
+    dependencies=None,
+    actions=[_bambu_cmd(
+        "firLpf8Top",
+        os.path.join(HERE, "hls", "fir_lpf8_top.cpp"),
+        os.path.join(HERE, ".hls_out_fir_lpf8"),
+    )],
+    title="HLS: synthesize 8-tap Hamming-LPF FIR",
+    description="8-tap version of synthesize-fir-lpf4's same Hamming-LPF "
+                 "filter design. See README.md.",
+    always_build=True,
+)
+
+env.AddCustomTarget(
+    name="synthesize-fir-lpf-cascade2",
+    dependencies=None,
+    actions=[_bambu_cmd(
+        "firLpfCascade2Top",
+        os.path.join(HERE, "hls", "fir_lpf_cascade2_top.cpp"),
+        os.path.join(HERE, ".hls_out_fir_lpf_cascade2"),
+    )],
+    title="HLS: synthesize two cascaded 4-tap Hamming-LPF FIR stages",
+    description="Two independent synthesize-fir-lpf4 stages in series, "
+                 "stage 1's output feeding stage 2's input -- tests "
+                 "whether Bambu shares/duplicates resources across "
+                 "cascaded stages the way it does across taps within one "
+                 "stage. See README.md.",
     always_build=True,
 )

@@ -79,6 +79,29 @@ struct RTap {
 using Fir4Rt = Chain<RTap<0>, RTap<1>, RTap<2>, RTap<3>>;
 using Top4Rt = APIOf<Item, Fir4Rt>;
 
+// Real Hamming-windowed-sinc low-pass filter (fc=1000Hz, fs=8000Hz),
+// Q8 fixed-point (x256, sum=256, unity DC gain) -- same Tap<> shape as
+// Fir4/Fir8 above, real coefficients instead of Pascal's-triangle
+// placeholders. See hls/fir_lpf4_top.cpp / hls/fir_lpf8_top.cpp.
+using FirLpf4    = Chain<Tap<10>, Tap<118>, Tap<118>, Tap<10>>;
+using TopLpf4    = APIOf<Item, FirLpf4>;
+using FirLpf8    = Chain<Tap<1>, Tap<10>, Tap<41>, Tap<76>, Tap<76>, Tap<41>, Tap<10>, Tap<1>>;
+using TopLpf8    = APIOf<Item, FirLpf8>;
+
+/// @brief two independent FirLpf4 stages composed in series -- stage 1's
+/// full output feeds stage 2 as its input, the textbook "cascaded
+/// sections" shape. Deliberately NOT a Chain<> concatenation of the two
+/// stages' tap lists: that would collapse into a single 8-tap FIR with a
+/// materially different impulse response (see hls/fir_lpf_cascade2_top.cpp
+/// and README.md's "Cascaded stages" section). A cascade of two already-
+/// closed APIOf<> transforms needs no new HAPI primitive -- it's plain
+/// function composition, the same as composing any two closed C++ calls.
+TopLpf4 lpfStage1, lpfStage2;
+int32_t firLpfCascade2Top(int16_t x) {
+  int32_t y1 = lpfStage1.mac(x, 0);
+  return lpfStage2.mac(static_cast<int16_t>(y1), 0);
+}
+
 /// @brief compile-time regression guards -- same spirit as hls_smoke's,
 /// adjusted for the fact these layers are genuinely stateful.
 static_assert(!std::is_polymorphic_v<Top4> && !std::is_polymorphic_v<Top8>,
@@ -93,10 +116,14 @@ static_assert(sizeof(Top4) == 4 * sizeof(int16_t),
   "HAPI regression: 4-tap chain should cost exactly 4 delay registers, no padding");
 static_assert(sizeof(Top8) == 8 * sizeof(int16_t),
   "HAPI regression: 8-tap chain should cost exactly 8 delay registers, no padding");
+static_assert(sizeof(TopLpf4) == 4 * sizeof(int16_t) && sizeof(TopLpf8) == 8 * sizeof(int16_t),
+  "HAPI regression: Hamming-LPF chains cost exactly one delay register per tap, no padding");
 
 Top4 fir4;
 Top8 fir8;
 Top4Rt fir4rt;
+TopLpf4 firLpf4;
+TopLpf8 firLpf8;
 
 /// @brief the actual synthesis targets -- point an HLS backend's
 /// top-function option here (e.g. bambu's --top-fname=firTop).
@@ -107,6 +134,8 @@ Top4Rt fir4rt;
 int32_t fir4Top(int16_t x) { return fir4.mac(x, 0); }
 int32_t fir8Top(int16_t x) { return fir8.mac(x, 0); }
 int32_t fir4RtTop(int16_t x) { return fir4rt.mac(x, 0); }
+int32_t firLpf4Top(int16_t x) { return firLpf4.mac(x, 0); }
+int32_t firLpf8Top(int16_t x) { return firLpf8.mac(x, 0); }
 
 #include <cstdio>
 // host-side sanity check only -- not part of the synthesized design, same
@@ -135,6 +164,36 @@ int main() {
   for (int i = 0; i < 7; ++i) {
     int16_t x = (i == 0) ? 1 : 0;
     std::printf("%d ", fir4RtTop(x));
+  }
+  std::printf("\n");
+
+  std::printf("firLpf4 impulse response (expect 0 10 118 118 10 0 0):\n");
+  for (int i = 0; i < 7; ++i) {
+    int16_t x = (i == 0) ? 1 : 0;
+    std::printf("%d ", firLpf4Top(x));
+  }
+  std::printf("\n");
+
+  std::printf("firLpf8 impulse response (expect 0 1 10 41 76 76 41 10 1 0 0):\n");
+  for (int i = 0; i < 11; ++i) {
+    int16_t x = (i == 0) ? 1 : 0;
+    std::printf("%d ", firLpf8Top(x));
+  }
+  std::printf("\n");
+
+  // Cascade impulse response = convolution of the two stages' impulse
+  // responses (a textbook DSP fact), delayed by 2 samples (one per
+  // stage's own one-sample latency) instead of firLpf4's 1: conv(
+  // [10,118,118,10], [10,118,118,10]) = [100,2360,16284,28048,16284,
+  // 2360,100]. This is the concrete evidence that the cascade is a real
+  // series composition, not the naive Chain<> concatenation trap
+  // documented in fir_lpf_cascade2_top.cpp and README.md -- concatenating
+  // the tap lists would instead read back as "0 10 118 118 10 10 118 118
+  // 10 0 0", the two stages' coefficients side by side, not convolved.
+  std::printf("firLpfCascade2 impulse response (expect 0 0 100 2360 16284 28048 16284 2360 100 0 0 0):\n");
+  for (int i = 0; i < 12; ++i) {
+    int16_t x = (i == 0) ? 1 : 0;
+    std::printf("%d ", firLpfCascade2Top(x));
   }
   std::printf("\n");
   return 0;

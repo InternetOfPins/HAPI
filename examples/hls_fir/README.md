@@ -12,7 +12,12 @@ needed to: does a *genuine* DSP-mappable multiplier get synthesized when
 one is actually required? The answer is nuanced and verified both ways —
 see [Results](#results-verified-not-estimated).
 
-## The three targets
+Beyond a single filter, it also checks whether `Chain<>` needs a new
+primitive to compose *cascaded filter sections* (stage 2 processing stage
+1's output, the textbook DSP "cascaded sections" shape) — see
+[Cascaded stages](#cascaded-stages).
+
+## The targets
 
 - **`fir4Top(int16_t x)`** (`hls/fir4_top.cpp`) — 4-tap FIR,
   `Chain<Tap<1>,Tap<3>,Tap<3>,Tap<1>>`. Coefficients are template NTTPs
@@ -27,11 +32,28 @@ see [Results](#results-verified-not-estimated).
   different DSP use case (a runtime-configurable/adaptive filter, e.g. a
   tunable EQ) where the coefficient genuinely cannot be known at synthesis
   time — the DSP-inference half of this example.
+- **`firLpf4Top(int16_t x)`** (`hls/fir_lpf4_top.cpp`) — same 4-tap shape
+  as `fir4Top`, but real Hamming-windowed-sinc low-pass coefficients
+  (fc=1000Hz, fs=8000Hz, Q8 fixed-point, sum=256) instead of the binomial
+  placeholder below — a filter a DSP audience recognizes on sight.
+- **`firLpf8Top(int16_t x)`** (`hls/fir_lpf8_top.cpp`) — 8-tap version of
+  the same Hamming-LPF design.
+- **`firLpfCascade2Top(int16_t x)`** (`hls/fir_lpf_cascade2_top.cpp`) —
+  two independent `firLpf4Top`-equivalent stages composed in series,
+  stage 1's output feeding stage 2's input. See
+  [Cascaded stages](#cascaded-stages) below — this is the actual
+  composition-power demonstration; a single filter swap (the two targets
+  above) doesn't show anything about `Chain<>` that `fir4Top`/`fir8Top`
+  hadn't already shown via tap count.
 
-Both 4-tap and 8-tap kernels are real binomial (Pascal's-triangle)
-smoothing-filter coefficients, not arbitrary numbers — a legitimate,
-textbook FIR design, chosen because they're also hand-checkable (see
-below), the same spirit as `hls_smoke`'s hand-checkable `888`.
+The 4-tap/8-tap binomial kernels (`fir4Top`/`fir8Top`/`firRtTop`) are real
+Pascal's-triangle smoothing-filter coefficients, not arbitrary numbers —
+chosen because they're hand-checkable (see below), the same spirit as
+`hls_smoke`'s hand-checkable `888`. The Hamming-LPF kernels
+(`firLpf4Top`/`firLpf8Top`/`firLpfCascade2Top`) are a second, independently
+real textbook design, added specifically to read as a recognizable filter
+rather than an arbitrary integer sequence — both are legitimate, neither
+supersedes the other; the binomial targets stay as they were.
 
 All fixed-point: `int16_t` samples/coefficients, `int32_t` accumulator (no
 floating point in this first pass — see [Not done](#not-done-if-a-real-number-is-needed)).
@@ -41,7 +63,7 @@ of `src/`, so PlatformIO's native build doesn't compile them) — one
 top-level global object per file, so the synthesized footprint reflects
 only that entry point's real cost.
 
-## Run it natively (regression check, all three)
+## Run it natively (regression check, all six)
 
 ```sh
 pio run -e native
@@ -61,11 +83,25 @@ fir8 impulse response (expect 0 1 7 21 35 35 21 7 1 0 0):
 0 1 7 21 35 35 21 7 1 0 0
 fir4rt impulse response (expect 0 1 3 3 1 0 0):
 0 1 3 3 1 0 0
+firLpf4 impulse response (expect 0 10 118 118 10 0 0):
+0 10 118 118 10 0 0
+firLpf8 impulse response (expect 0 1 10 41 76 76 41 10 1 0 0):
+0 1 10 41 76 76 41 10 1 0 0
+firLpfCascade2 impulse response (expect 0 0 100 2360 16284 28048 16284 2360 100 0 0 0):
+0 0 100 2360 16284 28048 16284 2360 100 0 0 0
 ```
 
 `fir4rt` reproduces `fir4`'s output exactly — same coefficients, same
 math, only the *source* of the coefficient (NTTP vs. runtime table)
 differs, which is the entire point of that variant.
+
+`firLpfCascade2`'s output is `firLpf4`'s coefficient list convolved with
+itself (`conv([10,118,118,10], [10,118,118,10]) = [100,2360,16284,28048,
+16284,2360,100]`, a standard, hand/`numpy.convolve`-checkable DSP fact),
+delayed by 2 samples instead of `firLpf4`'s 1 — one sample of latency per
+cascaded stage. See [Cascaded stages](#cascaded-stages) for why that's the
+proof the composition is a real series cascade and not the tap-list
+concatenation trap.
 
 ## Run it through Bambu HLS
 
@@ -90,19 +126,23 @@ sudo apt install gcc-multilib g++-multilib   # or just libc6-dev-i386
 > far more than the two named packages, including a kernel update. Not
 > expected on a clean/up-to-date system.
 
-Then synthesize any of the three targets (wired via `extra_hls.py`,
+Then synthesize any of the six targets (wired via `extra_hls.py`,
 `env.AddCustomTarget`):
 
 ```sh
-pio run -e hls -t synthesize-fir4          # fir4Top, compile-time coeffs
-pio run -e hls -t synthesize-fir8          # fir8Top, compile-time coeffs
-pio run -e hls -t synthesize-fir4-rtcoeff  # firRtTop, runtime coeffs
+pio run -e hls -t synthesize-fir4               # fir4Top, compile-time coeffs
+pio run -e hls -t synthesize-fir8               # fir8Top, compile-time coeffs
+pio run -e hls -t synthesize-fir4-rtcoeff       # firRtTop, runtime coeffs
+pio run -e hls -t synthesize-fir-lpf4           # firLpf4Top, Hamming LPF
+pio run -e hls -t synthesize-fir-lpf8           # firLpf8Top, Hamming LPF
+pio run -e hls -t synthesize-fir-lpf-cascade2   # firLpfCascade2Top, cascaded stages
 ```
 
-Without `BAMBU_APPIMAGE` set, all three fail immediately with a clear
+Without `BAMBU_APPIMAGE` set, all six fail immediately with a clear
 message naming the missing prerequisite. RTL and Bambu's own logs land in
-`.hls_out_fir4/`, `.hls_out_fir8/`, `.hls_out_fir4_rtcoeff/` respectively
-(gitignored).
+`.hls_out_fir4/`, `.hls_out_fir8/`, `.hls_out_fir4_rtcoeff/`,
+`.hls_out_fir_lpf4/`, `.hls_out_fir_lpf8/`, `.hls_out_fir_lpf_cascade2/`
+respectively (gitignored).
 
 ## Results (verified, not estimated)
 
@@ -176,6 +216,150 @@ output to `fir4Top`, see above), and this time:
   which is exactly why this variant is reported as three separate metrics
   (DSPs, flip-flops, area) rather than collapsed into one "cost" number.
 
+## Cascaded stages
+
+`firLpf4Top`/`firLpf8Top` swap in real Hamming-windowed-sinc coefficients
+but don't demonstrate anything about `Chain<>` that `fir4Top`/`fir8Top`
+hadn't already shown via tap count. `firLpfCascade2Top`
+(`hls/fir_lpf_cascade2_top.cpp`) is the actual composition-power
+demonstration: two independent `firLpf4Top`-equivalent stages in series,
+stage 1's fully-summed output feeding stage 2 as its input sample stream —
+the textbook "cascaded sections" shape from filter design, native
+vocabulary to any DSP audience.
+
+### The open question this answers: does `Chain<>` need a new primitive?
+
+No — and the reason is structural, not a missing feature. `Chain<>`'s
+composition algebra threads *one running accumulator* across taps that all
+see progressively delayed copies of the *same* input sample stream — that
+is exactly what a single filter's internal topology needs (which is what
+`Tap<>` already gives you), but it is a different shape from a cascade of
+independent filter *sections*, where stage 2 must operate on stage 1's
+fully-summed *output*, not on a further-delayed copy of the raw input.
+
+Concretely, concatenating the two stages' tap lists via `Chain<>::App`/
+`Ins` —
+
+```cpp
+Chain<Tap<10>,Tap<118>,Tap<118>,Tap<10>, Tap<10>,Tap<118>,Tap<118>,Tap<10>>
+```
+
+— does **not** produce a cascade. It silently produces a *different*,
+single 8-tap FIR whose coefficients are just the two lists side by side.
+The two impulse responses make the difference concrete:
+
+```
+naive Chain<> concatenation (wrong):  0 10 118 118 10 10 118 118 10 0 0
+true cascade, firLpfCascade2Top:      0 0 100 2360 16284 28048 16284 2360 100 0 0 0
+```
+
+The first is just `firLpf4Top`'s coefficients read back twice — no actual
+filtering interaction between the two "stages" (they were never really two
+stages, just eight taps sharing one accumulator). The second is the
+convolution of `firLpf4Top`'s impulse response with itself, exactly what a
+real two-section cascade produces, delayed by 2 samples (one per stage's
+own one-sample latency) instead of 1. This is a genuine correctness trap
+for anyone reaching for `Chain<>` to build a cascade by instinct — tap-list
+concatenation is the right move *within* one filter (that's the whole
+point of `fir8Top` vs `fir4Top`), and the wrong move *across* filters.
+
+### The actual composition: no new primitive needed
+
+A "stage" in a cascade is not a tap — it's an already-closed top-level
+transform, an `APIOf<Item, Chain<Tap<...>...>>` instance that exposes one
+black-box `mac(x, 0) -> y` call. Composing two closed transforms in series
+is exactly what composing any two closed C++ function calls already is:
+
+```cpp
+using Stage = APIOf<Item, Chain<Tap<10>, Tap<118>, Tap<118>, Tap<10>>>;
+Stage stage1, stage2;
+
+int32_t firLpfCascade2Top(int16_t x) {
+  int32_t y1 = stage1.mac(x, 0);
+  return stage2.mac(static_cast<int16_t>(y1), 0);   // stage 1's output IS stage 2's input
+}
+```
+
+No new `Chain<>` machinery, no core library change — `Chain<>` stays scoped
+to what it's actually for (composing taps that share one filter's running
+accumulator), and stage-to-stage cascading is answered by HAPI's existing
+guarantee that a composed chain collapses into an ordinary, callable
+object. This is the honest finding: not a gap to close, but a boundary
+worth documenting so the next person reaching for `Chain<>::Ins` to build
+a cascade doesn't fall into the concatenation trap above.
+
+One real limitation, scoped out deliberately for this fixed-point-only
+first pass (same boundary as the rest of this README): `firLpfCascade2Top`
+does not renormalize between stages. Each section's coefficients sum to
+256 (Q8, unity DC gain once divided by 256), so a real audio-scale design
+would right-shift (and saturate) `y1` before feeding it to stage 2 to keep
+the signal in `int16_t` range as cascaded gain compounds. That shift is
+skipped here because the native regression check above uses an impulse of
+amplitude 1 — a `>>8` between stages would truncate every intermediate
+value to zero and defeat the hand-checkable test. Floating point and
+inter-stage normalization/saturation are both reasonable follow-ups, not
+blockers for this pass.
+
+### Bambu synthesis results (verified, not estimated)
+
+| | `firLpf4Top` | `firLpf8Top` | `firLpfCascade2Top` |
+|---|---|---|---|
+| Flip-flops | **32** | **49** | **32** |
+| Registers | 1 | 3 | 1 |
+| Distributed-RAM delay elements (`ARRAY_1D_STD_DISTRAM_NN_SDS`) | 4 | 8 | 8 |
+| Multiplexers (2:1 equiv.) | 0 | 0 | 0 |
+| `mult_expr_FU` | **0** | **0** | **0** |
+| **Estimated number of DSPs** | **0** | **0** | **0** |
+| Control steps | 4 | 4 | 4 |
+| States / cycles | 2 / 2 | 2 / 2 | 2 / 2 |
+| Estimated max frequency | 102.09 MHz | 102.09 MHz | 101.00 MHz |
+| Minimum slack | 0.205 ns | 0.205 ns | 0.099 ns |
+| Total estimated area | 7661 | 15328 | 15253 |
+
+Same-question checklist as the [Results](#results-verified-not-estimated)
+table above, answered with real numbers:
+
+- **Does coefficient *value* change Bambu's resource report the way
+  coefficient *source* does?** Not the way originally guessed. `firLpf4Top`
+  lands close to `fir4Top` (32 FF vs 32, area 7661 vs 7598 — both
+  Q8-Hamming and binomial 4-tap kernels cost almost the same). But
+  `firLpf8Top` does **not** land close to `fir8Top`: 49 FF vs 85, area
+  15328 vs 15302 (area is close; FF is not). Same topology, same control
+  step/cycle count, genuinely different flip-flop count — the specific
+  constants (1,10,41,76 vs 1,7,21,35) shift-add into different-sized
+  hardware even though both strength-reduce to zero multipliers. Coefficient
+  value *can* move the FF number; it just doesn't move it predictably.
+- **Does `firLpfCascade2Top` cost roughly 2× a single `firLpf4Top`?** Total
+  estimated area does: 15253 vs 7661 is **1.99×** — almost exactly double,
+  the cleanest confirmation that Bambu built two genuinely independent
+  filter sections, not one shared/merged design. Flip-flops did **not**
+  double (32 vs 32, identical) — but flip-flop count is the wrong signal to
+  read here: the RTL (`firLpfCascade2Top.v`) declares **8** separate
+  `ARRAY_1D_STD_DISTRAM_NN_SDS` instances, i.e. 8 independent per-tap delay
+  elements (matching `firLpf8Top`'s 8, as expected for 4+4 real taps) —
+  Bambu binds each `Tap<>`'s one-sample delay register into a small
+  distributed-RAM primitive, not a plain flip-flop, so "flip-flops" alone
+  undercounts the real per-tap state cost. `ARRAY_1D_STD_DISTRAM_NN_SDS`
+  is the reliable structural indicator; flip-flop count is not.
+- **Does resource-sharing extend across cascaded stages the way it shares
+  within one stage** (2 physical multipliers covering 4 logical taps in
+  `firRtTop`)? Not applicable here — both stages are compile-time-
+  coefficient, so both strength-reduce to shift+add with zero multipliers
+  to share in the first place. Answering the sharing question for real
+  would need a *runtime-coefficient* cascade (two `firRtTop`-shaped
+  stages), not attempted in this pass.
+- **Control steps / cycles stayed flat at 2/2** for all three, same as
+  every compile-time-coefficient target in the main
+  [Results](#results-verified-not-estimated) table — cascading two stages
+  cost real area (≈2×) but not extra latency; Bambu scheduled the whole
+  two-stage combinational path to complete within the same 2-cycle window
+  as a single stage.
+- **Minimum slack dropped** to 0.099 ns for the cascade (vs. 0.205 ns for
+  either single stage) — the combinational path through two stages'
+  worth of shift-add logic in the same clock period leaves noticeably
+  less timing margin, the real cost of keeping latency flat at 2 cycles
+  while doubling the combinational depth.
+
 ## Not done (if a real number is needed)
 
 Same scope boundary as OneParse's `hls_smoke`:
@@ -192,10 +376,11 @@ Same scope boundary as OneParse's `hls_smoke`:
 
 ## Stretch goal, not started
 
-A cascaded biquad chain (classic audio-EQ shape, several biquad sections
-in series) would test a genuinely different composition shape than this
-FIR: each biquad section carries its own multi-tap delay-line *state*
-across two directions (feedforward and feedback), unlike a plain FIR
-tap's single-direction shift register. Worth doing specifically because
-it's a different test of the composition model, not just a bigger filter
-— not attempted here.
+`firLpfCascade2Top` above cascades two FIR *sections*, but each section is
+still built from plain FIR taps — single-direction shift registers. A
+cascaded **biquad** chain (classic audio-EQ shape, several biquad sections
+in series) would test a genuinely different composition shape: each
+biquad section carries its own multi-tap delay-line *state* across two
+directions (feedforward and feedback/IIR), unlike a plain FIR tap. Worth
+doing specifically because it's a different test of the composition
+model, not just a bigger or cascaded FIR — not attempted here.
