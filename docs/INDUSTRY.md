@@ -152,57 +152,46 @@ HAPI's compile-time composition layer (`Chain`, `APIOf`) is synthesizable by a h
 HAPI does not generate HDL directly and is not itself a synthesis engine — it produces plain, flattened C++ that an HLS toolchain can consume like any other input. Only Bambu has been verified so far; other HLS toolchains and frontends are untested, not confirmed working. Hardware validation on physical fabric also remains ongoing; `examples/hls_smoke` validates the synthesis path, not deployment on a specific device.
 
 <details>
-<summary>Zero-Overhead Register-Mapped Interface Example</summary>
+<summary>Zero-Overhead Compile-Time Composition Example — 4-Tap FIR Filter</summary>
+
+This is the real synthesis target from [`examples/hls_fir`](../examples/hls_fir), not a hypothetical. A 4-tap FIR filter is built as `Chain<Tap<1>, Tap<3>, Tap<3>, Tap<1>>`: each `Tap<Coeff>` layer owns its own delay register (`z`) and folds into a single multiply-accumulate call chain, verified end-to-end through Bambu HLS. With coefficients as compile-time NTTPs (as below), Bambu's scheduler strength-reduces every tap's multiply into shift+add — `Estimated number of DSPs: 0`. The identical composition reading coefficients from a runtime table instead synthesizes a real `mult_expr_FU`-backed multiplier (`Estimated number of DSPs: 2`, time-shared across all four taps). Full verified numbers in [`examples/hls_fir/README.md`](../examples/hls_fir/README.md#results-verified-not-estimated).
 
 ```cpp
 #include <hapi/hapi.h>
+#include <cstdint>
 using namespace hapi;
 
-struct CoolRunnerII_Family { uint8_t led_reg; };
+struct Item {
+  static int32_t mac(int16_t /*delayed*/, int32_t acc) { return acc; }
+};
 
-struct RotateLeft {
-  template<typename O>
-  struct Part : O {
-    using Base = O;
-    void tick(uint8_t val, uint8_t dir) {
-      if (dir == 1)
-        val = (((val & 0x07) << 1) | ((val & 0x08) >> 3)) & 0x0F;
-      Base::tick(val, dir);
+template<int16_t Coeff>
+struct Tap {
+  template<typename I>
+  struct Part : I {
+    using Base = I;
+    using Base::Base;
+    int16_t z{0};
+
+    int32_t mac(int16_t x, int32_t acc) {
+      int32_t sum  = acc + static_cast<int32_t>(Coeff) * static_cast<int32_t>(z);
+      int16_t prev = z;
+      z = x;
+      return I::mac(prev, sum);
     }
   };
 };
 
-struct RotateRight {
-  template<typename O>
-  struct Part : O {
-    using Base = O;
-    void tick(uint8_t val, uint8_t dir) {
-      if (dir == 0)
-        val = (((val & 0x01) << 3) | ((val & 0x0E) >> 1)) & 0x0F;
-      Base::tick(val, dir);
-    }
-  };
-};
+using Fir4 = Chain<Tap<1>, Tap<3>, Tap<3>, Tap<1>>;
+using Top  = APIOf<Item, Fir4>;
 
-template<typename Family, Family& silicon>
-struct HardwareSink {
-  template<typename O>
-  struct Part : O {
-    void tick(uint8_t val, uint8_t dir) {
-      silicon.led_reg = val;  // direct register write — address resolved at compile time
-    }
-  };
-};
+Top fir4;
 
-extern CoolRunnerII_Family board;
-
-using Pipeline = APIOf<SinkAPI, RotateLeft, RotateRight, HardwareSink<CoolRunnerII_Family, board>>;
-Pipeline pipeline;
-
-void on_clock_tick(uint8_t direction) {
-  pipeline.tick(board.led_reg, direction);
-  // The compiler flattens RotateLeft::tick → RotateRight::tick → HardwareSink::tick
-  // into a direct absolute register write. No pointers chased at runtime.
+int32_t firTop(int16_t x) {
+  return fir4.mac(x, 0);
+  // The compiler flattens Tap<1>::mac → Tap<3>::mac → Tap<3>::mac → Tap<1>::mac
+  // into a straight-line multiply-accumulate chain. No virtual dispatch, no
+  // heap, each tap's delay register folded into its own flip-flops.
 }
 ```
 </details>
