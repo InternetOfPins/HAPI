@@ -15,11 +15,25 @@ tap counts are runnable as:
 Requires the BAMBU_APPIMAGE environment variable pointing at a bambu
 AppImage (see README.md -- no bundled/auto-installed toolchain here,
 flagged explicitly rather than silently downloading one).
+
+All targets synthesize against an explicit device (--device-name) and
+clock period (--clock-period) -- Bambu is target-aware, not
+target-independent: functional-unit selection (e.g. whether a multiply
+maps to a real DSP block or LUT fabric) is characterized against a
+specific device technology library, so an unconfirmed/default device
+produces numbers that aren't citable against any real, ownable board.
+xc7a100t-1csg324-VVD is the Xilinx Artix-7 on the Digilent Arty A7/
+Nexys A7 -- widely owned, not a special-order part. 10ns targets 100MHz,
+matching the ballpark of OneParse's jsonCharTop/jsonBufTop results for
+rough comparability. See README.md's Results sections for the full
+device-confirmed numbers.
 """
 import os
 Import("env")
 
 BAMBU = os.environ.get("BAMBU_APPIMAGE")
+DEVICE = "xc7a100t-1csg324-VVD"
+CLOCK_PERIOD = "10"
 
 HERE = env.subst("$PROJECT_DIR")
 HAPI_INC = os.path.join(HERE, "..", "..", "include")
@@ -41,6 +55,7 @@ def _bambu_cmd(top_fname, src_file, outdir):
         f'cd "{outdir}" && "{BAMBU}" '
         f'-I"{HAPI_INC}" '
         f'--std=gnu++17 --compiler=I386_CLANG16 '
+        f'--device-name={DEVICE} --clock-period={CLOCK_PERIOD} '
         f'--top-fname={top_fname} -v2 "{src_file}"'
     )
 

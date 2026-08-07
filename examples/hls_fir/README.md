@@ -17,6 +17,51 @@ primitive to compose *cascaded filter sections* (stage 2 processing stage
 1's output, the textbook DSP "cascaded sections" shape) — see
 [Cascaded stages](#cascaded-stages).
 
+## Target device
+
+Bambu is target-aware, not target-independent: functional-unit selection
+(e.g. whether a multiply maps to a real DSP block or LUT/shift-add
+fabric) and every area/frequency/slack number are characterized against a
+specific device technology library — a run with no `--device-name`
+produces numbers against Bambu's undocumented internal default, which
+aren't citable against any real, ownable board.
+
+All six targets below (and `extra_hls.py`'s `synthesize-*` custom
+targets, which now always pass these flags) synthesize against:
+
+```
+--device-name=xc7a100t-1csg324-VVD --clock-period=10
+```
+
+`xc7a100t-1csg324-VVD` is the Xilinx Artix-7 on the Digilent Arty A7 /
+Nexys A7 — widely owned, not a special-order part (confirmed as one of
+Bambu's built-in named devices via its own `Available devices:` catalog
+dump, not a hand-assembled device spec). 10ns targets 100MHz, in the
+ballpark of OneParse's `jsonCharTop`/`jsonBufTop` results for rough
+comparability.
+
+**Confirming what the original numbers ran against:** checking
+`extra_hls.py`'s history shows `fir4Top`/`fir8Top`/`firRtTop` were never
+run with an explicit `--device-name`/`--clock-period` — those numbers
+(as originally published) were against Bambu's undocumented default, not
+a confirmed device. All three were re-run for this pass against the
+explicit device above, alongside the three Hamming-LPF/cascade targets,
+so every number in both Results tables below is now directly comparable.
+
+**What changed and what didn't, re-running the original three targets
+against a confirmed device instead of the default:** every *structural*
+count — flip-flops, registers, DSP count, `mult_expr_FU` count, mux
+count, control steps, states/cycles — came back **identical** to the
+original default-device numbers. Only the *continuously-valued* metrics
+that come directly from the device's characterized timing/area library
+(estimated max frequency, minimum slack, total estimated area) shifted,
+by single-digit percentages. In other words: every non-numeric claim in
+this README (does a real multiplier appear, does resource sharing
+happen, does latency scale with tap count, …) was already correct: only
+the specific frequency/area/slack figures needed a confirmed device to
+be citable, and one genuinely device-sensitive finding did turn up — see
+[Cascaded stages](#cascaded-stages)'s corrected slack finding below.
+
 ## The targets
 
 - **`fir4Top(int16_t x)`** (`hls/fir4_top.cpp`) — 4-tap FIR,
@@ -127,7 +172,9 @@ sudo apt install gcc-multilib g++-multilib   # or just libc6-dev-i386
 > expected on a clean/up-to-date system.
 
 Then synthesize any of the six targets (wired via `extra_hls.py`,
-`env.AddCustomTarget`):
+`env.AddCustomTarget` — the explicit `--device-name`/`--clock-period`
+from [Target device](#target-device) above are baked into every
+`synthesize-*` target, nothing extra to pass):
 
 ```sh
 pio run -e hls -t synthesize-fir4               # fir4Top, compile-time coeffs
@@ -146,6 +193,9 @@ respectively (gitignored).
 
 ## Results (verified, not estimated)
 
+Against the confirmed device from [Target device](#target-device) above
+(`xc7a100t-1csg324-VVD`, `--clock-period=10`):
+
 | | `fir4Top` (compile-time coeffs) | `fir8Top` (compile-time coeffs) | `firRtTop` (runtime coeffs) |
 |---|---|---|---|
 | Flip-flops | **32** | **85** | **267** |
@@ -155,9 +205,9 @@ respectively (gitignored).
 | **Estimated number of DSPs** | **0** | **0** | **2** |
 | Control steps | 4 | 4 | 8 |
 | States / cycles | 2 / 2 | 2 / 2 | 6 / 6 |
-| Estimated max frequency | 126.28 MHz | 124.35 MHz | 127.25 MHz |
-| Minimum slack | 2.081 ns | 1.958 ns | 2.141 ns |
-| Total estimated area | 7598 | 15302 | 5928 |
+| Estimated max frequency | 123.80 MHz | 126.57 MHz | 126.63 MHz |
+| Minimum slack | 1.923 ns | 2.099 ns | 2.103 ns |
+| Total estimated area | 7590 | 15286 | 5921 |
 
 ### Compile-time coefficients: Bambu optimizes the multiplier away
 
@@ -174,13 +224,17 @@ into ROM.
 
 **Resource scaling, 4-tap → 8-tap** (same optimization, twice the taps):
 flip-flops 32→85 (2.66x), operations 33→72 (2.18x), estimated area
-7598→15302 (2.01x — almost exactly linear). **Latency did not scale**:
-both stay at 2 states / 2 cycles minimum-and-maximum — Bambu scheduled
-every tap's shift-add network to complete combinationally within the same
-2-cycle window regardless of tap count, so 8 taps cost roughly double the
-silicon but not more time. Estimated max frequency stayed essentially flat
-(126.28 → 124.35 MHz), consistent with a slightly longer combinational
-path per cycle rather than added pipeline depth.
+7590→15286 — a different metric from the flip-flop ratio, not a
+conflicting measurement of the same one; both a ~2.66x FF scaling and a
+separately-scaling area number can be true at once, and both are
+confirmed again against this pass's explicit device. **Latency did not
+scale**: both stay at 2 states / 2 cycles minimum-and-maximum — Bambu
+scheduled every tap's shift-add network to complete combinationally
+within the same 2-cycle window regardless of tap count, so 8 taps cost
+roughly double the silicon but not more time. Estimated max frequency
+(123.80 → 126.57 MHz) and minimum slack (1.923 → 2.099 ns) both moved by
+single-digit percentages — noise-level, not a trend worth reading into
+tap count on its own.
 
 ### Runtime coefficients: a real multiplier appears
 
@@ -193,6 +247,10 @@ output to `fir4Top`, see above), and this time:
 
 - **`mult_expr_FU: 2`, `Estimated number of DSPs: 2`** — real,
   DSP-mappable multiplier hardware, unlike either compile-time variant.
+  Confirmed against a real Artix-7 device library, not an unconfirmed
+  default — this device genuinely has DSP48 blocks Bambu could target,
+  so the inference is meaningful, not an artifact of a generic/default
+  technology library that might not model hard multiplier blocks at all.
 - Only **2** multiplier instances cover **4** logical tap multiplies —
   Bambu's own binding/allocation algorithm chose to time-share 2 physical
   multipliers across the 4 taps rather than instantiate 4, and added
@@ -201,20 +259,28 @@ output to `fir4Top`, see above), and this time:
 - That sharing costs real latency: control steps go 4→8 and states/cycles
   go 2→6 (vs. either compile-time variant), and flip-flops jump to 267
   (register binding explicitly reports a *sub-optimal* result here — "21
-  registers (LB:14)" — the extra scheduling complexity of shared
+  registers (LB:14)", the same SE:12+STD:9 breakdown confirmed again
+  against the explicit device — the extra scheduling complexity of shared
   multiplier access, not a free lunch).
-- Estimated max frequency (127.25 MHz) and minimum slack (2.141 ns) stayed
+- Estimated max frequency (126.63 MHz) and minimum slack (2.103 ns) stayed
   comparable to the compile-time variants — the critical path through one
   real multiplier is not, by itself, tighter than the shift-add chains
   above; the cost of this variant shows up entirely in cycle count and
   flip-flop area, not clock speed.
 - Counter-intuitively, **total estimated area is lower** than `fir4Top`'s
-  (5928 vs. 7598), despite the added multiplier hardware: `fir4Top`'s 4
+  (5921 vs. 7590), despite the added multiplier hardware: `fir4Top`'s 4
   fully-unrolled shift-add networks (one per tap, nothing shared) cost
   more combinational area than 2 time-shared real multipliers plus their
   routing muxes. DSP count alone is not the whole resource picture —
   which is exactly why this variant is reported as three separate metrics
   (DSPs, flip-flops, area) rather than collapsed into one "cost" number.
+- **All of the above — DSP count, mux count, control steps, register
+  breakdown — matched exactly** between the original (unconfirmed-device)
+  run and this pass's confirmed-device re-run; only the frequency/slack/
+  area figures moved, by single-digit percentages. The structural finding
+  ("a real multiplier appears when coefficients are genuinely runtime")
+  was never in question — this pass makes the specific numbers citable
+  against a real, ownable device.
 
 ## Cascaded stages
 
@@ -302,6 +368,10 @@ blockers for this pass.
 
 ### Bambu synthesis results (verified, not estimated)
 
+Against the same confirmed device as the main
+[Results](#results-verified-not-estimated) table
+(`xc7a100t-1csg324-VVD`, `--clock-period=10`):
+
 | | `firLpf4Top` | `firLpf8Top` | `firLpfCascade2Top` |
 |---|---|---|---|
 | Flip-flops | **32** | **49** | **32** |
@@ -312,35 +382,39 @@ blockers for this pass.
 | **Estimated number of DSPs** | **0** | **0** | **0** |
 | Control steps | 4 | 4 | 4 |
 | States / cycles | 2 / 2 | 2 / 2 | 2 / 2 |
-| Estimated max frequency | 102.09 MHz | 102.09 MHz | 101.00 MHz |
-| Minimum slack | 0.205 ns | 0.205 ns | 0.099 ns |
-| Total estimated area | 7661 | 15328 | 15253 |
+| Estimated max frequency | 103.33 MHz | 103.33 MHz | 103.33 MHz |
+| Minimum slack | 0.322 ns | 0.322 ns | 0.322 ns |
+| Total estimated area | 7653 | 15312 | 15237 |
 
 Same-question checklist as the [Results](#results-verified-not-estimated)
 table above, answered with real numbers:
 
 - **Does coefficient *value* change Bambu's resource report the way
   coefficient *source* does?** Not the way originally guessed. `firLpf4Top`
-  lands close to `fir4Top` (32 FF vs 32, area 7661 vs 7598 — both
+  lands close to `fir4Top` (32 FF vs 32, area 7653 vs 7590 — both
   Q8-Hamming and binomial 4-tap kernels cost almost the same). But
   `firLpf8Top` does **not** land close to `fir8Top`: 49 FF vs 85, area
-  15328 vs 15302 (area is close; FF is not). Same topology, same control
+  15312 vs 15286 (area is close; FF is not). Same topology, same control
   step/cycle count, genuinely different flip-flop count — the specific
   constants (1,10,41,76 vs 1,7,21,35) shift-add into different-sized
   hardware even though both strength-reduce to zero multipliers. Coefficient
   value *can* move the FF number; it just doesn't move it predictably.
+  **Confirmed a second time against the explicit device** — this isn't a
+  default-device artifact, the mismatch survives re-synthesis against
+  real Artix-7 characterization.
 - **Does `firLpfCascade2Top` cost roughly 2× a single `firLpf4Top`?** Total
-  estimated area does: 15253 vs 7661 is **1.99×** — almost exactly double,
-  the cleanest confirmation that Bambu built two genuinely independent
-  filter sections, not one shared/merged design. Flip-flops did **not**
-  double (32 vs 32, identical) — but flip-flop count is the wrong signal to
-  read here: the RTL (`firLpfCascade2Top.v`) declares **8** separate
-  `ARRAY_1D_STD_DISTRAM_NN_SDS` instances, i.e. 8 independent per-tap delay
-  elements (matching `firLpf8Top`'s 8, as expected for 4+4 real taps) —
-  Bambu binds each `Tap<>`'s one-sample delay register into a small
-  distributed-RAM primitive, not a plain flip-flop, so "flip-flops" alone
-  undercounts the real per-tap state cost. `ARRAY_1D_STD_DISTRAM_NN_SDS`
-  is the reliable structural indicator; flip-flop count is not.
+  estimated area does: 15237 vs 7653 is **~1.99×** — almost exactly
+  double, the cleanest confirmation that Bambu built two genuinely
+  independent filter sections, not one shared/merged design. Flip-flops
+  did **not** double (32 vs 32, identical) — but flip-flop count is the
+  wrong signal to read here: the RTL (`firLpfCascade2Top.v`) declares
+  **8** separate `ARRAY_1D_STD_DISTRAM_NN_SDS` instances, i.e. 8
+  independent per-tap delay elements (matching `firLpf8Top`'s 8, as
+  expected for 4+4 real taps) — Bambu binds each `Tap<>`'s one-sample
+  delay register into a small distributed-RAM primitive, not a plain
+  flip-flop, so "flip-flops" alone undercounts the real per-tap state
+  cost. `ARRAY_1D_STD_DISTRAM_NN_SDS` is the reliable structural
+  indicator; flip-flop count is not.
 - **Does resource-sharing extend across cascaded stages the way it shares
   within one stage** (2 physical multipliers covering 4 logical taps in
   `firRtTop`)? Not applicable here — both stages are compile-time-
@@ -354,20 +428,33 @@ table above, answered with real numbers:
   cost real area (≈2×) but not extra latency; Bambu scheduled the whole
   two-stage combinational path to complete within the same 2-cycle window
   as a single stage.
-- **Minimum slack dropped** to 0.099 ns for the cascade (vs. 0.205 ns for
-  either single stage) — the combinational path through two stages'
-  worth of shift-add logic in the same clock period leaves noticeably
-  less timing margin, the real cost of keeping latency flat at 2 cycles
-  while doubling the combinational depth.
+- **Correction from an earlier, unconfirmed-device pass of this same
+  table:** a prior run (against Bambu's undocumented default device, not
+  the explicit Artix-7 device this table uses) showed minimum slack
+  dropping for the cascade (0.099 ns) versus either single stage
+  (0.205 ns), read at the time as "the real cost of doubling combinational
+  depth while keeping latency flat." **That finding does not survive
+  re-synthesis against a confirmed device** — here, `firLpf4Top`,
+  `firLpf8Top`, and `firLpfCascade2Top` all report essentially identical
+  minimum slack (0.322 ns, differing only in the 8th significant digit)
+  and identical estimated max frequency (103.33 MHz). Whatever produced
+  the apparent slack drop under the default/unconfirmed device did not
+  reproduce under real device characterization — a concrete example of
+  why device-unconfirmed timing numbers aren't safe to build a narrative
+  on, and exactly the risk [Target device](#target-device) above exists
+  to close off.
 
 ## Not done (if a real number is needed)
 
 Same scope boundary as OneParse's `hls_smoke`:
 
-- **Real P&R DSP-slice inference** (Vivado / Yosys+nextpnr-ecp5) — Bambu's
-  `Estimated number of DSPs` and `mult_expr_FU` count characterize
-  pre-placement functional units, not confirmed post-P&R DSP48/MULT18X18
-  block mapping on a specific device family.
+- **Real P&R DSP-slice inference** (Vivado / Yosys+nextpnr-ecp5) — now
+  characterized against a real, named device (`xc7a100t-1csg324-VVD`,
+  see [Target device](#target-device)) rather than an unconfirmed
+  default, but Bambu's `Estimated number of DSPs` and `mult_expr_FU`
+  count still characterize pre-placement functional units, not confirmed
+  post-P&R DSP48/MULT18X18 block mapping — that step still needs Vivado
+  or Yosys+nextpnr-ecp5 and hasn't been run.
 - **RTL simulation for real cycle-accurate throughput** (Verilator /
   Icarus) — the control-step/state counts above are Bambu's static
   schedule, not a simulated, testbench-driven measurement.
