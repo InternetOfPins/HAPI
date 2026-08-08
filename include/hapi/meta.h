@@ -183,8 +183,6 @@ namespace hapi {
   // ── Soft-fail variants ─────────────────────────────────────────────────────────--
 
   /// @brief presence-only check: never fails to compile, just answers true/false.
-  /// reuses Any (already a short-circuit-free fold over the whole chain) —
-  /// no need to duplicate FindFirst_'s walk for a question that's just bool.
   template<typename Q, typename Input>
   using Exists = typename Any<Q>::template Check<Input>;
 
@@ -231,10 +229,7 @@ namespace hapi {
 
   // ── Runtime query functions ────────────────────────────────────────────────────--
 
-  /// @brief find first match of Q in C's ::Types: verify Q matches, return full object ref
-  /// Types is only for compile-time verification that Q exists; runtime returns full object
-  /// single overload: C deduces const-qualified when called with a const object, so
-  /// decltype(auto) already returns the right const-ness without a separate overload
+  /// @brief find first match of Q in C's ::Types: verify Q matches, return full object ref.
   template<typename Q, typename C>
   decltype(auto) find(C& c) {
     using Types = typename C::Types;

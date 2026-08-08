@@ -42,11 +42,7 @@ namespace hapi {
     template<typename O> struct Part : O {using O::rules;};
   };
 
-  /// @brief rules fold/collapse utility, compose all rules into a single object
-  /// @tparam Current : the target object for rule inspection
-  /// @tparam Before : chain of elements before the current
-  /// @tparam After : chain of elements after the current
-  /// @tparam bool 
+  /// @brief rules fold/collapse utility, compose all rules into a single object.
   template<typename Current, typename Before, typename After>
   struct RuleLayer<Current, Before, After, true> {
     template<typename O>
@@ -57,10 +53,8 @@ namespace hapi {
     };
   };
 
-  /// @brief start the rules folding process and walk the list of types
-  /// to provide correct before/after elements to each target element in chain
-  /// @tparam Before : elements before, starts empty (usually)
-  /// @tparam After : elements after, starts with a complete set of all elements to be checked
+  /// @brief starts the rules folding process, walking the list of types to provide
+  /// correct before/after elements to each target element in the chain.
   template<typename Before, typename After>
   struct BuildRules:
     RuleLayer<typename After::Head,Before,typename After::Tail>::template Part<

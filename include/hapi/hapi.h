@@ -11,11 +11,8 @@
 namespace hapi {
   // ====================== APIOf ======================--
 
-  /// @brief Close chain composition with a fallback API, 
-  /// collapsing the chain into a single c++ class inheritance
-  /// that ultimately derive from the given API
-  /// @tparam API : fall-back API
-  /// @tparam OO... : the chain components 
+  /// @brief closes chain composition with a fallback API, collapsing the chain into a
+  /// single C++ class inheritance that ultimately derives from the given API.
   template<typename API, typename... OO>
   struct APIOf : Chain<OO...>::template Part<API> {
     using Base = typename Chain<OO...>::template Part<API>;
