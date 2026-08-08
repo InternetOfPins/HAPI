@@ -9,12 +9,11 @@ footprint number.
 
 **Scope note:** this example is an original design built to exercise the
 composition model on this problem shape, *not* a reproduction of any
-specific published CAN-bus-disabler paper. An earlier session referenced
-such a paper (mailbox/ID spoof detection, a minimum-cycle replay check,
-reported LE counts on an Altera baseline) but its actual text was never
-available in this session to reproduce byte-for-byte or to cite numbers
-against — see [Not done](#not-done) below. Nothing here should be read as
-a verification or refutation of that paper's own results.
+specific published CAN-bus-disabler paper — it was designed and Bambu-
+verified before the paper below was actually read. See
+[Comparison to the CAN Disabler paper](#comparison-to-the-can-disabler-paper)
+for the structural differences found once it was, and for why no
+number-vs-number footprint comparison is offered.
 
 ## The design
 
@@ -34,8 +33,9 @@ a verification or refutation of that paper's own results.
   `permit(mailbox,id,tick) -> bool`.
 
 `tick` is a plain function argument here, not a live hardware counter —
-see [Not done](#not-done) for why that matters before citing this
-against any bus-timing-driven design.
+see [Comparison to the CAN Disabler paper](#comparison-to-the-can-disabler-paper)
+for why that matters before citing this against any bus-timing-driven
+design.
 
 ## Run it natively (regression check, all five cases)
 
@@ -133,28 +133,101 @@ schedule) that has no footprint in `sizeof()` at all. Same lesson
 count: no single struct-level metric predicts the synthesized register
 cost by itself.
 
+## Comparison to the CAN Disabler paper
+
+R. Kurachi, T. D. Pyun, S. Honda, H. Takada, H. Ueda, S. Horihata,
+**"CAN Disabler: Hardware-based Prevention method of Unauthorized
+Transmission in CAN and CAN-FD networks,"** arXiv:2608.03567v1.
+
+### No footprint number is compared, on purpose
+
+The paper reports (Sec. V-B): the full embedded system (NiosII soft
+core + DRAM controller + on-chip RAM + redesigned CAN controller)
+consumes **23,888 logic elements**; "the CAN controller itself consumes
+**5,374** logic elements"; and "there are **3,106** more logic elements
+compared with the synthesis using the conventional CAN controller." That
+last sentence is the disabler's overhead, but the paper's own wording
+leaves it ambiguous whether the 5,374 figure already includes that
+3,106 or is the pre-disabler baseline — not resolved here either, quoted
+as-is rather than resolved by guessing.
+
+None of those three numbers are commensurable with this example's 2147
+Bambu "Total estimated area":
+
+- **Different tool.** The paper's numbers come from Altera's own
+  synthesis flow (Quartus, implied by "logic elements" as the unit and
+  the DE0-NANO target) on real placed/synthesized hardware. This
+  example's numbers come from Bambu's own internal area-estimation
+  score, computed pre-placement — not a LUT/LE count from any vendor
+  tool at all (see [Not done](#not-done)'s P&R item).
+- **Different device family.** Altera Cyclone IV (DE0-NANO) vs. Xilinx
+  Artix-7 (`xc7a100t-1csg324-VVD`) — different LUT architectures, so
+  even genuine LE-vs-LUT counts wouldn't convert by a fixed ratio.
+- **Different scope.** The paper's 3,106/5,374/23,888 are for a full
+  CAN-FD controller IP with the disabler embedded as a sub-module inside
+  it (register file, protocol processing, bit-timing logic, counter
+  process, all in one synthesis run); `canDisablerTop` here is only the
+  gate logic in isolation, with no surrounding controller.
+
+Given all three, a "2147 vs. 3106" sentence would imply a precision this
+comparison cannot support — so this README states the paper's numbers
+for the record and stops there, rather than manufacture a ratio.
+
+### Structural differences found, now that the paper's been read
+
+- **Protection functions 1 and 2 are one combined check here, two
+  independent ones in the paper.** The paper's device disabler runs
+  three *separate* evaluations in sequence (Fig. 3): (1) is this
+  mailbox enabled at all (a per-mailbox enable bit, Table I's "Disable
+  mailbox information" register), independent of which CAN-ID it's
+  carrying; then (2) is this CAN-ID on the whitelist, independent of
+  which mailbox sent it. This example's `Allow<Mailbox,Id>` instead
+  whitelists the *pair* directly — a stricter, less configurable policy
+  than the paper's two-independent-tables design (there is no way here
+  to say "mailbox 0 is enabled for any whitelisted ID" the way the
+  paper's Table I schema allows). The `mailbox-3 spoof` and `id-0x200
+  spoof` test names read as if they map onto the paper's Evaluation 1
+  and Evaluation 2 separately; they don't — both are actually testing
+  the one combined `Allow<>` check.
+- **One shared counter here vs. a per-message minimum-interval table in
+  the paper.** `MinCycle<100>` is a single global timer shared across
+  every mailbox/ID pair. The paper's Table I "Minimum intervals of
+  sending messages" register is described as covering "the CAN ID and
+  corresponding [] minimum time intervals" (i.e., a table, one interval
+  per message type) — the paper itself flags that a single shared
+  interval is not necessarily the right model once "there are multiple
+  messages from this ECU" (Sec. V-C-2). This example's one-counter
+  simplification matches the paper's simplest framing (a single message
+  type gated by a single interval) but not its multi-message caveat.
+- **Confirms the open `tick`-argument question — genuinely not a fair
+  stand-in as built.** The paper is explicit that its minimum-
+  transmission-cycle counter is real hardware: "embedded as a bit/time
+  unit counter on the CAN network. The counter starts to count up after
+  the initial transmission request is generated" (Sec. V-A) — an actual
+  free-running counter clocked off CAN bus bit timing, not a value
+  supplied by the transmitting software. `MinCycle<>` here takes `tick`
+  as a plain function argument the *caller* provides, which is not the
+  same guarantee: nothing stops a compromised caller from passing a
+  stale or fabricated `tick`. One thing this example does get right
+  structurally: like the paper's counter, `MinCycle<>`'s `armed` flag
+  means the *first* transmission is never blocked for lack of history —
+  the paper states this explicitly too ("the initial transmission
+  request is not protected by the minimum transmission cycle counter").
+  Wiring a genuine free-running counter into `canDisablerTop` (instead
+  of a caller-supplied tick) is now a concrete, paper-grounded follow-up
+  rather than an open question with no source to resolve it against.
+- **The paper's third, separate axis this example doesn't have at all:
+  measured processing-time overhead.** Sec. V-B measures the disabler's
+  added latency on real FPGA hardware directly (max 6.25µs after a
+  transmission request, "within 3 to 4 bits at 500kbps") — a testbench/
+  hardware timing measurement, not a synthesis-time estimate. Nothing in
+  this example measures that; Bambu's control-step/cycle counts (see
+  [Results](#results-verified-not-estimated) above) are a schedule, not
+  a timed measurement, and are called out as such in
+  [Not done](#not-done) below independent of this comparison.
+
 ## Not done
 
-- **No paper comparison.** The original handoff this example continues
-  cited a specific paper's LE counts (3106 LE added on a 5374-LE
-  baseline, 23,888-LE full system, on an Altera device family) as a
-  target to compare against. That paper's actual text/methodology was
-  not available in this session — comparing this design's 2147
-  Artix-7-characterized area units against an unread paper's
-  Altera-characterized LE count would be citing a number nobody here has
-  verified means the same thing on the same technology. If/when the
-  paper is available, this section should be filled in with an explicit
-  device-family caveat, not a bare number-vs-number claim.
-- **The `tick`-argument question, still open.** `MinCycle<>` compares
-  two `uint32_t` values passed in by the caller; a real CAN-bus
-  minimum-cycle-time enforcement would tie that comparison to a genuine
-  hardware counter clocked off bus timing (the kind of few-microsecond,
-  few-bit measurement a real bus-timing paper would specify). Whether
-  "pass tick as a function argument" is a fair functional stand-in for
-  that, or needs a real free-running counter wired into `canDisablerTop`
-  before any latency/timing claim is citable, is unresolved here for the
-  same reason as the paper comparison above: no source to check the
-  claim against.
 - **Real P&R** (Vivado / Yosys+nextpnr-ecp5) — Bambu's area/DSP numbers
   above are pre-placement, not confirmed post-P&R LUT/FF/DSP-slice
   mapping.
@@ -165,3 +238,10 @@ cost by itself.
   larger; this example doesn't test how area scales with whitelist
   size (an easy follow-up: add `Allow<>` layers and re-synthesize, the
   same resource-scaling question `hls_fir` answers for tap count).
+- **Two paper-grounded follow-ups, not attempted here** (see
+  [Comparison to the CAN Disabler paper](#comparison-to-the-can-disabler-paper)):
+  split `Allow<Mailbox,Id>` into the paper's two genuinely independent
+  evaluations (per-mailbox enable, then separate CAN-ID whitelist)
+  instead of one combined pair-check; and replace the caller-supplied
+  `tick` argument with a real free-running counter driving
+  `canDisablerTop`, matching the paper's bit/time-unit hardware counter.
