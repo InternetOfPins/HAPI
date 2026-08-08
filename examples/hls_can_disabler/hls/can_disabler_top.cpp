@@ -10,7 +10,7 @@ using namespace hapi;
 
 // innermost layer: ran out of whitelist entries, not permitted.
 struct Deny {
-  static bool allowed(uint8_t /*mailbox*/, uint16_t /*id*/) { return false; }
+  static constexpr bool allowed(uint8_t /*mailbox*/, uint16_t /*id*/) noexcept { return false; }
 };
 
 // one whitelist entry: this (mailbox,id) pair is permitted to transmit.
@@ -20,7 +20,7 @@ struct Allow {
   struct Part : I {
     using Base = I;
     using Base::Base;
-    static bool allowed(uint8_t mailbox, uint16_t id) {
+    static constexpr bool allowed(uint8_t mailbox, uint16_t id) noexcept {
       return (mailbox == Mailbox && id == Id) || I::allowed(mailbox, id);
     }
   };
@@ -37,7 +37,7 @@ struct MinCycle {
     uint32_t lastTick{0};
     bool armed{false};
 
-    bool permit(uint8_t mailbox, uint16_t id, uint32_t tick) {
+    bool permit(uint8_t mailbox, uint16_t id, uint32_t tick) noexcept {
       bool wlOk    = I::allowed(mailbox, id);
       bool cycleOk = !armed || (tick - lastTick >= MinInterval);
       bool ok      = wlOk && cycleOk;
@@ -52,6 +52,6 @@ using Top       = APIOf<Deny, Whitelist>;
 
 Top disabler;
 
-bool canDisablerTop(uint8_t mailbox, uint16_t id, uint32_t tick) {
+bool canDisablerTop(uint8_t mailbox, uint16_t id, uint32_t tick) noexcept {
   return disabler.permit(mailbox, id, tick);
 }

@@ -37,6 +37,16 @@ see [Comparison to the CAN Disabler paper](#comparison-to-the-can-disabler-paper
 for why that matters before citing this against any bus-timing-driven
 design.
 
+`Deny`/`Allow<>`'s `allowed()` is `constexpr noexcept`, which buys a
+compile-time regression check on the whitelist logic itself
+(`static_assert(DisablerTop::allowed(0,0x100) && ...)` in
+`src/main.cpp`, only possible because it's a constant expression) — it
+does **not** change the synthesized hardware, confirmed by re-running
+Bambu after adding it: identical 22 flip-flops / 0 DSPs / 2147 area to
+before, since every real `permit()` call passes runtime `mailbox`/`id`
+values, and a trivial one-line static predicate inlines the same way
+with or without the keyword.
+
 ## Run it natively (regression check, all five cases)
 
 ```sh

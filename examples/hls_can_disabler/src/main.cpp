@@ -22,19 +22,23 @@ using namespace hapi;
 
 /// @brief innermost layer: ran out of whitelist entries, not permitted.
 struct Deny {
-  static bool allowed(uint8_t /*mailbox*/, uint16_t /*id*/) { return false; }
+  static constexpr bool allowed(uint8_t /*mailbox*/, uint16_t /*id*/) noexcept { return false; }
 };
 
 /// @brief one whitelist entry: this (mailbox,id) pair may transmit.
 /// Stateless -- same "pure function per layer" shape as hls_smoke's
 /// WrapWith<>, chained via logical OR down to Deny's unconditional false.
+/// constexpr doesn't change codegen for the real permit() path (mailbox/id
+/// are always runtime values there, so this still just inlines like any
+/// other trivial static function); it only matters for the static_asserts
+/// below, which need allowed() callable in a constant expression.
 template<uint8_t Mailbox, uint16_t Id>
 struct Allow {
   template<typename I>
   struct Part : I {
     using Base = I;
     using Base::Base;
-    static bool allowed(uint8_t mailbox, uint16_t id) {
+    static constexpr bool allowed(uint8_t mailbox, uint16_t id) noexcept {
       return (mailbox == Mailbox && id == Id) || I::allowed(mailbox, id);
     }
   };
@@ -54,7 +58,7 @@ struct MinCycle {
     uint32_t lastTick{0};
     bool armed{false};
 
-    bool permit(uint8_t mailbox, uint16_t id, uint32_t tick) {
+    bool permit(uint8_t mailbox, uint16_t id, uint32_t tick) noexcept {
       bool wlOk    = I::allowed(mailbox, id);
       bool cycleOk = !armed || (tick - lastTick >= MinInterval);
       bool ok      = wlOk && cycleOk;
@@ -79,6 +83,15 @@ static_assert(std::is_trivially_destructible_v<DisablerTop>,
 /// any future layer silently gaining extra state/padding.
 static_assert(sizeof(DisablerTop) == 8,
   "HAPI regression: disabler should cost exactly one tick register + one flag, no padding beyond alignment");
+/// Whitelist logic proven at compile time, not just by the runtime cases in
+/// main() below -- only possible because Allow<>/Deny's allowed() is
+/// constexpr. DisablerTop::allowed(...) resolves through MinCycle<>::Part
+/// (which doesn't declare allowed(), so lookup passes through to its base)
+/// straight to the Allow<> chain.
+static_assert(DisablerTop::allowed(0, 0x100) && DisablerTop::allowed(1, 0x101) && DisablerTop::allowed(2, 0x102),
+  "HAPI regression: all three whitelisted pairs must be allowed");
+static_assert(!DisablerTop::allowed(3, 0x100) && !DisablerTop::allowed(0, 0x200),
+  "HAPI regression: mailbox/id must be checked as a pair, not independently");
 
 int main() {
   bool allPass = true;
