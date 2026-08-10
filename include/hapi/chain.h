@@ -23,7 +23,7 @@ namespace hapi {
   template<>
   struct Chain<> {
     template<typename T>
-    struct Part : T { using T::T; };  // anchor: no more components, collapse to T
+    using Part = T;  // anchor: no more components, collapse to T
     using Types = Chain<>;
     static constexpr SizeT size{0};
     template<template<typename...> class W> using Build = W<>;
