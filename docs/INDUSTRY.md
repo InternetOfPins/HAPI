@@ -31,7 +31,7 @@ Before examining specific domains, these are the properties HAPI contributes —
 | Dynamic allocation | None introduced by the framework |
 | Virtual dispatch | None introduced by the framework |
 | Composition validity | Declared constraints verified at compile time |
-| Component data isolation | Design discipline — layers can keep data `private`, but `protected` and `public` members remain accessible to layers above via inheritance. Full isolation is not guaranteed. |
+| Component data isolation | Guaranteed by standard C++ access control, scoped to the specific `Chain<>` instantiation — `private` members are reachable only within their own layer; `protected`/`public` members are reachable by layers above, by declared choice. |
 | Algorithm correctness | Not guaranteed — depends on implementation |
 | Regulatory compliance | Not guaranteed — depends on system design and verification |
 
@@ -52,9 +52,9 @@ HAPI's composition model constrains structural scope at the type level:
 - **Compile-time constraint validation** — declared ordering rules, dependencies, and incompatibilities are checked before a binary exists
 - **Explicit composition topology** — the complete system structure is readable from a single type declaration
 
-Layers are encouraged to keep internal state `private`, limiting direct access to the layer that owns it. Because layers compose through inheritance however, `protected` and `public` members remain accessible to layers above. Full blast-radius isolation is a design discipline, not a structural guarantee provided by HAPI.
+Layers are encouraged to keep internal state `private`; standard C++ access control then confines it absolutely to that layer, for the lifetime of the specific `Chain<>` instantiation — no other layer, above or below, can reach it. `protected` and `public` members remain reachable by layers above, by declared choice — that choice, not its enforcement, is the design discipline. For any given layer, the reachable set is exactly the layers above it in that one composition, enumerable by reading the `Chain<>` type declaration.
 
-This shifts the auditor's scope. Rather than verifying global integration properties, they can focus on local functional correctness — does this component transform its input correctly within its execution sequence?
+This narrows the auditor's scope. Compile-time validation closes off structural integration risk — allocation, dispatch, undeclared coupling, ordering — on top of local functional correctness: does this component transform its input correctly within its execution sequence? Composed, emergent behaviour across the full chain still requires verification, same as any system; HAPI narrows what must be re-checked each time, it does not remove the need to check the whole sequence.
 
 HAPI does not replace human verification. It narrows the structural surface that requires it.
 
