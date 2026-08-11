@@ -142,10 +142,22 @@ There is no such thing as a structurally broken HAPI program that compiles.
 
 ## Related Projects
 
+HAPI is the foundation for the **One\* library family** — each built directly on HAPI's composition engine, part of [InternetOfPins](https://github.com/InternetOfPins):
+
 | Project | Description |
 |---|---|
-| [ArduinoMenu v4](https://github.com/neu-rah/ArduinoMenu) | Previous generation — 1k★, 197 forks, GitHub Arctic Code Vault |
-| [streamFlow](https://github.com/neu-rah/streamFlow) | Lightweight `<<` stream operator for Arduino |
+| [OneBit](https://github.com/InternetOfPins/OneBit) | Bit manipulation — masks, cross-boundary fields, pin-level operations |
+| [OneData](https://github.com/InternetOfPins/OneData) | Data components |
+| [OnePin](https://github.com/InternetOfPins/OnePin) | Pin abstraction — generic pin/port concept |
+| [OneChip](https://github.com/InternetOfPins/OneChip) | Hardware register components — AVR and STM32 GPIO, timers, interrupts |
+| [OneBus](https://github.com/InternetOfPins/OneBus) | Bus protocols — SPI, I2C, UART, 1-Wire |
+| [OneIO](https://github.com/InternetOfPins/OneIO) | Physical IO device drivers — displays, sensors, actuators |
+| [OneInput](https://github.com/InternetOfPins/OneInput) | Composable physical input — debounce, click, hold, encoder |
+| [OneSensor](https://github.com/InternetOfPins/OneSensor) | Sensor drivers, parameterized on bus and chip |
+| [OneItem](https://github.com/InternetOfPins/OneItem) | Item API — behavior and presentation components |
+| [OneOutput](https://github.com/InternetOfPins/OneOutput) | Output components |
+| [OneMenu](https://github.com/InternetOfPins/OneMenu) | Menu system |
+| [OneParse](https://github.com/InternetOfPins/OneParse) | Parser combinator components |
 
 ---
 
