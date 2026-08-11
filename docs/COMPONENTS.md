@@ -36,8 +36,8 @@ struct A {                              // (1) outer struct — the layer identi
 | # | Element | Required | Description |
 |---|---|---|---|
 | 1 | `struct A` | yes | The layer identity. Never instantiated directly. |
-| 2 | `template<typename O>` | no | `O` is the composed type of everything below this layer. Omit only when the component adds no behavior. |
-| 3 | `struct Part : O` | no | The actual mixin — single-inheritance from `O` (mono_block topology). |
+| 2 | `template<typename O>` | yes | `O` is the composed type of everything below this layer — `Chain` resolves every link as `O::template Part<...>`; without this template there's nothing to resolve into. |
+| 3 | `struct Part : O` | yes | The actual mixin — single-inheritance from `O` (mono_block topology). Together with (2), this pair *is* the composition mechanism; every layer needs it, even one that adds no behavior beyond forwarding. |
 | 4 | `using Base = O` | no | Convenience alias, used to call through |
 | 5 | `using Base::Base` | yes* | Essential for compound construction — propagates constructors from `O` up through every layer so the composed type can be instantiated with arguments. Without it the chain breaks at this level. |
 | 6 | Method override | no | Add or transform behavior at this level |
