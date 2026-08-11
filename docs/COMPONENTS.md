@@ -108,7 +108,7 @@ constexpr const bool query<Q, ItemDef<OO...>>
 |---|---|---|---|
 | 1 | `APIOf<API, OO...>` | yes | Closes the chain, derives from all layers + API base |
 | 2 | `using Base` | no | Convenience alias |
-| 3 | `using Base::Base` | yes | Forward constructors |
+| 3 | `using Base::Base` | yes* | Forward constructors — propagates `APIOf`'s constructors so the composed type can be built with arguments. Omit only if the composed type is only ever default-constructed. |
 | 4 | Extra members | no | `size`, helper methods, anything the composed type should expose directly |
 | 5 | `operator<<` | no | Ergonomic stream output |
 | 6 | `query` specialisation | no | Allows `query<Q, ItemDef<OO...>>` to search the wrapper's layer list |
@@ -308,7 +308,7 @@ struct HardwarePart {
 
 The address `Addr` is a compile-time template parameter — the compiler embeds it as an immediate in the instruction stream, maintaining the zero-overhead guarantee while providing a standard layer interface for peripheral access.
 
-> **On component isolation:** keeping data members `private` in `Part` limits their visibility to the layer that owns them. However, because layers compose through inheritance, `protected` and `public` members remain accessible to layers above. Full blast-radius isolation between layers is not achievable through this pattern alone — isolation is a design discipline, not a structural guarantee.
+> **On component isolation:** keeping data members `private` in `Part` confines them absolutely to the layer that owns them — guaranteed by standard C++ access control, not a discipline. `protected` and `public` members remain reachable by layers above, by declared choice; that choice, not its enforcement, is what's left to discipline.
 
 ---
 
