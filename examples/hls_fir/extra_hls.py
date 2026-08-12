@@ -12,6 +12,11 @@ tap counts are runnable as:
     pio run -e hls -t synthesize-fir-lpf8
     pio run -e hls -t synthesize-fir-lpf-cascade2
 
+...plus a -gcc8 variant of each of the six above, and a fir4-altdevice
+variant (see README.md's Results table -- second, independent Bambu
+configs, cross-checking that the structural counts aren't an artifact of
+one frontend/device pairing).
+
 Requires the BAMBU_APPIMAGE environment variable pointing at a bambu
 AppImage (see README.md -- no bundled/auto-installed toolchain here,
 flagged explicitly rather than silently downloading one).
@@ -33,6 +38,7 @@ Import("env")
 
 BAMBU = os.environ.get("BAMBU_APPIMAGE")
 DEVICE = "xc7a100t-1csg324-VVD"
+ALT_DEVICE = "LFE5U85F8BG756C"  # Lattice ECP5-85, different vendor/architecture
 CLOCK_PERIOD = "10"
 
 HERE = env.subst("$PROJECT_DIR")
@@ -43,7 +49,8 @@ HAPI_INC = os.path.join(HERE, "..", "..", "include")
 # global per translation unit keeps the synthesized footprint honest.
 
 
-def _bambu_cmd(top_fname, src_file, outdir):
+def _bambu_cmd(top_fname, src_file, outdir, frontend="I386_CLANG16",
+                device=DEVICE):
     if not BAMBU:
         return (
             'echo "BAMBU_APPIMAGE is not set -- point it at a bambu AppImage '
@@ -54,8 +61,8 @@ def _bambu_cmd(top_fname, src_file, outdir):
     return (
         f'cd "{outdir}" && "{BAMBU}" '
         f'-I"{HAPI_INC}" '
-        f'--std=gnu++17 --compiler=I386_CLANG16 '
-        f'--device-name={DEVICE} --clock-period={CLOCK_PERIOD} '
+        f'--std=gnu++17 --compiler={frontend} '
+        f'--device-name={device} --clock-period={CLOCK_PERIOD} '
         f'--top-fname={top_fname} -v2 "{src_file}"'
     )
 
@@ -150,5 +157,118 @@ env.AddCustomTarget(
                  "whether Bambu shares/duplicates resources across "
                  "cascaded stages the way it does across taps within one "
                  "stage. See README.md.",
+    always_build=True,
+)
+
+# -gcc8 variants: same six designs, through Bambu's I386_GCC8 frontend
+# instead of I386_CLANG16 -- cross-check for a frontend-specific artifact.
+
+env.AddCustomTarget(
+    name="synthesize-fir4-gcc8",
+    dependencies=None,
+    actions=[_bambu_cmd(
+        "firTop",
+        os.path.join(HERE, "hls", "fir4_top.cpp"),
+        os.path.join(HERE, ".hls_out_fir4_gcc8"),
+        frontend="I386_GCC8",
+    )],
+    title="HLS: synthesize 4-tap FIR (GCC8 frontend)",
+    description="Same design as synthesize-fir4, through Bambu's I386_GCC8 "
+                 "frontend. See README.md.",
+    always_build=True,
+)
+
+env.AddCustomTarget(
+    name="synthesize-fir8-gcc8",
+    dependencies=None,
+    actions=[_bambu_cmd(
+        "firTop",
+        os.path.join(HERE, "hls", "fir8_top.cpp"),
+        os.path.join(HERE, ".hls_out_fir8_gcc8"),
+        frontend="I386_GCC8",
+    )],
+    title="HLS: synthesize 8-tap FIR (GCC8 frontend)",
+    description="Same design as synthesize-fir8, through Bambu's I386_GCC8 "
+                 "frontend. See README.md.",
+    always_build=True,
+)
+
+env.AddCustomTarget(
+    name="synthesize-fir4-rtcoeff-gcc8",
+    dependencies=None,
+    actions=[_bambu_cmd(
+        "firRtTop",
+        os.path.join(HERE, "hls", "fir4_rtcoeff_top.cpp"),
+        os.path.join(HERE, ".hls_out_fir4_rtcoeff_gcc8"),
+        frontend="I386_GCC8",
+    )],
+    title="HLS: synthesize 4-tap FIR, runtime coefficients (GCC8 frontend)",
+    description="Same design as synthesize-fir4-rtcoeff, through Bambu's "
+                 "I386_GCC8 frontend. See README.md.",
+    always_build=True,
+)
+
+env.AddCustomTarget(
+    name="synthesize-fir-lpf4-gcc8",
+    dependencies=None,
+    actions=[_bambu_cmd(
+        "firLpf4Top",
+        os.path.join(HERE, "hls", "fir_lpf4_top.cpp"),
+        os.path.join(HERE, ".hls_out_fir_lpf4_gcc8"),
+        frontend="I386_GCC8",
+    )],
+    title="HLS: synthesize 4-tap Hamming-LPF FIR (GCC8 frontend)",
+    description="Same design as synthesize-fir-lpf4, through Bambu's "
+                 "I386_GCC8 frontend. See README.md.",
+    always_build=True,
+)
+
+env.AddCustomTarget(
+    name="synthesize-fir-lpf8-gcc8",
+    dependencies=None,
+    actions=[_bambu_cmd(
+        "firLpf8Top",
+        os.path.join(HERE, "hls", "fir_lpf8_top.cpp"),
+        os.path.join(HERE, ".hls_out_fir_lpf8_gcc8"),
+        frontend="I386_GCC8",
+    )],
+    title="HLS: synthesize 8-tap Hamming-LPF FIR (GCC8 frontend)",
+    description="Same design as synthesize-fir-lpf8, through Bambu's "
+                 "I386_GCC8 frontend. See README.md.",
+    always_build=True,
+)
+
+env.AddCustomTarget(
+    name="synthesize-fir-lpf-cascade2-gcc8",
+    dependencies=None,
+    actions=[_bambu_cmd(
+        "firLpfCascade2Top",
+        os.path.join(HERE, "hls", "fir_lpf_cascade2_top.cpp"),
+        os.path.join(HERE, ".hls_out_fir_lpf_cascade2_gcc8"),
+        frontend="I386_GCC8",
+    )],
+    title="HLS: synthesize two cascaded 4-tap Hamming-LPF FIR stages "
+          "(GCC8 frontend)",
+    description="Same design as synthesize-fir-lpf-cascade2, through "
+                 "Bambu's I386_GCC8 frontend. See README.md.",
+    always_build=True,
+)
+
+# -altdevice: fir4 only, against a Lattice ECP5 instead of the Xilinx
+# Artix-7 -- cross-check for a device-specific artifact.
+
+env.AddCustomTarget(
+    name="synthesize-fir4-altdevice",
+    dependencies=None,
+    actions=[_bambu_cmd(
+        "firTop",
+        os.path.join(HERE, "hls", "fir4_top.cpp"),
+        os.path.join(HERE, ".hls_out_fir4_altdevice"),
+        device=ALT_DEVICE,
+    )],
+    title="HLS: synthesize 4-tap FIR (Lattice ECP5)",
+    description="Same design as synthesize-fir4, against a Lattice ECP5-85 "
+                 "(LFE5U85F8BG756C) instead of the Xilinx Artix-7. "
+                 "See README.md.",
     always_build=True,
 )

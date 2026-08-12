@@ -95,9 +95,13 @@ Then:
 
 ```sh
 pio run -e hls -t synthesize-can-disabler
+pio run -e hls -t synthesize-can-disabler-gcc8       # GCC8 frontend cross-check (fails, see Results)
+pio run -e hls -t synthesize-can-disabler-altdevice  # Lattice ECP5 cross-check
 ```
 
-RTL and Bambu's logs land in `.hls_out_can_disabler/` (gitignored).
+RTL and Bambu's logs land in `.hls_out_can_disabler/`,
+`.hls_out_can_disabler_gcc8/`, `.hls_out_can_disabler_altdevice/`
+respectively (gitignored).
 
 ## Results (verified, not estimated)
 
@@ -106,22 +110,22 @@ A7 — widely owned, not a special-order part), `--clock-period=10`
 (100MHz target) — same device/period as `hls_fir` and OneParse's
 `hls_smoke` for rough comparability:
 
-| Metric | `canDisablerTop` |
-|---|---|
-| Flip-flops | **22** |
-| Registers | 3 (SE:1 + STD:2) |
-| Distributed-RAM elements (`ARRAY_1D_STD_DISTRAM_NN_SDS`) | 2 |
-| `mult_expr_FU` | **0** |
-| **Estimated number of DSPs** | **0** |
-| Modules instantiated | 27 |
-| Control steps | 6 |
-| States | 4 |
-| Cycles (min/max) | 2 / 3 |
-| Estimated max frequency | 151.14 MHz |
-| Minimum slack | 3.384 ns |
-| Estimated area (logic, no muxes) | 2079 |
-| Estimated area (MUX21) | 68 |
-| **Total estimated area** | **2147** |
+| Metric | Bambu / clang16, Artix-7 (primary) | Bambu / GCC8, Artix-7 | Bambu / clang16, Lattice ECP5 |
+|---|---|---|---|
+| Flip-flops | **22** | N/A — see below | **57** |
+| Registers | 3 (SE:1 + STD:2) | N/A | 7 (SE:3 + STD:4) |
+| Distributed-RAM elements (`ARRAY_1D_STD_DISTRAM_NN_SDS`) | 2 | N/A | 2 |
+| `mult_expr_FU` | **0** | N/A | **0** |
+| **Estimated number of DSPs** | **0** | N/A | **0** |
+| Modules instantiated | 27 | N/A | 30 |
+| Control steps | 6 | N/A | 7 |
+| States | 4 | N/A | 5 |
+| Cycles (min/max) | 2 / 3 | N/A | 3 / 4 |
+| Estimated max frequency | 151.14 MHz | N/A | 160.80 MHz |
+| Minimum slack | 3.384 ns | N/A | 3.781 ns |
+| Estimated area (logic, no muxes) | 2079 | N/A | 2130 |
+| Estimated area (MUX21) | 68 | N/A | 98 |
+| **Total estimated area** | **2147** | N/A | **2228** |
 
 No `mult_expr_FU`/DSP usage at all — every operation in this design
 (equality checks, one subtraction, one comparison) is plain
@@ -131,6 +135,53 @@ different, simpler resource story than `hls_fir`'s tap networks. Total
 area (2147) is roughly a third of `hls_fir`'s smallest target
 (`fir4Top`, 7590) — consistent with this being control/comparison logic
 rather than an arithmetic datapath.
+
+### Cross-tool/cross-config validation
+
+Bambu is currently the only HLS backend actually run against this design —
+a Bambu-specific quirk could in principle masquerade as a HAPI property (or
+vice versa). Two independent Bambu configs were run as a first cross-check
+(see `extra_hls.py`'s `-gcc8`/`-altdevice` targets). Three more independent
+tools were investigated:
+
+| Tool | Status |
+|---|---|
+| Bambu (clang16 frontend) | **Done** — primary Results table above |
+| Bambu (GCC8 frontend) | **Done** — rejects HAPI's template-template-parameter usage, see below |
+| Bambu (Lattice ECP5 device) | **Done** — see below |
+| Vitis HLS | **Not run** — integration scaffolding ready (`extra_hls_vitis.py`, `vitis/run_hls.tcl`, `[env:hls-vitis]`); blocked on Xilinx account + Vitis Unified Installer, an interactive step not done in this pass |
+| Intel HLS Compiler | **Not run** — integration scaffolding ready (`extra_hls_intel.py`, `[env:hls-intel]`); blocked on Intel/Altera account + Quartus Prime Lite download, an interactive step not done in this pass; will also target a different (Altera/Intel) device family, not `xc7a100t-1csg324-VVD` |
+| LegUp | **Ruled out** — free academic version is a frozen, single-commit, pre-C++17, VM-only 2015-era snapshot under a non-commercial license; actively-maintained descendant (SmartHLS) is closed/commercial. Full reasoning: `HAPI/.RnD/legupHLS/HANDOFF.md` |
+
+To run the Vitis HLS / Intel HLS Compiler targets once installed:
+
+```sh
+export VITIS_HLS=/path/to/vitis_hls   # after Xilinx account + Vitis HLS install
+pio run -e hls-vitis -t synthesize-can-disabler-vitis
+
+# after Quartus Prime Lite + Intel HLS Compiler install, with i++ on PATH
+pio run -e hls-intel -t synthesize-can-disabler-intel
+```
+
+- **GCC8 frontend (`--compiler=I386_GCC8`): rejected, not a HAPI bug.**
+  Fails at parse time — `Unrecognized keyword ... bound_template_template_parm`
+  / `Parse error` — before scheduling is ever reached. Bambu's GCC8-based
+  tree parser doesn't recognize the AST node for a template-template-
+  parameter binding that `Chain<>`'s recursive composition produces; the
+  bundled clang16 frontend accepts the same construct cleanly. `I386_CLANG16`
+  is the only viable frontend for this codebase — see
+  `HAPI/.RnD/bambuHLS/HANDOFF.md` finding #4 for the full writeup.
+- **Lattice ECP5 device (`LFE5U85F8BG756C`): DSP inference is
+  device-independent, flip-flop/area counts are not.** DSP count (0),
+  `mult_expr_FU` count (0), and the "no multiply in this design" structural
+  finding matched exactly against a second, non-Xilinx vendor's device — the
+  strongest form of evidence that this is a real property of the design, not
+  a Bambu/Artix-7 artifact. Flip-flop count (22 → 57) and total area
+  (2147 → 2228) did **not** match — expected, since each device's technology
+  library binds the same logical registers differently; these numbers were
+  never claimed to be portable across devices (see original device-choice
+  rationale above), and this run confirms that boundary rather than
+  overturning it.
 
 `Total number of flip-flops` (22) is noticeably larger than the raw
 `sizeof(DisablerTop) == 8` (one `uint32_t` + one `bool`, confirmed by

@@ -19,7 +19,11 @@ echo "OK: static_assert guards passed"
 
 echo "== Bambu synthesis =="
 cd "$OUTDIR"
+# Same explicit device/period as hls_fir/hls_can_disabler (extra_hls.py) --
+# an unconfirmed/default device produces numbers not citable against any
+# real, ownable board. See README.md's Target device note.
 "$BAMBU" -I"$HAPI_INCLUDE" --std=gnu++17 --compiler=I386_CLANG16 \
+  --device-name=xc7a100t-1csg324-VVD --clock-period=10 \
   --top-fname=wrapSum -v2 "$SRC" 2>&1 | tee bambu.log
 
 if [ ! -f wrapSum.v ]; then

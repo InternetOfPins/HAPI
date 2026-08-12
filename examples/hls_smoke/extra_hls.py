@@ -4,25 +4,28 @@ PlatformIO custom target for HLS synthesis via PandA-Bambu.
 Bambu isn't a PlatformIO `platform` (it synthesizes RTL, not a linked
 executable) -- this hooks it in as a custom target instead:
 
-    pio run -e hls -t synthesize-can-disabler
-    pio run -e hls -t synthesize-can-disabler-gcc8
-    pio run -e hls -t synthesize-can-disabler-altdevice
+    pio run -e hls -t synthesize-wrapsum
+    pio run -e hls -t synthesize-wrapsum-gcc8
+    pio run -e hls -t synthesize-wrapsum-altdevice
 
 Requires the BAMBU_APPIMAGE environment variable pointing at a bambu
 AppImage (see README.md -- no bundled/auto-installed toolchain here,
 flagged explicitly rather than silently downloading one).
 
 Synthesizes against an explicit device (--device-name) and clock period
-(--clock-period), same device/period as hls_fir and hls_smoke for direct
-comparability -- Bambu is target-aware, not target-independent:
+(--clock-period), same device/period as hls_fir and hls_can_disabler for
+direct comparability -- Bambu is target-aware, not target-independent:
 functional-unit selection is characterized against a specific device
 technology library, so an unconfirmed/default device produces numbers
-that aren't citable against any real, ownable board.
+that aren't citable against any real, ownable board. (This example
+previously ran against Bambu's undocumented default device -- see
+README.md's Target device note for what changed.)
 
 The -gcc8/-altdevice targets are second, independent Bambu configs (see
-README.md's Results table) -- not a different HLS tool, but a cross-check
-that the structural counts (FF, mult_expr_FU) aren't an artifact of one
-frontend/device pairing.
+README.md's Cross-tool/cross-config validation section) -- not a
+different HLS tool, but a cross-check that the structural result (one
+real ui_plus_expr_FU, exactly proportional to the computation) isn't an
+artifact of one frontend/device pairing.
 """
 import os
 Import("env")
@@ -34,10 +37,14 @@ CLOCK_PERIOD = "10"
 
 HERE = env.subst("$PROJECT_DIR")
 HAPI_INC = os.path.join(HERE, "..", "..", "include")
+SRC = os.path.join(HERE, "src", "main.cpp")
 
-# Points at its own isolated hls/can_disabler_top.cpp, NOT src/main.cpp --
-# same isolation rationale as hls_fir/hls_smoke: one top-level global per
-# translation unit keeps the synthesized footprint honest.
+# Points at src/main.cpp directly, not an isolated hls/*.cpp -- unlike
+# hls_fir/hls_can_disabler, this example's src/main.cpp already isolates
+# the synthesis target correctly: wrapSum(int) never reaches main()'s
+# iostream/host-side code, so Bambu's own call-graph-following via
+# --top-fname already excludes it (confirmed by the existing 1-adder
+# result in README.md, no dead-code carried into the RTL).
 
 
 def _bambu_cmd(top_fname, src_file, outdir, frontend="I386_CLANG16",
@@ -59,47 +66,46 @@ def _bambu_cmd(top_fname, src_file, outdir, frontend="I386_CLANG16",
 
 
 env.AddCustomTarget(
-    name="synthesize-can-disabler",
+    name="synthesize-wrapsum",
     dependencies=None,
     actions=[_bambu_cmd(
-        "canDisablerTop",
-        os.path.join(HERE, "hls", "can_disabler_top.cpp"),
-        os.path.join(HERE, ".hls_out_can_disabler"),
+        "wrapSum",
+        SRC,
+        os.path.join(HERE, ".hls_out_wrapsum"),
     )],
-    title="HLS: synthesize CAN transmit-disabler gate",
-    description="Chain<MinCycle<100>,Allow<0,0x100>,Allow<1,0x101>,"
-                 "Allow<2,0x102>> -- whitelist + minimum-retransmit-"
-                 "interval guard. See README.md.",
+    title="HLS: synthesize 5-layer Chain<> collapse (wrapSum)",
+    description="Chain<Parens,SqBracks,Bracks,Bars,XTag> arithmetic "
+                 "smoke test -- collapses to one real adder. See README.md.",
     always_build=True,
 )
 
 env.AddCustomTarget(
-    name="synthesize-can-disabler-gcc8",
+    name="synthesize-wrapsum-gcc8",
     dependencies=None,
     actions=[_bambu_cmd(
-        "canDisablerTop",
-        os.path.join(HERE, "hls", "can_disabler_top.cpp"),
-        os.path.join(HERE, ".hls_out_can_disabler_gcc8"),
+        "wrapSum",
+        SRC,
+        os.path.join(HERE, ".hls_out_wrapsum_gcc8"),
         frontend="I386_GCC8",
     )],
-    title="HLS: synthesize CAN transmit-disabler gate (GCC8 frontend)",
-    description="Same design as synthesize-can-disabler, through Bambu's "
+    title="HLS: synthesize 5-layer Chain<> collapse (GCC8 frontend)",
+    description="Same design as synthesize-wrapsum, through Bambu's "
                  "I386_GCC8 frontend instead of I386_CLANG16 -- cross-check "
                  "for a frontend-specific artifact. See README.md.",
     always_build=True,
 )
 
 env.AddCustomTarget(
-    name="synthesize-can-disabler-altdevice",
+    name="synthesize-wrapsum-altdevice",
     dependencies=None,
     actions=[_bambu_cmd(
-        "canDisablerTop",
-        os.path.join(HERE, "hls", "can_disabler_top.cpp"),
-        os.path.join(HERE, ".hls_out_can_disabler_altdevice"),
+        "wrapSum",
+        SRC,
+        os.path.join(HERE, ".hls_out_wrapsum_altdevice"),
         device=ALT_DEVICE,
     )],
-    title="HLS: synthesize CAN transmit-disabler gate (Lattice ECP5)",
-    description="Same design as synthesize-can-disabler, against a Lattice "
+    title="HLS: synthesize 5-layer Chain<> collapse (Lattice ECP5)",
+    description="Same design as synthesize-wrapsum, against a Lattice "
                  "ECP5-85 (LFE5U85F8BG756C) instead of the Xilinx "
                  "Artix-7 -- cross-check for a device-specific artifact. "
                  "See README.md.",

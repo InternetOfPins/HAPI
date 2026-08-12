@@ -185,11 +185,20 @@ pio run -e hls -t synthesize-fir-lpf8           # firLpf8Top, Hamming LPF
 pio run -e hls -t synthesize-fir-lpf-cascade2   # firLpfCascade2Top, cascaded stages
 ```
 
-Without `BAMBU_APPIMAGE` set, all six fail immediately with a clear
+Plus two independent-config cross-checks (see
+[Cross-tool/cross-config validation](#cross-toolcross-config-validation)):
+
+```sh
+pio run -e hls -t synthesize-fir4-gcc8               # ...and the other 5 -gcc8 targets
+pio run -e hls -t synthesize-fir4-altdevice          # fir4Top against a Lattice ECP5
+```
+
+Without `BAMBU_APPIMAGE` set, all targets fail immediately with a clear
 message naming the missing prerequisite. RTL and Bambu's own logs land in
 `.hls_out_fir4/`, `.hls_out_fir8/`, `.hls_out_fir4_rtcoeff/`,
 `.hls_out_fir_lpf4/`, `.hls_out_fir_lpf8/`, `.hls_out_fir_lpf_cascade2/`
-respectively (gitignored).
+(and each's `_gcc8`/`_altdevice`-suffixed counterpart) respectively
+(gitignored).
 
 ## Results (verified, not estimated)
 
@@ -281,6 +290,67 @@ output to `fir4Top`, see above), and this time:
   ("a real multiplier appears when coefficients are genuinely runtime")
   was never in question — this pass makes the specific numbers citable
   against a real, ownable device.
+
+### Cross-tool/cross-config validation
+
+Bambu is currently the only HLS backend actually run against these designs
+— a Bambu-specific quirk could in principle masquerade as a HAPI property
+(or vice versa). Two independent Bambu configs were run as a first
+cross-check. Three more independent tools were investigated:
+
+| Tool | Status |
+|---|---|
+| Bambu (clang16 frontend) | **Done** — primary Results table above |
+| Bambu (GCC8 frontend) | **Done** — rejects HAPI on all six targets, see below |
+| Bambu (Lattice ECP5 device) | **Done**, `fir4Top` only — see below |
+| Vitis HLS | **Not run** — integration scaffolding ready (`extra_hls_vitis.py`, `vitis/run_hls.tcl`, `[env:hls-vitis]`, all six targets); blocked on Xilinx account + Vitis Unified Installer, an interactive step not done in this pass |
+| Intel HLS Compiler | **Not run** — integration scaffolding ready (`extra_hls_intel.py`, `[env:hls-intel]`, all six targets); blocked on Intel/Altera account + Quartus Prime Lite download, an interactive step not done in this pass; will also target a different (Altera/Intel) device family, not `xc7a100t-1csg324-VVD` |
+| LegUp | **Ruled out** — free academic version is a frozen, single-commit, pre-C++17, VM-only 2015-era snapshot under a non-commercial license; actively-maintained descendant (SmartHLS) is closed/commercial. Full reasoning: `HAPI/.RnD/legupHLS/HANDOFF.md` |
+
+To run the Vitis HLS / Intel HLS Compiler targets once installed:
+
+```sh
+export VITIS_HLS=/path/to/vitis_hls   # after Xilinx account + Vitis HLS install
+pio run -e hls-vitis -t synthesize-fir4-vitis   # ...and the other 5
+
+# after Quartus Prime Lite + Intel HLS Compiler install, with i++ on PATH
+pio run -e hls-intel -t synthesize-fir4-intel   # ...and the other 5
+```
+
+- **GCC8 frontend (`--compiler=I386_GCC8`): rejected on all six targets,
+  not a HAPI bug.** Every one of `synthesize-fir4-gcc8` through
+  `synthesize-fir-lpf-cascade2-gcc8` fails identically, at parse time —
+  `Unrecognized keyword ... bound_template_template_parm` / `Parse error` —
+  before scheduling is ever reached. Bambu's GCC8-based tree parser doesn't
+  recognize the AST node for a template-template-parameter binding that
+  `Chain<>`'s recursive composition produces; the bundled clang16 frontend
+  accepts the same construct cleanly across all six designs. `I386_CLANG16`
+  is the only viable frontend for this codebase — see
+  `HAPI/.RnD/bambuHLS/HANDOFF.md` finding #4 for the full writeup.
+- **Lattice ECP5 device (`LFE5U85F8BG756C`), `fir4Top` only: DSP inference
+  and latency are device-independent, flip-flop/area/frequency are not.**
+
+  | Metric | Bambu / clang16, Artix-7 (primary) | Bambu / clang16, Lattice ECP5 |
+  |---|---|---|
+  | Flip-flops | **32** | **51** |
+  | `mult_expr_FU` | **0** | **0** |
+  | **Estimated number of DSPs** | **0** | **0** |
+  | Control steps | 4 | 4 |
+  | States / cycles | 2 / 2 | 2 / 2 |
+  | Estimated max frequency | 123.80 MHz | 102.78 MHz |
+  | Minimum slack | 1.923 ns | 0.270 ns |
+  | Total estimated area | 7590 | 6101 |
+
+  DSP count (0), `mult_expr_FU` count (0), and control-step/cycle count all
+  matched exactly against a second, non-Xilinx vendor's device — the
+  strongest form of evidence that "Bambu strength-reduces the compile-time
+  multiply away" (see above) is a real property of the design, not a
+  Bambu/Artix-7 artifact. Flip-flop count (32 → 51), total area (7590 →
+  6101), and timing figures did **not** match — expected, since each
+  device's technology library binds the same logical registers and
+  timing differently; these numbers were never claimed to be portable
+  across devices (see [Target device](#target-device) above), and this run
+  confirms that boundary rather than overturning it.
 
 ## Cascaded stages
 
