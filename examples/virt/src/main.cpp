@@ -42,7 +42,7 @@ using Parens=WrapWith<'(',')'>;
 using SqBracks=WrapWith<'[',']'>;
 using Bracks=WrapWith<'{','}'>;
 using Bars=WrapWith<'|','|'>;
-using Tag=WrapWith<'<','>'>;
+using XTag=WrapWith<'<','>'>;
 
 /**/
 struct IItem {
@@ -60,9 +60,9 @@ struct IItemOf:IItem,ItemDef<OO...> {
 template<typename... OO>
 struct ItemDef:APIOf<Item,OO...> {};
 
-ItemDef<Bars,Parens,SqBracks,Bracks,Tag> testItem;
+ItemDef<Bars,Parens,SqBracks,Bracks,XTag> testItem;
 
-using ItemA=IItemOf<Tag,Bars>;
+using ItemA=IItemOf<XTag,Bars>;
 using ItemB=IItemOf<Bracks,SqBracks>;
 
 ItemA a;

@@ -7,6 +7,10 @@
  * 
  */
 
+#ifdef ARDUINO
+  #include <Arduino.h>
+#endif
+
 #include <hapi/hapi.h>
 using namespace hapi;
 
@@ -78,7 +82,9 @@ constexpr ItemDef<A,B> ok{};
 // constexpr ItemDef<A,B,B> fail_unicity{};//will fail with compile error "error: static assertion failed: do not repeat B!""
 
 void run() {
-  cout<<std::boolalpha;
+#ifndef __AVR__
+  cout<<std::boolalpha;  // streamFlow's Serial-backed cout has no manipulator support
+#endif
   cout<<"HasRules<A>:"<<HasRules<A>::value<<endl;
   cout<<"HasRules<B>:"<<HasRules<B>::value<<endl;
   cout<<"query<SameAs<A>,A>:"<<query<SameAs<A>,A><<endl;
