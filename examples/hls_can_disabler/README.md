@@ -141,7 +141,7 @@ rather than an arithmetic datapath.
 Bambu is currently the only HLS backend actually run against this design —
 a Bambu-specific quirk could in principle masquerade as a HAPI property (or
 vice versa). Two independent Bambu configs were run as a first cross-check
-(see `extra_hls.py`'s `-gcc8`/`-altdevice` targets). Three more independent
+(see `extra_hls.py`'s `-gcc8`/`-altdevice` targets). Two more independent
 tools were investigated:
 
 | Tool | Status |
@@ -150,17 +150,14 @@ tools were investigated:
 | Bambu (GCC8 frontend) | **Done** — rejects HAPI's template-template-parameter usage, see below |
 | Bambu (Lattice ECP5 device) | **Done** — see below |
 | Vitis HLS | **Not run** — integration scaffolding ready (`extra_hls_vitis.py`, `vitis/run_hls.tcl`, `[env:hls-vitis]`); blocked on Xilinx account + Vitis Unified Installer, an interactive step not done in this pass |
-| Intel HLS Compiler | **Not run** — integration scaffolding ready (`extra_hls_intel.py`, `[env:hls-intel]`); blocked on Intel/Altera account + Quartus Prime Lite download, an interactive step not done in this pass; will also target a different (Altera/Intel) device family, not `xc7a100t-1csg324-VVD` |
+| Intel HLS Compiler | **Ruled out** — the classic `i++` command-line compiler this pass targeted now appears to require Quartus Prime **Pro** edition (paid); the free Lite-edition add-on catalog only offers a different, newer tool ("HLS IP Gen (Beta)") with a different IP-generation workflow, not a drop-in. No integration script kept — see `HAPI/.RnD/legupHLS/HANDOFF.md`'s LegUp entry for the same kind of "ruled out, not a compile failure" finding |
 | LegUp | **Ruled out** — free academic version is a frozen, single-commit, pre-C++17, VM-only 2015-era snapshot under a non-commercial license; actively-maintained descendant (SmartHLS) is closed/commercial. Full reasoning: `HAPI/.RnD/legupHLS/HANDOFF.md` |
 
-To run the Vitis HLS / Intel HLS Compiler targets once installed:
+To run the Vitis HLS target once installed:
 
 ```sh
 export VITIS_HLS=/path/to/vitis_hls   # after Xilinx account + Vitis HLS install
 pio run -e hls-vitis -t synthesize-can-disabler-vitis
-
-# after Quartus Prime Lite + Intel HLS Compiler install, with i++ on PATH
-pio run -e hls-intel -t synthesize-can-disabler-intel
 ```
 
 - **GCC8 frontend (`--compiler=I386_GCC8`): rejected, not a HAPI bug.**
