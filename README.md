@@ -139,6 +139,39 @@ The important point is that the intermediate composition does not have to be fla
 
 ---
 
+## Incremental API
+
+Because the composition folds through ordinary inheritance, each component's `Part<O>` sees the accumulated API of everything composed before it, as `O`. That gives every component two independent options for any given function:
+
+* **contribute** a function that did not exist in `O`
+* **override** a function that already exists in `O`, and call `Base::` to reach the version supplied by the components before it
+
+The `print` example above already does the second: `A::Part` and `B::Part` both override `print`, and both call `Base::print(out)` to reach the implementation contributed further down the chain.
+
+A component can just as easily add something new instead:
+
+```cpp
+struct C {
+  template<typename O>
+  struct Part : O {
+    using Base=O;
+    using Base::Base;
+
+    static constexpr int extra() { return 42; }
+  };
+};
+
+using WithC = APIOf<ItemAPI<>,A,B,C>;
+
+static_assert(WithC{}.extra() == 42);
+```
+
+`extra` did not exist in `ItemAPI`, `A`, or `B`. `C` introduces it, and it becomes part of the resulting type's API exactly as if it had been declared there directly.
+
+Because this is ordinary inheritance, the two cases are not mutually exclusive within a single component: a `Part<O>` can override some of `O`'s functions while contributing others. The choice is made per function, not per component.
+
+---
+
 ## Type-tree operations
 
 HAPI's compile-time operations operate on `Chain` structures.
