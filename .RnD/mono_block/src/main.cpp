@@ -142,6 +142,44 @@ void test_nested_find() {
   cout << "PASS test_nested_find  value=" << t.value() << "\n";
 }
 
+// ─── Test 7: rules() folding through a nested (mono_block) chain ─────────────
+
+struct State {
+  template<typename O>
+  struct Part : O { using Base=O; using Base::Base; int value{0}; };
+};
+
+struct Logic {
+  template<typename O>
+  struct Part : O { using Base=O; using Base::Base; };
+  template<typename Before,typename After>
+  static constexpr bool rules() {
+    static_assert(Requires<SameAs<State>,After>, "Logic requires State somewhere after it");
+    return true;
+  }
+};
+
+// Wrong order — Logic's own rule now fires even though State/Logic are
+// nested one level inside LogicState, not listed directly in the outer
+// chain: "error: static assertion failed: Logic requires State somewhere
+// after it". Before the BuildRules<Before,Chain<Chain<PP...>,Rest...>>
+// splice specialization, this compiled silently (BuildRules saw the whole
+// nested Chain as one opaque, rule-less unit and never called Logic::rules
+// at all) — verified both ways while developing the fix.
+// using StateLogic = Chain<State, Logic>;
+// APIOf<TextAPI, TagA, StateLogic> fail_wrong_order{};
+
+void test_rules_fold_through_nested_chain() {
+  // Correct order, nested one level via mono_block — same shape as
+  // Tap<Coeff> = Chain<TapLogic<Coeff>, Reg<Sample>> in
+  // HAPI/.RnD/acTypesHLS/hapi_reg.h. Logic's rule must actually run and
+  // pass (not be silently skipped) for this to compile.
+  using LogicState = Chain<Logic, State>;
+  APIOf<TextAPI, TagA, LogicState> obj;
+  (void)obj;
+  cout << "PASS test_rules_fold_through_nested_chain\n";
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 #ifdef ARDUINO
@@ -154,6 +192,7 @@ void test_nested_find() {
     test_tag_propagation();
     test_component_view();
     test_nested_find();
+    test_rules_fold_through_nested_chain();
   }
   void loop() {}
 #else
@@ -164,6 +203,7 @@ void test_nested_find() {
     test_tag_propagation();
     test_component_view();
     test_nested_find();
+    test_rules_fold_through_nested_chain();
     cout << "\nAll tests passed.\n";
     return 0;
   }

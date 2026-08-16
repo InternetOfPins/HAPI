@@ -68,4 +68,12 @@ namespace hapi {
     static constexpr bool rules() {return true;}
   };
 
+  /// @brief a nested Chain used as one component (mono_block) is spliced
+  /// into the walk in place, so its own elements' rules see correct
+  /// Before/After context — mirrors Chain<>::Part<T>'s own transparent
+  /// handling of a nested Chain as a component.
+  template<typename Before, typename... PP, typename... Rest>
+  struct BuildRules<Before, Chain<Chain<PP...>, Rest...>>
+    : BuildRules<Before, Chain<PP..., Rest...>> {};
+
 };

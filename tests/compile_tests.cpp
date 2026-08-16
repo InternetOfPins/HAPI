@@ -77,9 +77,11 @@ struct B {
 
 constexpr ItemDef<A,B> ok{};
 constexpr ItemDef<A,A,B> ok2{};
-// constexpr ItemDef<B> fail_requireA{};//will fail with compile error 
+constexpr ItemDef<Chain<A,B>> ok3{};//A,B nested one level (mono_block) -- same rules() must still fire
+// constexpr ItemDef<B> fail_requireA{};//will fail with compile error
 // constexpr ItemDef<B,A> fail_order{};//will fail with compile error "error: static assertion failed: A must be before B"
 // constexpr ItemDef<A,B,B> fail_unicity{};//will fail with compile error "error: static assertion failed: do not repeat B!""
+// constexpr ItemDef<Chain<B,A>> fail_nested_order{};//same as fail_order, nested: "error: static assertion failed: A must be before B"
 
 void run() {
   cout<<"HasRules<A>:"<<HasRules<A>::value<<endl;
