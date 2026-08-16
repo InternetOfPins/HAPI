@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # HAPI vs Hana compile-time benchmark (all test categories)
-# Usage: ./run_bench.sh [CXX=g++] [SIZES="10 25 50 100 200"] [TREE_SIZES="5 10 13"]
+# Usage: ./run_bench.sh [CXX=g++] [SIZES="10 25 50 100 200"] [TREE_SIZES="5 10 13"] [REPEAT=1]
+#
+# REPEAT>1 compiles each data point REPEAT times and reports the mean,
+# to smooth out scheduling noise on a single-shot timing.
 #
 # Generates bench_compile.png with 4 panels:
 #   top-left:     Map type-level        (flat chain, N elements)
@@ -22,17 +25,25 @@ LOG="${RESULTS_DIR}/${TIMESTAMP}.log"
 : "${CXX:=g++}"
 : "${SIZES:=10 25 50 100 200}"
 : "${TREE_SIZES:=5 7 10 13}"
+: "${REPEAT:=1}"
 
 FLAGS="-std=c++20 -ftemplate-depth=2000 -I${HAPI_INCLUDE}"
 
 ms_now() { date +%s%3N; }
 
 compile_ms() {
-    local rc=0 t0 t1
-    t0=$(ms_now)
-    "${CXX}" ${FLAGS} "$@" "${SRC}" 2>/dev/null || rc=$?
-    t1=$(ms_now)
-    [[ ${rc} -eq 0 ]] && echo $((t1 - t0)) || echo "ERR"
+    local total=0 count=0 rc t0 t1
+    for ((rep = 0; rep < REPEAT; rep++)); do
+        rc=0
+        t0=$(ms_now)
+        "${CXX}" ${FLAGS} "$@" "${SRC}" 2>/dev/null || rc=$?
+        t1=$(ms_now)
+        if [[ ${rc} -eq 0 ]]; then
+            total=$((total + (t1 - t0)))
+            count=$((count + 1))
+        fi
+    done
+    [[ ${count} -gt 0 ]] && echo $((total / count)) || echo "ERR"
 }
 
 {
@@ -46,6 +57,7 @@ compile_ms() {
     echo "Compiler: ${CXX_VER}"
     echo "HAPI:     ${HAPI_VER}"
     echo "Flags:    ${FLAGS}"
+    echo "Repeat:   ${REPEAT}"
     echo ""
 
     read -ra SIZE_ARR <<< "${SIZES}"
