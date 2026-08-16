@@ -37,6 +37,7 @@ import os
 Import("env")
 
 BAMBU = os.environ.get("BAMBU_APPIMAGE")
+AC_TYPES_INC = os.environ.get("AC_TYPES_INCLUDE")
 DEVICE = "xc7a100t-1csg324-VVD"
 ALT_DEVICE = "LFE5U85F8BG756C"  # Lattice ECP5-85, different vendor/architecture
 CLOCK_PERIOD = "10"
@@ -50,17 +51,36 @@ HAPI_INC = os.path.join(HERE, "..", "..", "include")
 
 
 def _bambu_cmd(top_fname, src_file, outdir, frontend="I386_CLANG16",
-                device=DEVICE):
+                device=DEVICE, extra_include=None):
     if not BAMBU:
         return (
             'echo "BAMBU_APPIMAGE is not set -- point it at a bambu AppImage '
             '(e.g. https://release.bambuhls.eu/bambu-2024.10.AppImage) and '
             're-run. Not auto-installing anything." && exit 1'
         )
+    if extra_include == "AC_TYPES" and not AC_TYPES_INC:
+        # Bambu bundles its own (Mentor Graphics 3.7.2, 2017, PandA-patched,
+        # AC_VERSION 3) ac_types fork on its default include path, so
+        # omitting -I here would silently synthesize against that fork
+        # instead of the real upstream (AC_VERSION 4) headers this target
+        # exists to check -- see HAPI/.RnD/acTypesHLS/HANDOFF.md. Ordering
+        # of this flag relative to HAPI_INC does NOT matter (empirically
+        # confirmed both ways) -- the only real failure mode is omitting
+        # it entirely, which the target source's own AC_VERSION guard
+        # catches with a hard build error regardless of this script.
+        return (
+            'echo "AC_TYPES_INCLUDE is not set -- point it at a clone of '
+            'https://github.com/hlslibs/ac_types (its include/ dir) and '
+            're-run. Not auto-cloning anything, and not silently falling '
+            'back to bambu\'s bundled ac_types fork." && exit 1'
+        )
     os.makedirs(outdir, exist_ok=True)
+    include_flags = f'-I"{HAPI_INC}"'
+    if extra_include == "AC_TYPES":
+        include_flags += f' -I"{AC_TYPES_INC}"'
     return (
         f'cd "{outdir}" && "{BAMBU}" '
-        f'-I"{HAPI_INC}" '
+        f'{include_flags} '
         f'--std=gnu++17 --compiler={frontend} '
         f'--device-name={device} --clock-period={CLOCK_PERIOD} '
         f'--top-fname={top_fname} -v2 "{src_file}"'
@@ -140,6 +160,26 @@ env.AddCustomTarget(
     title="HLS: synthesize 8-tap Hamming-LPF FIR",
     description="8-tap version of synthesize-fir-lpf4's same Hamming-LPF "
                  "filter design. See README.md.",
+    always_build=True,
+)
+
+env.AddCustomTarget(
+    name="synthesize-fir-lpf4-actypes",
+    dependencies=None,
+    actions=[_bambu_cmd(
+        "firLpf4ActypesTop",
+        os.path.join(HERE, "hls", "fir_lpf4_actypes_top.cpp"),
+        os.path.join(HERE, ".hls_out_fir_lpf4_actypes"),
+        extra_include="AC_TYPES",
+    )],
+    title="HLS: synthesize 4-tap Hamming-LPF FIR (HLSLibs ac_fixed)",
+    description="Same design as synthesize-fir-lpf4, but the delay "
+                 "register/accumulator type is HLSLibs AC Datatypes' "
+                 "ac_fixed<W,W,true> instead of hand-rolled int16_t/"
+                 "int32_t -- third-party bit-accurate type compatibility "
+                 "check. Requires AC_TYPES_INCLUDE (a clone of "
+                 "github.com/hlslibs/ac_types), NOT bambu's own older "
+                 "bundled ac_types fork. See README.md.",
     always_build=True,
 )
 
