@@ -1,10 +1,10 @@
 /**
  * @file chain.h
  * @author Rui Azevedo (neu-rah) (ruihfazevedo@gmail.com)
- * @brief hapi chain — mono_block topology
- *        Hapi<T>::Part<O> : T::Part<O>  (delegates through T's collapse)
- *        Chain<OO...> inherits Hapi<Chain<OO...>> — Chain IS a component.
- *        Chain still defines its own Part<T> so Hapi's Part has a non-circular target.
+ * @brief hapi chain — mono_block topology.
+ *        Chain<O,OO...>::Part<T> = O::Part<Chain<OO...>::Part<T>> collapses
+ *        to a single inheritance stack, so a Chain is itself usable as one
+ *        component inside another Chain.
 */
 
 #pragma once
