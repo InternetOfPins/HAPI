@@ -75,6 +75,19 @@ struct B {
   }
 };
 
+// ── Reg<T>: generic state-slot component ─────────────────────────────
+
+struct Counter {
+  template<typename O>
+  struct Part:O {
+    using Base=O;
+    using Base::Base;
+    int tick() {return ++Base::value;}
+  };
+};
+
+using CounterChain=APIOf<Nil,Counter,Reg<int>>;
+
 constexpr ItemDef<A,B> ok{};
 constexpr ItemDef<A,A,B> ok2{};
 constexpr ItemDef<Chain<A,B>> ok3{};//A,B nested one level (mono_block) -- same rules() must still fire
@@ -89,6 +102,12 @@ void run() {
   cout<<"query<SameAs<A>,A>:"<<query<SameAs<A>,A><<endl;
   cout<<"query<SameAs<A>,Chain<A>>:"<<query<SameAs<A>,Chain<A>><<endl;
   cout<<endl;
+
+  CounterChain counter;
+  int t1=counter.tick();
+  int t2=counter.tick();
+  int t3=counter.tick();
+  cout<<"Reg<int> via Counter, state persists across calls: "<<t1<<","<<t2<<","<<t3<<endl;
 }
 
 #ifdef ARDUINO
