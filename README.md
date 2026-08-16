@@ -1,165 +1,487 @@
 # <img src="logo.png" alt="HAPI logo" width="32" height="32"> HAPI — Happy API
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![PlatformIO Registry](https://badges.registry.platformio.org/packages/neu-rah/library/HAPI.svg)](https://registry.platformio.org/libraries/neu-rah/HAPI)
-<a href="https://www.paypal.me/ruihfazevedo" rel="nofollow"><img src="https://camo.githubusercontent.com/604e3db9c8751116b3f765aad0353ec7ded655bbe8aaacbc38d8c4a6b784b3ed/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f446f6e6174652d50617950616c2d677265656e2e737667" alt="Donate" data-canonical-src="https://img.shields.io/badge/Donate-PayPal-green.svg" style="max-width: 100%;"></a>
+[![PlatformIO Registry](https://badges.registry.platformio.org/packages/neu-rah/library/HAPI.svg)](https://registry.platformio.org/libraries/neu-rah/HAPI) <a href="https://www.paypal.me/ruihfazevedo" rel="nofollow"><img src="https://img.shields.io/badge/Donate-PayPal-green.svg" alt="Donate"></a>
 
-**A zero-overhead static composition engine for C++.**
+**Static, incremental composition for C++17.**
 
-Components compose into **type trees**. The compiler flattens them to optimal machine code. The structure never reaches runtime.
+HAPI is a small C++ library for composing components incrementally at the type level.
+
+A component defines a `Part<O>` that derives from `O`. A `Chain` applies those components recursively, while `APIOf` supplies the final base API.
+
+The result is an ordinary C++ type. HAPI does not require a runtime composition framework.
 
 ---
+
+## A simple example
+
+The following is based on the composition pattern used by HAPI's compile-time tests.
 
 ```cpp
 #include <hapi/hapi.h>
 using namespace hapi;
 
-// Each component adds one behavior to whatever it's given
-struct Clamp  { template<typename O> struct Part : O {
-  using O::O;
-  int read() { int v = O::read(); return v < 0 ? 0 : v > 100 ? 100 : v; }
-}; };
+template<typename Cfg=Nil>
+struct ItemAPI : Cfg {
+  template<typename Out>
+  static constexpr void print(Out& out) { out << "/"; }
+};
 
-struct Smooth { template<typename O> struct Part : O {
-  using O::O;
-  int last = 0;
-  int read() { int v = O::read(); last = (last + v) / 2; return last; }
-}; };
+template<typename... OO>
+struct ItemDef : APIOf<ItemAPI<>, OO...> {
+  using Base=APIOf<ItemAPI<>,OO...>;
+  using Base::Base;
+  static constexpr const size_t size{sizeof...(OO)};
+};
 
-struct Log    { template<typename O> struct Part : O {
-  using O::O;
-  int read() { int v = O::read(); Serial.println(v); return v; }
-}; };
+struct A {
+  template<typename O>
+  struct Part : O {
+    using Base=O;
+    using Base::Base;
 
-// Compose: raw sensor -> clamp -> smooth -> log
-using Sensor = APIOf<AnalogPin<A0>, Clamp, Smooth, Log>;
+    template<typename Out>
+    static constexpr void print(Out& out) {
+      out << "/A";
+      Base::print(out);
+    }
+  };
+};
 
-Sensor sensor;
-sensor.read();   // prints one clamped, smoothed reading — no vtable involved
+struct B {
+  template<typename O>
+  struct Part : O {
+    using Base=O;
+    using Base::Base;
+
+    template<typename Out>
+    static constexpr void print(Out& out) {
+      out << "/B";
+      Base::print(out);
+    }
+  };
+};
+
+constexpr ItemDef<A,B> item{};
 ```
 
-No virtual dispatch. No heap allocation. Wrong layer order → **named compile error**.
+`APIOf<ItemAPI<>,A,B>` closes the composition by supplying `ItemAPI<>` as the base. The resulting type is built through the `Part<O>` transformations supplied by `A` and `B`.
 
 ---
 
-## The Central Idea
+## The central idea
 
-Most heterogeneous composition libraries operate on **flat type lists**. HAPI operates on **type trees**.
-
-A nested `Chain<Branch<A,B>, Branch<C,D>>` is natively traversable — `Map`, `FindFirst` all preserve and traverse the tree topology without collapsing it. Libraries built on flat lists lose tree topology internally: operations see a flat sequence regardless of original structure, with no way to recover the nesting.
-
-This matters when structure *is* the semantics: layered protocols, nested menus, device hierarchies, validation pipelines.
-
-The sensor example above is a flat chain. Nesting works the same way — a sub-chain is just another component:
+A HAPI component is an **open type transformation**:
 
 ```cpp
-using Filtering = Chain<Clamp, Smooth>;      // reusable sub-chain
-using Sensor    = APIOf<AnalogPin<A0>, Filtering, Log>;
+struct A {
+  template<typename O>
+  struct Part : O {
+    using Base=O;
+    using Base::Base;
+  };
+};
 ```
 
-`Filtering` can be reused across multiple sensors, tested on its own, or swapped out — and `Map`/`FindFirst` still see and traverse into it as a nested branch, not a flattened blob.
+The component does not decide what its final base type will be.
+
+A chain can therefore be formed independently:
+
+```cpp
+using C = Chain<A,B>;
+```
+
+and applied to a base later:
+
+```cpp
+using T = C::Part<ItemAPI<>>;
+```
+
+`APIOf` provides the convenient form for closing that composition:
+
+```cpp
+using T = APIOf<ItemAPI<>,A,B>;
+```
+
+For `Chain<A,B>`, the recursive `Part` definition produces the equivalent inheritance structure:
+
+```cpp
+A::Part<
+  B::Part<
+    ItemAPI<>
+  >
+>
+```
+
+This is the basic mechanism behind HAPI's incremental composition model.
 
 ---
 
-## Open Chain Derivation
+## Incremental composition
 
-The mechanism behind the example above. Each component declares an inner `Part<O>` template that inherits from `O`. A chain folds these into a single C++ class through recursive inheritance — the **base is provided by the caller**, not fixed by the chain.
+A `Chain` is itself a component, so a chain can be used as part of another chain.
 
+```cpp
+using AB = Chain<A,B>;
+
+using ABC = Chain<AB,C>;
 ```
-Chain<Clamp, Smooth, Log>::Part<AnalogPin<A0>>
-  ≡  Clamp::Part<Smooth::Part<Log::Part<AnalogPin<A0>>>>
+
+The nested structure remains part of the type:
+
+```cpp
+using T = ABC::Part<ItemAPI<>>;
 ```
 
-The compiler sees the full resolved hierarchy and flattens it. Composed fields are packed into a single contiguous memory block, sized exactly to what was declared. No heap, no fragmentation.
+This is useful when larger compositions are assembled from smaller, reusable compositions.
+
+The important point is that the intermediate composition does not have to be flattened into a separate representation before it can be composed again. `Chain` exposes its own `Part<T>` and therefore participates in the same composition mechanism as the other components.
 
 ---
 
-## Core Pillars
+## Type-tree operations
 
-- **Type Tree Composition** — nested chains are first-class: mappable, filterable, queryable without losing structure.
-- **Zero Runtime Cost** — no vtables, no dynamic allocation. All abstraction paid at compile time.
-- **Type-Level Validation** — structural and semantic rules verified at compilation. Invalid compositions don't compile.
-- **Topology-Preserving Operations** — `Map<F>`, `FindFirst<Q>`, `Filter<Q>` traverse any tree shape natively.
-- **Query Machinery** — `SameAs<T>`, `IsInstanceOf<W>`, `FromTypes<Q>` for introspection; `And<A,B>`, `Or<A,B>`, `Not<Q>` for composition.
-- **Soft-Fail Variants** — `Exists<Q>` (bool), `FindFirstOr<Q, Default>` for non-fatal searches.
-- **Runtime References** — `find<Q>(object)` — compile-time query, runtime ref into composed object.
+HAPI's compile-time operations operate on `Chain` structures.
 
-HAPI runs anywhere C++17 runs — AVR, ESP32, Linux, bare metal. Its compile-time composition layer also synthesizes to hardware, verified against [PandA-Bambu](https://github.com/ferrandi/PandA-bambu) HLS — see [Industry Applications](docs/INDUSTRY.md#fpga--cpld-register-interfacing).
+For example, a chain can be mapped using a type transformation:
+
+```cpp
+template<typename O>
+struct Identity {
+  using Type=O;
+};
+
+using Input = Chain<A,B>;
+using Output = Input::Map<Identity>;
+
+static_assert(std::is_same_v<Output,Chain<A,B>>);
+```
+
+`Map` rebuilds a `Chain` from the transformed elements. Nested `Chain`s are traversed by the common `Traverse` mechanism.
+
+A filter can select elements while producing another `Chain`:
+
+```cpp
+using Input = Chain<A,B>;
+
+using OnlyA = Filter<SameAs<A>>::Check<Input>;
+
+static_assert(std::is_same_v<OnlyA,Chain<A>>);
+```
+
+`Filter` uses the predicate at the element level and concatenates the resulting `Chain` fragments.
+
+---
+
+## Compile-time queries
+
+The simplest query is `query`:
+
+```cpp
+static_assert(query<SameAs<A>,A>);
+static_assert(query<SameAs<A>,Chain<A>>);
+static_assert(!query<SameAs<B>,Chain<A>>);
+```
+
+`SameAs<T>` is a predicate whose `Apply` checks `std::is_same<T,O>`.
+
+Presence can also be checked directly:
+
+```cpp
+using Input = Chain<A,B>;
+
+static_assert(Exists<SameAs<A>,Input>);
+static_assert(Exists<SameAs<B>,Input>);
+static_assert(!Exists<SameAs<int>,Input>);
+```
+
+`Exists` is the non-failing presence query: it produces a boolean result rather than requiring a successful match.
+
+---
+
+## FindFirst
+
+`FindFirst` resolves the first matching type in a chain.
+
+```cpp
+using Input = Chain<A,B>;
+
+using Found = FindFirst<SameAs<A>>::Check<Input>;
+
+static_assert(std::is_same_v<Found,A>);
+```
+
+A missing match is deliberately a compile-time failure:
+
+```cpp
+// using Missing = FindFirst<SameAs<int>>::Check<Input>;
+```
+
+The implementation short-circuits at the first successful match rather than continuing through the remaining elements.
+
+For a non-failing query, `FindFirstOr` supplies a default:
+
+```cpp
+using Input = Chain<A,B>;
+
+using Found = FindFirstOr<SameAs<A>,Nil>::Check<Input>;
+using Missing = FindFirstOr<SameAs<int>,Nil>::Check<Input>;
+
+static_assert(std::is_same_v<Found,A>);
+static_assert(std::is_same_v<Missing,Nil>);
+```
+
+---
+
+## Querying an object's type structure
+
+`APIOf` exposes the resulting composition through `Types`.
+
+```cpp
+using Item = ItemDef<A,B>;
+
+static_assert(query<SameAs<A>,typename Item::Types>);
+static_assert(query<SameAs<B>,typename Item::Types>);
+```
+
+`FromTypes<Q>` provides a predicate for types that expose a `Types` member:
+
+```cpp
+using Item = ItemDef<A,B>;
+
+static_assert(
+  FromTypes<SameAs<A>>::Apply<Item>::value
+);
+
+static_assert(
+  !FromTypes<SameAs<int>>::Apply<Item>::value
+);
+```
+
+This lets compile-time queries distinguish between the object/type being inspected and its exposed composition structure.
+
+---
+
+## Runtime resolution
+
+HAPI also provides `find<Q>(object)`.
+
+The current implementation uses the object's `Types` member to perform a compile-time `FindFirst` check and then returns the object reference:
+
+```cpp
+ItemDef<A,B> item;
+
+auto& result = find<SameAs<A>>(item);
+
+static_assert(
+  std::is_same_v<
+    decltype(result),
+    ItemDef<A,B>&
+  >
+);
+```
+
+The important distinction is that the **query is compile-time**, while the returned reference is an ordinary runtime reference to the composed object. `find` does not construct a runtime component registry or perform a dynamic search.
+
+---
+
+## Type-level validation
+
+Components can provide `rules()` to constrain how they may appear in a composition.
+
+This is the actual pattern used by HAPI's compile-time tests:
+
+```cpp
+struct A {
+  template<typename O>
+  struct Part : O {
+    using Base=O;
+    using Base::Base;
+  };
+};
+
+struct B {
+  template<typename O>
+  struct Part : O {
+    using Base=O;
+    using Base::Base;
+  };
+
+  template<typename Before,typename After>
+  static constexpr bool rules() {
+    static_assert(
+      query<SameAs<A>,Before>,
+      "B only makes sense after A"
+    );
+
+    static_assert(
+      !query<SameAs<B>,After>,
+      "do not repeat B"
+    );
+
+    static_assert(
+      !query<SameAs<A>,After>,
+      "A must be before B"
+    );
+
+    return true;
+  }
+};
+```
+
+A valid composition:
+
+```cpp
+constexpr ItemDef<A,B> ok{};
+```
+
+An invalid composition can therefore fail during compilation:
+
+```cpp
+// constexpr ItemDef<B> fail_requireA{};
+// constexpr ItemDef<B,A> fail_order{};
+// constexpr ItemDef<A,B,B> fail_unicity{};
+```
+
+`APIOf` invokes `BuildRules` when the composition is closed, causing the rules to be evaluated as part of the type construction.
+
+---
+
+## Runtime characteristics
+
+HAPI's composition mechanism does not require:
+
+* virtual dispatch
+* dynamic allocation
+* a runtime component registry
+* runtime composition metadata
+
+The goal is not to claim that every generated program is automatically optimal.
+
+The goal is to make **composition itself a compile-time property**, using ordinary C++ types and inheritance.
+
+Generated code remains subject to the compiler, optimization settings, target architecture, and the implementation of the composed components.
+
+---
+
+## Compile-time cost
+
+Template-heavy C++ can make compile-time cost an important part of library design.
+
+This was treated as a specific design concern during HAPI's development.
+
+Rather than assuming that static composition would remain inexpensive, HAPI's compile-time operations were measured and compared with established C++ template libraries.
+
+### Benchmark
+
+![HAPI compile-time benchmark](docs/bench_compile.png)
+
+The benchmark compares selected HAPI operations with Boost.Hana.
+
+The measurements use:
+
+```text
+g++ -fsyntax-only
+```
+
+and measure compile-time behavior without executing runtime values.
+
+The comparison is **not intended as a general performance ranking between the libraries**. They have different purposes and different abstractions.
+
+Boost.Hana is used as a well-known C++ metaprogramming reference point. Spirit.X3 provides another established template-heavy C++ reference.
+
+The purpose of the benchmark is straightforward:
+
+**compile-time cost was treated as a design constraint and measured during development.**
+
+The benchmark checks how the type-level operations behave as the number of elements grows, including comparisons involving nested tree topology.
 
 ---
 
 ## HAPI and Boost.Hana
 
-Complementary, not competing. Hana excels at value-level heterogeneous computation over flat sequences of type-encoded constants (`int_c`). HAPI excels at structural composition over arbitrary tree topologies.
+HAPI and Boost.Hana are complementary.
 
-| | HAPI | Hana |
-|---|---|---|
-| Domain | Type trees, structural composition | Value sequences, integral constants |
-| Tree topology | Native — Map/Find preserve structure | Must flatten first |
-| Value computation | Delegates to Hana | Native |
-| Target | Embedded + systems, any C++17 | General C++ |
+Boost.Hana provides a broad framework for heterogeneous compile-time and value-level computation.
 
-The boundary is clean: HAPI owns the structure; Hana owns the value-level algebra.
+HAPI focuses on **incremental structural composition through C++ types and recursive inheritance**.
 
----
+The benchmark uses Boost.Hana as a familiar reference point for compile-time behavior. It is not intended to claim that HAPI replaces Hana, or that either library is generally faster.
 
-## Type-Level Queries & Runtime Resolution
-
-Predicates compose freely — check structure at compile time, resolve to runtime references:
-
-```cpp
-// Hard-fail query: find the Log stage inside a composed sensor
-using Pred = IsInstanceOf<Log>;
-auto& logger = find<Pred>(sensor);  // Compile-time walk, runtime reference
-
-// Soft-fail variant: check presence without error
-if constexpr (Exists<Pred, Sensor>::value) {
-  // Only instantiate this if the query can succeed
-}
-```
-
-The compiler verifies the query is satisfiable; the code gets a typed reference into the runtime object graph.
+The comparison was made because compile-time cost matters for a template-based C++ library, and Hana provides a useful established reference for that concern.
 
 ---
 
-## The Win-Win Architecture
+## C++17 and embedded systems
 
-- **The developer wins** — expressive, modular, reusable code. Composition is declared, not wired.
-- **The hardware wins** — flat, optimal instruction sequences. No vtables, no dynamic allocation, no indirection.
-- **The compiler pays the price** — all abstraction cost is paid in build-time seconds. The final binary contains none of it.
+HAPI is written for C++17 and is intended for systems where static composition is useful.
 
-There is no such thing as a structurally broken HAPI program that compiles.
+The repository includes examples for different environments, including embedded and HLS-oriented experiments. The examples directory currently contains `crtp`, `free`, `godbolt`, `rules`, `std`, `virt`, and several HLS examples.
+
+The composition model can be used for applications such as:
+
+* hardware interfaces
+* protocol stacks
+* parsers
+* input/output components
+* processing pipelines
+* validation structures
+
+---
+
+## Hardware synthesis
+
+The repository contains HLS experiments, including `hls_can_disabler`, `hls_fir`, and `hls_smoke`.
+
+Selected HAPI compositions have also been tested with **PandA-Bambu HLS**.
+
+This is an experimental application of the static composition model. It is not a claim that arbitrary HAPI programs are automatically synthesizable.
+
+See [Industry Applications](docs/INDUSTRY.md).
 
 ---
 
 ## Documentation
 
-- **[Industry Applications](docs/INDUSTRY.md)** — Where the pattern applies and why it matters.
-- **[Component Architecture](docs/COMPONENTS.md)** — Component anatomy, layer structure, worked examples.
-- **[API Reference](docs/REFERENCE.md)** — Core types and advanced usage.
+* **[Industry Applications](docs/INDUSTRY.md)** — Applications of the composition model.
+* **[Component Architecture](docs/COMPONENTS.md)** — Component anatomy and layer structure.
+* **[API Reference](docs/REFERENCE.md)** — Core types and advanced usage.
+* **[Compile-time tests](tests/compile_tests.cpp)** — Compile-time validation examples.
+* **[Benchmarks](benchmark/)** — Compile-time measurements and experiments.
 
 ---
 
-## Related Projects
+## Related projects
 
-HAPI is the foundation for the **One\* library family** — each built directly on HAPI's composition engine, part of [InternetOfPins](https://github.com/InternetOfPins):
+HAPI is the foundation for the **One*** library family in [InternetOfPins](https://github.com/InternetOfPins):
 
-| Project | Description |
-|---|---|
-| [OneBit](https://github.com/InternetOfPins/OneBit) | Bit manipulation — masks, cross-boundary fields, pin-level operations |
-| [OneData](https://github.com/InternetOfPins/OneData) | Data components |
-| [OnePin](https://github.com/InternetOfPins/OnePin) | Pin abstraction — generic pin/port concept |
-| [OneChip](https://github.com/InternetOfPins/OneChip) | Hardware register components — AVR and STM32 GPIO, timers, interrupts |
-| [OneBus](https://github.com/InternetOfPins/OneBus) | Bus protocols — SPI, I2C, UART, 1-Wire |
-| [OneIO](https://github.com/InternetOfPins/OneIO) | Physical IO device drivers — displays, sensors, actuators |
-| [OneInput](https://github.com/InternetOfPins/OneInput) | Composable physical input — debounce, click, hold, encoder |
-| [OneSensor](https://github.com/InternetOfPins/OneSensor) | Sensor drivers, parameterized on bus and chip |
-| [OneItem](https://github.com/InternetOfPins/OneItem) | Item API — behavior and presentation components |
-| [OneOutput](https://github.com/InternetOfPins/OneOutput) | Output components |
-| [OneMenu](https://github.com/InternetOfPins/OneMenu) | Menu system |
-| [OneParse](https://github.com/InternetOfPins/OneParse) | Parser combinator components |
+| Project                                                  | Description                    |
+| -------------------------------------------------------- | ------------------------------ |
+| [OneBit](https://github.com/InternetOfPins/OneBit)       | Bit manipulation               |
+| [OneData](https://github.com/InternetOfPins/OneData)     | Data components                |
+| [OnePin](https://github.com/InternetOfPins/OnePin)       | Pin and port abstractions      |
+| [OneChip](https://github.com/InternetOfPins/OneChip)     | Hardware register components   |
+| [OneBus](https://github.com/InternetOfPins/OneBus)       | Bus protocols                  |
+| [OneIO](https://github.com/InternetOfPins/OneIO)         | Physical I/O components        |
+| [OneInput](https://github.com/InternetOfPins/OneInput)   | Composable physical input      |
+| [OneSensor](https://github.com/InternetOfPins/OneSensor) | Sensor components              |
+| [OneItem](https://github.com/InternetOfPins/OneItem)     | Item behavior and presentation |
+| [OneOutput](https://github.com/InternetOfPins/OneOutput) | Output components              |
+| [OneMenu](https://github.com/InternetOfPins/OneMenu)     | Menu system                    |
+| [OneParse](https://github.com/InternetOfPins/OneParse)   | Parser components              |
+
+---
+
+## Status
+
+HAPI is an experimental C++ composition library under active development.
+
+The central design question is how far **incremental, type-level composition through open recursive inheritance** can be taken while retaining practical compile-time costs and useful generated programs.
+
+The repository contains the implementation, examples, tests, benchmarks, and experiments used to explore that model.
 
 ---
 
 *Made with obsession in the Azores* 🇵🇹
+
 By [Rui Azevedo](https://github.com/neu-rah) · [@ruihfazevedo](https://x.com/ruihfazevedo)
