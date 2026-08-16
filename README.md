@@ -152,7 +152,7 @@ struct Identity {
 };
 
 using Input = Chain<A,B>;
-using Output = Input::Map<Identity>;
+using Output = Map<Identity>::Check<Input>;
 
 static_assert(std::is_same_v<Output,Chain<A,B>>);
 ```
@@ -388,7 +388,7 @@ and measure compile-time behavior without executing runtime values.
 
 The comparison is **not intended as a general performance ranking between the libraries**. They have different purposes and different abstractions.
 
-Boost.Hana is used as a well-known C++ metaprogramming reference point. Spirit.X3 provides another established template-heavy C++ reference.
+Boost.Hana is used as a well-known C++ metaprogramming reference point.
 
 The purpose of the benchmark is straightforward:
 
