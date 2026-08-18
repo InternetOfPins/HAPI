@@ -320,14 +320,14 @@ cross-check. Two more independent tools were investigated:
 | Bambu (clang16 frontend) | **Done** — primary Results table above |
 | Bambu (GCC8 frontend) | **Done** — rejects HAPI on all six targets, see below |
 | Bambu (Lattice ECP5 device) | **Done**, `fir4Top` only — see below |
-| Vitis HLS | **Not run** — integration scaffolding ready (`extra_hls_vitis.py`, `vitis/run_hls.tcl`, `[env:hls-vitis]`, all six targets); blocked on Xilinx account + Vitis Unified Installer, an interactive step not done in this pass |
+| Vitis HLS | **Done** — AMD Vitis HLS 2026.1, all six targets; see both "Also verified under AMD Vitis HLS 2026.1" sections above (compile-time-coefficient kernels and the Hamming LPF family) |
 | Intel HLS Compiler | **Ruled out** — the classic `i++` command-line compiler this pass targeted now appears to require Quartus Prime **Pro** edition (paid); the free Lite-edition add-on catalog only offers a different, newer tool ("HLS IP Gen (Beta)") with a different IP-generation workflow, not a drop-in. No integration script kept |
 | LegUp | **Ruled out** — free academic version is a frozen, single-commit, pre-C++17, VM-only 2015-era snapshot under a non-commercial license; actively-maintained descendant (SmartHLS) is closed/commercial. Full reasoning: `HAPI/.RnD/legupHLS/HANDOFF.md` |
 
-To run the Vitis HLS target once installed:
+To run the Vitis HLS targets:
 
 ```sh
-export VITIS_HLS=/path/to/vitis_hls   # after Xilinx account + Vitis HLS install
+export VITIS_HLS=/path/to/vitis_hls
 pio run -e hls-vitis -t synthesize-fir4-vitis   # ...and the other 5
 ```
 

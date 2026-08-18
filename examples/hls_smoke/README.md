@@ -143,7 +143,7 @@ cross-check; further independent tools are tracked the same way as
 | Bambu (clang16 frontend) | **Done** — primary Results table above |
 | Bambu (GCC8 frontend) | **Done** — rejects HAPI, see below |
 | Bambu (Lattice ECP5 device) | **Done** — see below |
-| Vitis HLS | **Not run** — integration scaffolding ready (`extra_hls_vitis.py`, `vitis/run_hls.tcl`, `[env:hls-vitis]`); blocked on Xilinx account + Vitis Unified Installer, an interactive step not done in this pass |
+| Vitis HLS | **Done** — AMD Vitis HLS 2026.1, see the primary Results table's own Vitis column above |
 | Intel HLS Compiler | **Ruled out** — the classic `i++` command-line compiler this pass targeted now appears to require Quartus Prime **Pro** edition (paid); the free Lite-edition add-on catalog only offers a different, newer tool ("HLS IP Gen (Beta)") with a different IP-generation workflow, not a drop-in. No integration script kept |
 | LegUp | **Ruled out** — see `HAPI/.RnD/legupHLS/HANDOFF.md` (frozen pre-C++17 academic snapshot, closed commercial successor) |
 
