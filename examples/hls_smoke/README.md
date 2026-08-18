@@ -103,18 +103,22 @@ respectively (gitignored).
 
 ## Results (verified, not estimated)
 
-| Metric | Bambu / clang16, Artix-7 (primary) | Bambu / GCC8, Artix-7 | Bambu / clang16, Lattice ECP5 |
-|---|---|---|---|
-| Flip-flops | **0** | N/A — see below | **0** |
-| `ui_plus_expr_FU` | **1** | N/A | **1** |
-| **Estimated number of DSPs** | **0** | N/A | **0** |
-| Modules instantiated | 4 | N/A | 4 |
-| Control steps | 3 | N/A | 3 |
-| States | 1 | N/A | 1 |
-| Cycles (min/max) | 1 / 1 | N/A | 1 / 1 |
-| Estimated max frequency | 388.50 MHz | N/A | 225.23 MHz |
-| Minimum slack | 7.426 ns | N/A | 5.560 ns |
-| **Total estimated area** | **18** | N/A | **33** |
+| Metric | Bambu / clang16, Artix-7 (primary) | Bambu / GCC8, Artix-7 | Bambu / clang16, Lattice ECP5 | AMD Vitis HLS 2026.1, Artix-7 |
+|---|---|---|---|---|
+| Flip-flops | **0** | N/A — see below | **0** | 0 |
+| `ui_plus_expr_FU` | **1** | N/A | **1** | — |
+| LUTs | — | N/A | — | 39 |
+| **Estimated number of DSPs** | **0** | N/A | **0** | **0** |
+| Modules instantiated | 4 | N/A | 4 | — |
+| Control steps | 3 | N/A | 3 | — |
+| States | 1 | N/A | 1 | — |
+| Cycles (min/max) | 1 / 1 | N/A | 1 / 1 | — |
+| Estimated max frequency | 388.50 MHz | N/A | 225.23 MHz | 370.1 MHz |
+| Minimum slack | 7.426 ns | N/A | 5.560 ns | — |
+| **Total estimated area** | **18** | N/A | **33** | N/A — Vitis reports LUT/FF/DSP, not a unified area score |
+
+Both tools agree: zero flip-flops, zero DSPs — the whole 5-layer `Chain<>`
+collapse is purely combinational logic on both toolchains.
 
 One real adder, one folded constant (`10'b1101110011` = 883, the same
 constant computed above), zero flip-flops — the entire 5-layer `Chain<>`

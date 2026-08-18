@@ -218,6 +218,23 @@ Against the confirmed device from [Target device](#target-device) above
 | Minimum slack | 1.923 ns | 2.099 ns | 2.103 ns |
 | Total estimated area | 7590 | 15286 | 5921 |
 
+### Also verified under AMD Vitis HLS 2026.1
+
+Same three sources, same part (`xc7a100tcsg324-1`), same 10ns clock —
+independent confirmation from a second vendor's own toolchain:
+
+| | `fir4Top` | `fir8Top` | `firRtTop` |
+|---|---|---|---|
+| Flip-flops | 65 | 185 | 65 |
+| LUTs | 86 | 143 | 198 |
+| DSPs | 0 | 2 | 0 |
+| Estimated max frequency | 159.4 MHz | 158.7 MHz | 150.4 MHz |
+
+Both tools agree on zero DSPs for the compile-time-coefficient designs;
+Vitis HLS folds `fir8Top`'s wider taps into 2 DSP blocks where Bambu used
+shift/add instead — two valid, differently-tuned strategies for the same
+source, not a discrepancy.
+
 ### Compile-time coefficients: Bambu optimizes the multiplier away
 
 `fir4Top`/`fir8Top`'s coefficients (1, 3, 3, 1 / 1, 7, 21, 35, 35, 21, 7, 1)
@@ -452,6 +469,20 @@ Against the same confirmed device as the main
 | Estimated max frequency | 103.33 MHz | 103.33 MHz | 103.33 MHz |
 | Minimum slack | 0.322 ns | 0.322 ns | 0.322 ns |
 | Total estimated area | 7653 | 15312 | 15237 |
+
+### Also verified under AMD Vitis HLS 2026.1
+
+Same three sources, same part, same clock, second independent toolchain:
+
+| | `firLpf4Top` | `firLpf8Top` | `firLpfCascade2Top` |
+|---|---|---|---|
+| Flip-flops | 84 | 186 | 164 |
+| LUTs | 74 | 146 | 120 |
+| DSPs | 1 | 2 | 2 |
+| Estimated max frequency | 153.1 MHz | 158.0 MHz | 153.1 MHz |
+
+Same pattern as the binomial kernels above: Vitis HLS reaches for a DSP
+block where Bambu strength-reduces to shift/add, on identical source.
 
 Same-question checklist as the [Results](#results-verified-not-estimated)
 table above, answered with real numbers:

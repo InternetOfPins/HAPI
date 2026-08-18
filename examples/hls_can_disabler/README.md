@@ -110,22 +110,23 @@ A7 — widely owned, not a special-order part), `--clock-period=10`
 (100MHz target) — same device/period as `hls_fir` and OneParse's
 `hls_smoke` for rough comparability:
 
-| Metric | Bambu / clang16, Artix-7 (primary) | Bambu / GCC8, Artix-7 | Bambu / clang16, Lattice ECP5 |
-|---|---|---|---|
-| Flip-flops | **22** | N/A — see below | **57** |
-| Registers | 3 (SE:1 + STD:2) | N/A | 7 (SE:3 + STD:4) |
-| Distributed-RAM elements (`ARRAY_1D_STD_DISTRAM_NN_SDS`) | 2 | N/A | 2 |
-| `mult_expr_FU` | **0** | N/A | **0** |
-| **Estimated number of DSPs** | **0** | N/A | **0** |
-| Modules instantiated | 27 | N/A | 30 |
-| Control steps | 6 | N/A | 7 |
-| States | 4 | N/A | 5 |
-| Cycles (min/max) | 2 / 3 | N/A | 3 / 4 |
-| Estimated max frequency | 151.14 MHz | N/A | 160.80 MHz |
-| Minimum slack | 3.384 ns | N/A | 3.781 ns |
-| Estimated area (logic, no muxes) | 2079 | N/A | 2130 |
-| Estimated area (MUX21) | 68 | N/A | 98 |
-| **Total estimated area** | **2147** | N/A | **2228** |
+| Metric | Bambu / clang16, Artix-7 (primary) | Bambu / GCC8, Artix-7 | Bambu / clang16, Lattice ECP5 | AMD Vitis HLS 2026.1, Artix-7 |
+|---|---|---|---|---|
+| Flip-flops | **22** | N/A — see below | **57** | 34 |
+| Registers | 3 (SE:1 + STD:2) | N/A | 7 (SE:3 + STD:4) | — |
+| Distributed-RAM elements (`ARRAY_1D_STD_DISTRAM_NN_SDS`) | 2 | N/A | 2 | — |
+| LUTs | — | N/A | — | 208 |
+| `mult_expr_FU` | **0** | N/A | **0** | — |
+| **Estimated number of DSPs** | **0** | N/A | **0** | **0** |
+| Modules instantiated | 27 | N/A | 30 | — |
+| Control steps | 6 | N/A | 7 | — |
+| States | 4 | N/A | 5 | — |
+| Cycles (min/max) | 2 / 3 | N/A | 3 / 4 | — |
+| Estimated max frequency | 151.14 MHz | N/A | 160.80 MHz | 156.7 MHz |
+| Minimum slack | 3.384 ns | N/A | 3.781 ns | — |
+| Estimated area (logic, no muxes) | 2079 | N/A | 2130 | — |
+| Estimated area (MUX21) | 68 | N/A | 98 | — |
+| **Total estimated area** | **2147** | N/A | **2228** | N/A — Vitis reports LUT/FF/DSP, not a unified area score |
 
 No `mult_expr_FU`/DSP usage at all — every operation in this design
 (equality checks, one subtraction, one comparison) is plain
