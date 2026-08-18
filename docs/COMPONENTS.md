@@ -254,7 +254,7 @@ using Inner = Chain<Data, Store>;
 using Outer = APIOf<API, Inner, Other>;   // Inner is expanded inline
 ```
 
-To create a restricted view (hide or delete methods from a sub-chain), write an explicit wrapper struct:
+To create a restricted view (hide or delete methods from a sub-chain), write an explicit wrapper struct. Hiding a method has two shapes — pick per use case, not by default:
 
 ```cpp
 struct ReadOnly {
@@ -262,10 +262,13 @@ struct ReadOnly {
   struct Part : Chain<Data, Store>::template Part<O> {
     using Base = typename Chain<Data, Store>::template Part<O>;
     using Base::Base;
-    void set(auto) = delete;   // hide the write path
+    void set(auto) = delete;   // hard error at the call site if set() is ever invoked
+    // void set(auto) {}       // silent no-op, DCE'd away — set() stays callable unconditionally
   };
 };
 ```
+
+`= delete` surfaces misuse immediately — anyone who calls `set()` on this view gets a compile error naming the deleted function, not a mysteriously-inert write. The empty-body no-op is for the opposite case: generic code that calls `set()` unconditionally across a mix of writable and read-only views, where a hard error would mean every caller needs its own read-only special case instead of one uniform code path.
 
 ### Introspection from a node
 
