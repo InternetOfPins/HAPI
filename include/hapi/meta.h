@@ -221,8 +221,10 @@ namespace hapi {
 
   template<std::size_t idx,typename O>
   struct At {
-    using Type=std::conditional_t<(idx>0),typename hapi::At<idx-1,typename O::Base>::Type,O>;
+    using Type=typename hapi::At<idx-1,typename O::Base>::Type;
   };
+  template<typename O>
+  struct At<0,O> { using Type=O; };
 
   template<std::size_t idx,auto ref>
   constexpr auto& at() {return static_cast<typename At<idx,decltype(ref)>::Type&>(ref);}
