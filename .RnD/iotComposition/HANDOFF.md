@@ -224,6 +224,149 @@ beyond this one demo, *those specific pieces* — not the demo device — are
 what graduate into `OneIO`/`OneChip` proper, the same way `Reg<T>`
 graduated from `.RnD/` into `HAPI/include/hapi/reg.h` once it was proven.
 
+## Round 3 — Stage 2 (ESP32 + MQTT), with real caveats
+
+Went further than "staged plan" this round: got a real Xtensa/ESP32
+cross-compiler (crosstool-NG `esp-14.2.0_20241119`,
+`xtensa-esp32-elf-g++ 14.2.0`, pulled from
+`github.com/espressif/crosstool-NG` releases — no ESP-IDF or
+Arduino-ESP32 core, just the bare compiler) and used it for real. Two
+things came out of that, one clean, one that needs a caveat read in full
+before quoting the numbers anywhere.
+
+### Core mechanism, verified on a third architecture
+
+Before touching any chip-specific code: does `Chain<>`/`APIOf<>` — no I/O,
+pure composition — still fold to nothing on Xtensa, the way it does on
+AVR? Yes: a 3-layer `Chain<Weighted<3>,Weighted<7>,Weighted<11>>` compiled
+to **42 bytes**, fully inlined, the compiler even strength-reduced the
+chained constant multiplies (3×7×11=231) into shift-adds. Zero-overhead
+composition now confirmed on three architecturally distinct targets (8-bit
+AVR, 32-bit Xtensa; ARM/STM32 still unverified, see Stage 3).
+
+### `oneIO::net::Mqtt<Ssid,Pass,Broker,Port>` — new component, candidate only
+
+Same shape as `oneIO::storage::SDCard` — wraps a vendor Arduino library
+(`WiFi.h` + `PubSubClient`), not a from-scratch stack:
+
+```cpp
+template<const char* Ssid, const char* Pass, const char* Broker, uint16_t Port = 1883>
+struct Mqtt {
+  template<typename O> struct Part : O {
+    static void begin() { WiFi.begin(Ssid,Pass); /* wait for connect */ client.setServer(Broker,Port); O::begin(); }
+    static bool publish(const char* topic, const char* payload) { ... return client.publish(topic,payload); }
+  };
+};
+```
+
+Saved as `mqtt.h.candidate`, not `mqtt.h` — it's new, untested against a
+real broker or real Arduino-ESP32 core, and not proposed for promotion
+into `OneIO` as-is.
+
+### Stage 2 IotDevice — compiles real, but read this before citing a number
+
+Composed the same shape as Stage 1: `Chain<Sensor, Pwm, Net>::Part<T>`
+with `Sensor`/`Pwm`/`Store` **completely unchanged** from Stage 1 (only the
+bus type swaps, `hw::esp32::Esp32TwiMaster<>` for `hw::avr::mega::Twi<>`),
+`Net` = the new `Mqtt<>`. This compiled clean against the real
+`xtensa-esp32-elf-g++`, using a hand-written **API-shape stub** for
+`Wire`/`WiFi`/`PubSubClient`/`SPI`/`Arduino.h` (`stub_sdk/` — every
+function is a no-op or trivial return, not real driver logic). No real
+Arduino-ESP32 core or ESP-IDF here — pulling either in fully wasn't
+practical in this sandbox (large repos, and the parts that matter —
+`driver/i2c.h`, the WiFi stack — aren't reachable through this session's
+network allowlist without the full SDK tree around them).
+
+**What that means for the number:** the compiled object is 186 bytes text
+/ 12 bytes bss. That is *not* comparable to Stage 1's real ~1.2–1.5KB — it
+measures the composition glue plus our own logic, with the entire driver
+layer (I2C bit-banging, WiFi negotiation, MQTT framing) stubbed to
+nothing. A real number needs the real SDK. Don't quote 186B as "ESP32
+firmware size" anywhere; it isn't one.
+
+**What it does establish:** the same `Sensor`/`Pwm`/`Store` component code
+that ran on AVR compiles unchanged against ESP32's bus type — real
+cross-architecture portability at the component level, not just in
+principle. And the new `Mqtt<>` type-checks and composes correctly
+alongside them.
+
+**A real methodology catch, not a result to skip past:** the compiled
+object has 6 `callx8` (indirect-call) instructions — on AVR that would
+mean real dispatch overhead, so it needed checking, not assuming either
+way. Xtensa's `-mlongcalls` ABI (required on ESP32, since flash-mapped
+code routinely exceeds the direct-call range) implements *every* call to
+a target that might be far away as `l32r` (load address) + `callx8`,
+**regardless of whether the target is statically known** — so raw
+`callx` counts don't transfer across architectures as a zero-overhead
+proxy the way they did AVR-to-AVR. Checked the relocations instead of
+trusting the count: all 6 `l32r`s carry an `R_XTENSA_ASM_EXPAND`
+relocation to the fixed symbol `delay` (the stub `WiFi.begin()`'s
+busy-wait). Static target, ABI-mandated indirection, not real dynamic
+dispatch. Zero genuine composition-driven dispatch, same as AVR — but
+confirmed by reading the relocations, not by counting an instruction whose
+meaning changes with `-mlongcalls`.
+
+### TODO for local agent
+
+Real Arduino-ESP32 core or ESP-IDF, in an environment that already has
+either set up (this is likely already true locally — closing this out for
+real is probably cheaper for you than it was for this sandbox). Real
+broker for an actual `publish()` round-trip. Then the real number, and a
+real comparison against Stage 1's.
+
+> **Round 3 independently re-verified 2026-08-20**, TODO closed for real:
+> built against the actual local toolchains this handoff assumed but
+> didn't have — real `xtensa-esp32-elf-g++` 8.4.0 (crosstool-NG
+> `esp-2021r2-patch5`, close enough to the handoff's own 14.2.0 build, not
+> identical), real `framework-arduinoespressif32` via PlatformIO
+> (`espressif32` platform, `esp32dev` board), real `knolleary/PubSubClient`
+> 2.8.0 fetched from the PlatformIO registry — not the stub SDK.
+>
+> **Found a real bug the stub build couldn't catch**: `stage2_esp32.cpp`
+> defined `extern "C" void app_main()` — ESP-IDF's entry point.
+> Arduino-ESP32's own `framework/main.cpp` *also* defines `app_main()`
+> (it's what calls `setup()`/`loop()`) — linking against the real
+> framework throws `multiple definition of 'app_main'`. Never surfaced
+> against the hand-written stubs since nothing there competed for the
+> symbol. Fixed by renaming to `void setup(){...}` / `void loop(){}`,
+> Arduino's actual entry-point convention; also dropped the manual
+> `#define ARDUINO 100000` (redefinition warning — the real framework
+> already defines it). No other change needed — same composition, same
+> `Sensor`/`Pwm`/`Store`/`Mqtt<>` types.
+>
+> **Real numbers, with the framework's own fixed floor subtracted out**
+> (a blank `void setup(){} void loop(){}` sketch on the same board/env):
+>
+> | | Flash | RAM |
+> |---|---|---|
+> | blank Arduino-ESP32 sketch | 233185 B | 21032 B |
+> | + Sensor/Pwm/Store (no Net) | 266201 B | 21488 B |
+> | + Mqtt/WiFi/PubSubClient | 744345 B | 44808 B |
+>
+> Marginal cost of IOP's own composition (Sensor+Pwm+Store+Pid, real I2C
+> driver code, not glue): **+33016 B flash / +456 B RAM**. Marginal cost
+> of adding WiFi+MQTT: **+478144 B flash / +23320 B RAM** — that's
+> `WiFi.h`+`PubSubClient`'s own footprint (TLS/WiFi negotiation stack),
+> not a composition-mechanism cost, and would be paid by any Arduino-ESP32
+> sketch using them, HAPI or not. Neither the handoff's stub numbers
+> (186B) nor a raw "744KB total" figure is the right one to quote — this
+> three-row breakdown is.
+>
+> **Re-did the indirect-call check against real code**, same discipline
+> the handoff's own caveat called for: `callx8` count on the *whole linked
+> firmware* is dominated by framework code (682/4768 for the two configs)
+> and isn't meaningful. Restricted to just `src/main.cpp.o` (our own
+> composed object, pre-link): 58 (no-Net) / 66 (with Net) `callx8`
+> instructions, and *every one* resolves via its `l32r` relocation to a
+> statically-known symbol — `TwoWire::*`, `delay`, `WiFiSTAClass::begin`,
+> `PubSubClient::*`, or our own composed methods (`AHT<>::Part<>::begin`,
+> etc.). Zero genuine runtime/data-driven dispatch, matching Round 3's
+> stub-build conclusion, now confirmed against the real vendor libraries.
+>
+> Not independently re-checked: the `Chain<Weighted<3>,Weighted<7>,
+> Weighted<11>>` → 42-byte claim above — no source file for it was
+> included in the handoff, only the inline description.
+
 ## Files in this handoff
 
 - `HANDOFF.md` — this file.
@@ -231,3 +374,8 @@ graduated from `.RnD/` into `HAPI/include/hapi/reg.h` once it was proven.
   numbers above). Not yet wrapped in a PlatformIO example structure
   (native + avr environments, README) — that packaging is TODO, matching
   `hls_can_disabler`/`hls_core_components`'s existing example shape.
+- `stage2_esp32.cpp` — Round 3's Stage 2 composition, `app_main()` ->
+  `setup()`/`loop()` fixed post-verification (see addendum above), real
+  numbers in the addendum table.
+- `mqtt.h.candidate` — the new `oneIO::net::Mqtt<>` component. Candidate
+  only, not promoted into `OneIO`.
