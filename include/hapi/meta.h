@@ -218,16 +218,37 @@ namespace hapi {
   constexpr bool query = Exists<Q,O>::value;
 
   // ── At<N> ──────────────────────────────────────────────────────────────────────--
+  // IsConst is threaded separately (not read off O at each step) because
+  // O::Base is looked up on the possibly-const O but a nested typedef name
+  // never itself carries constness -- without this, at() on a const object
+  // silently loses const one level up and static_cast then fails to compile
+  // ("casting away const") instead of just working.
+
+  template<std::size_t idx,typename O,bool IsConst=std::is_const<O>::value>
+  struct At {
+    using Type=typename hapi::At<idx-1,typename std::remove_const_t<O>::Base,IsConst>::Type;
+  };
+  template<typename O,bool IsConst>
+  struct At<0,O,IsConst> { using Type=std::conditional_t<IsConst,const O,O>; };
+
+  // Three overloads instead of the old auto-NTTP form (template<auto ref>):
+  // a class-type object bound by value as a non-type template parameter is
+  // C++20-only (P1907) and this project stays on C++17, so the NTTP form
+  // could never actually be called. Ordinary function parameters have no
+  // such restriction and additionally work on locals/temporaries, which a
+  // linkage-requiring NTTP never could either way.
+  template<std::size_t idx,typename O>
+  constexpr auto& at(O& obj) {return static_cast<typename At<idx,O>::Type&>(obj);}
 
   template<std::size_t idx,typename O>
-  struct At {
-    using Type=typename hapi::At<idx-1,typename O::Base>::Type;
-  };
-  template<typename O>
-  struct At<0,O> { using Type=O; };
+  constexpr auto& at(O* obj) {return at<idx>(*obj);}
 
-  template<std::size_t idx,auto ref>
-  constexpr auto& at() {return static_cast<typename At<idx,decltype(ref)>::Type&>(ref);}
+  /// @brief for a temporary: bind the result to a named reference first
+  /// (e.g. `auto&& tmp=T{}; at<idx>(tmp);`) -- otherwise the returned
+  /// reference dangles past the end of the full expression, same as any
+  /// function returning a reference into an rvalue argument.
+  template<std::size_t idx,typename O>
+  constexpr auto&& at(O&& obj) {return static_cast<typename At<idx,O>::Type&&>(obj);}
 
   // ── Runtime query functions ────────────────────────────────────────────────────--
 

@@ -53,9 +53,6 @@ struct A {
   };
 };
 
-template<typename Q,typename At> constexpr const bool require{query<Q,At>};
-template<typename Q,typename At> constexpr const bool exclude{!query<Q,At>};
-
 struct B {
   template<typename O>
   struct Part:O {
