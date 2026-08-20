@@ -363,9 +363,17 @@ real comparison against Stage 1's.
 > etc.). Zero genuine runtime/data-driven dispatch, matching Round 3's
 > stub-build conclusion, now confirmed against the real vendor libraries.
 >
-> Not independently re-checked: the `Chain<Weighted<3>,Weighted<7>,
-> Weighted<11>>` → 42-byte claim above — no source file for it was
-> included in the handoff, only the inline description.
+> **`Chain<Weighted<3>,Weighted<7>,Weighted<11>>` → 42-byte claim, now
+> independently checked** (`core_check.cpp`, source supplied
+> separately after the original handoff): compiles to **45 bytes**
+> against the real `xtensa-esp32-elf-g++` 8.4.0 (3B toolchain-version
+> delta from the handoff's own 14.2.0 build, same pattern as every
+> other number here) — one `entry`/`retw.n`, no calls of any kind.
+> Disassembly confirms the exact strength-reduction: `slli a8,a9,3;
+> sub a8,a8,a9` computes `×7`, then `slli a9,a8,5; add.n a8,a8,a9`
+> computes `×33` — `7×33 = 231 = 3×7×11`, no multiply instruction at
+> all. Zero-overhead `Chain<>`/`APIOf<>` confirmed on Xtensa by
+> disassembly, not just by trusting the byte count.
 
 ## Files in this handoff
 
@@ -379,3 +387,7 @@ real comparison against Stage 1's.
   numbers in the addendum table.
 - `mqtt.h.candidate` — the new `oneIO::net::Mqtt<>` component. Candidate
   only, not promoted into `OneIO`.
+- `core_check.cpp` — the pure `Chain<Weighted<3>,Weighted<7>,Weighted<11>>`
+  composition test backing the 42/45-byte, no-chip-I/O claim above
+  (supplied separately, after the original handoff, once that claim was
+  flagged as unverifiable without a source file).

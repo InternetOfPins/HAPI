@@ -116,4 +116,16 @@ echo "  our object's callx8 count: $ic (framework-ABI far-call pattern, not runt
                  || fail "expected callx8 from -mlongcalls, found none -- investigate"
 
 echo
+echo "== Stage 2: pure Chain<>/APIOf<> composition, no chip I/O, real Xtensa =="
+XTENSA_GPP="$HOME/.platformio/packages/toolchain-xtensa-esp32/bin/xtensa-esp32-elf-g++"
+XTENSA_SIZE="$HOME/.platformio/packages/toolchain-xtensa-esp32/bin/xtensa-esp32-elf-size"
+"$XTENSA_GPP" -std=c++17 -Os -mlongcalls -I "$IOP_ROOT/HAPI/include" \
+  -c "$HERE/core_check.cpp" -o "$WORK/core_check.o"
+textsz=$("$XTENSA_SIZE" "$WORK/core_check.o" | awk 'NR==2{print $1}')
+echo "  Chain<Weighted<3>,Weighted<7>,Weighted<11>> .text: ${textsz}B"
+calls=$("$XTENSA_OBJDUMP" -d "$WORK/core_check.o" | grep -cE '\bcall' || true)
+[ "$calls" = 0 ] && pass "no calls of any kind -- fully inlined, strength-reduced (3x7x11=231 via shift/add)" \
+                  || fail "expected 0 calls, found $calls"
+
+echo
 echo "ALL PASS"
