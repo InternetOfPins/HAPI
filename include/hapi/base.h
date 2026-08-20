@@ -6,9 +6,20 @@
 
 #pragma once
 
-#ifdef __AVR__
+// __AVR__ toolchains, and some bare-metal newlib/picolibc cross toolchains
+// (e.g. riscv64-unknown-elf-g++ as packaged for rv32e/CH32V003) ship a C
+// library but no C++ libstdc++ port -- <cstddef>/<type_traits>/<utility>
+// don't exist there at all. Detect via __has_include instead of hardcoding
+// __AVR__ as the only such platform.
+#if defined(__has_include)
+  #define HAPI_HAS_STL_HEADERS __has_include(<cstddef>)
+#else
+  #define HAPI_HAS_STL_HEADERS 1
+#endif
+
+#if defined(__AVR__) || !HAPI_HAS_STL_HEADERS
   #include "platform/avr/avr_std.h"
-  using SizeT=unsigned int;
+  using SizeT=__SIZE_TYPE__;
 #else
   #include <cstddef>
   #include <type_traits>

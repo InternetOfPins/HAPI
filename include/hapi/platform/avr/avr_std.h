@@ -23,7 +23,9 @@ namespace std {
   template<typename O> constexpr O max(O a, O b) { return a > b ? a : b; }
   template<typename X> constexpr X abs(X x) { return x < 0 ? -x : x; }
 
-  using size_t = unsigned int;
+  using size_t = __SIZE_TYPE__; // was hardcoded `unsigned int` (correct for
+                                 // AVR's 16-bit int, wrong for a 32-bit
+                                 // freestanding target reusing this shim)
 
   template<typename T> struct numeric_limits {
     static constexpr T max() noexcept { return ~min(); }
