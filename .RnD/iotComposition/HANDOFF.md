@@ -375,6 +375,134 @@ real comparison against Stage 1's.
 > all. Zero-overhead `Chain<>`/`APIOf<>` confirmed on Xtensa by
 > disassembly, not just by trusting the byte count.
 
+## sensorFusion — Round 4 (cloud, Steps 1-3 only; Steps 4-5 need real hardware)
+
+Tests the *other* half of the architecture found in the OneMenu/OneHLS
+StaticBody/StaticList session: a typelist of heterogeneous, already-composed
+sibling components sharing one contract, applied for the first time to real
+sensor hardware instead of menu Items or FIR taps. Non-goal: not a
+sensor-fusion algorithm (no Kalman filter, no weighted merge) — "fusion"
+means reading N heterogeneous sensors through one shared contract, dispatched
+at compile time, zero runtime indirection.
+
+**Step 1 — contract.** `SensorAPI<Cfg>` (`sensor_api.h`), same role as
+OneItem's `ItemAPI<Cfg>`: a no-op-default terminal, not a uniform `Reading`
+type. Decision point 1, Branch B taken (predicted, confirmed): every sensor
+keeps its native return type (`int16_t` degC×10 for `AHT<>`, `uint16_t` raw
+ADC for the light stub, `bool` for the PIR stub); the only thing the generic
+`visit(i,fn)` call site actually touches uniformly is `begin()` — already a
+shared convention across the whole ecosystem, not new machinery. Native reads
+happen through each device's own accessor, called directly, not through
+`visit()`.
+
+**Step 2 — reuse, not fork.** `oneHLS::staticList.h` reused directly, not
+forked — but it **wasn't actually zero-HLS-baggage as shipped**: it
+unconditionally `#include`s `<cstdint>`/`<cstddef>`/`<utility>`/
+`<type_traits>`, none of which exist on avr-libc (no libstdc++ on AVR — see
+`project_avr_no_libstdcxx`). Same bug class already found+fixed once in
+`oneHLS.h` itself (see Stage 1 section above). **Fixed** in
+`OneHLS/include/oneHLS/staticList.h`: `__AVR__`-gated to `<stdint.h>` +
+`<stddef.h>` + HAPI's existing `hapi/platform/avr/avr_std.h` shim (which
+already provides `std::forward`/`std::decay_t`) on AVR, unchanged
+`<cstdint>`/`<cstddef>`/`<utility>`/`<type_traits>` everywhere else. Verified
+sufficient — nothing else in the file needed changing. Not HLS-specific
+coupling, a general AVR-portability gap; worth a real PR to `OneHLS`, same as
+the earlier `oneHLS.h` fix.
+
+**Step 3 — real components, stub bus.** Composed
+`StaticList<AhtDevice, LightDevice, MotionDevice>` (`sensorFusion.cpp`):
+`AhtDevice` reuses the real `AHT<I2c>` unchanged from Stage 1 (same I2C
+protocol code); `LightDevice`/`MotionDevice` are new stub `SensorAPI`-rooted
+Parts (`stub_sensors.h`, fixed return values, no real bus transaction — same
+posture as Stage 2's stub SDK).
+
+**A second real finding, before disassembly was even reached:**
+`AHT<I2c>::Api` (its own bundled convenience alias) is **not
+default-constructible** — it closes over AHT's own private terminal
+(`SensorDef`), which has `SensorDef() = delete;`, a defensive
+"static-methods-only, never instantiate me" marker also present on
+PCA9685's `PwmDef`. Stage 1 never triggered this: it only ever called
+`AHT<I2c>` through static methods on the composed *type*, never created an
+instance. `StaticList<>` genuinely needs an instance (`Head head{};`, since
+`visit(i,fn)` calls `fn(head)` on a real object) — a fundamental mismatch
+between this ecosystem's common "static-only, never-instantiate" component
+idiom and `StaticList`'s value-semantics storage model. **Not fixed
+upstream** (didn't touch `aht.h`/`pca9685.h` — deleting `SensorDef()`'s
+`=delete` is a real design call on shipped code, not this experiment's to
+make unilaterally). Worked around the only way that doesn't touch either
+side: `AhtDevice = Chain<AHT<I2c>>::Part<SensorAPI<>>` — reuses `AHT<I2c>`
+as a raw Chain layer under `SensorAPI<>`'s own (real, default-constructible)
+terminal, exactly how Stage 1 already used it, just not through `::Api`.
+**Any future StaticList element drawn from this ecosystem's existing
+"closed static class" components needs the same workaround**, not `::Api`.
+
+Three checks, real avr-g++ 7.3.0 (`atmega328p`) both at the object-file
+level and via a full real PlatformIO `uno` link (`run_tests.sh`'s new
+`sensorFusion` block):
+
+1. `!__is_polymorphic(Fusion)` — held. (`std::is_polymorphic` itself isn't in
+   `avr_std.h`'s shim — no `<type_traits>` on AVR at all — so the check uses
+   the GCC/Clang builtin directly, the same one `std::is_polymorphic` is
+   defined in terms of.)
+2. `sizeof(Fusion)` — measured **3**, one byte per element, for 3 fully
+   stateless sensor devices. **Real, non-trivial finding, not the hoped-for
+   near-zero**: `StaticList<O,O2,OO...>` stores `Head head; Tail tail;` as
+   ordinary *data members*, not base classes — EBO is a standard guarantee
+   for empty *base* subobjects only; C++ guarantees every data member a
+   distinct address regardless of emptiness. `Chain<>::Part`'s own
+   zero-overhead composition comes from base-class inheritance specifically,
+   where EBO applies layer over layer. `StaticList`'s guarantee is
+   genuinely weaker: **N bytes minimum for N heterogeneous elements**, not
+   Chain's near-zero. `[[no_unique_address]]` would fix this but needs
+   C++20, above this ecosystem's `-std=c++17` ceiling
+   (`project_cpp_standard_ceiling`). Small in absolute terms here (3 bytes),
+   but worth carrying forward as a real, quantified caveat on `StaticList`'s
+   zero-overhead claim, not folded silently into "it worked."
+3. Disassembly — **0 `icall`/`callx`**, confirmed at both the object-file
+   level and the full linked firmware. Checked relocations too (not just
+   counting instructions, same discipline as the ESP32 Xtensa check): every
+   `call` in `main` carries an `R_AVR_CALL` relocation to a fixed symbol
+   (`AvrTwiCore::twi_start`/`twi_write`, `AHT<>::Part<>::begin`/`_read`) —
+   `StubLight`/`StubMotion`'s one-line stub bodies fully inline away, only
+   AHT's real I2C protocol code survives as actual calls. `visit(i,fn)` at
+   `i=0,1,2` (each a literal, not a runtime value) compiles to direct calls,
+   not a jump table — the recursive `if(i) tail.visit(...) else fn(head)`
+   fully unrolls under `-Os` once `i` is a compile-time constant.
+
+**Decision point 3 answer:** mixing already-composed Chain Parts inside a
+`StaticList` node does *not* change the zero-*indirect-call* guarantee
+(dispatch stays fully static/direct) — but it *does* change the
+zero-*size* guarantee, which Chain's own layering doesn't have to give up.
+Both halves of the answer matter; reporting only the clean disassembly and
+skipping the sizeof caveat would have been a false "nothing new" call.
+
+Runtime (non-compile-time-constant) `i` through `visit()` — the plan's
+optional "bounded compare-chain, not something worse" check — **not run
+this round**, left for whoever picks this up next if it's ever needed;
+every `visit()` call here used a literal index.
+
+### Files added this round
+
+- `sensor_api.h` — Step 1's `SensorAPI<Cfg>` contract.
+- `stub_sensors.h` — Step 3's `StubLight<>`/`StubMotion<>`.
+- `sensorFusion.cpp` — Steps 2-3's composition + the `static_assert`s pinning
+  points 1-2 above (regression pins, same convention as Stage 1's
+  `static_assert(sizeof(IotDevice) <= 4)`).
+- `run_tests.sh` — extended with a third real-PlatformIO-build block for
+  `sensorFusion.cpp`, same shape as the existing Stage 1/2 blocks.
+- `OneHLS/include/oneHLS/staticList.h` (outside this directory) — the
+  `__AVR__` portability fix from Step 2, in its own repo.
+
+### TODO for local agent (Steps 4-5, cannot be done in this sandbox)
+
+Swap `LightDevice`/`MotionDevice` for real parts on a bus type deliberately
+different from I2C (SPI or GPIO/analog), real disassembly + real bus reads
+compared against the same reads called by hand outside the typelist, and the
+three-row marginal-cost table (blank sketch / +AHT-only / +second-and-third
+sensor no list / same sensors via `StaticList`+`visit()`) — the last row
+minus the third is the number that actually answers "does the typelist cost
+anything," not the raw total.
+
 ## Files in this handoff
 
 - `HANDOFF.md` — this file.

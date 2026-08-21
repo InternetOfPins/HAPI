@@ -128,4 +128,49 @@ calls=$("$XTENSA_OBJDUMP" -d "$WORK/core_check.o" | grep -cE '\bcall' || true)
                   || fail "expected 0 calls, found $calls"
 
 echo
+echo "== sensorFusion: StaticList<AhtDevice,LightDevice,MotionDevice> on real AVR =="
+mkdir -p "$WORK/fusion/src"
+cp "$HERE/sensorFusion.cpp" "$WORK/fusion/src/main.cpp"
+cp "$HERE/sensor_api.h" "$WORK/fusion/src/"
+cp "$HERE/stub_sensors.h" "$WORK/fusion/src/"
+cat > "$WORK/fusion/platformio.ini" <<EOF
+[env:uno]
+platform = atmelavr
+board = uno
+framework = arduino
+build_flags = -std=gnu++17
+build_unflags =
+	-std=c++11
+	-std=c++14
+	-std=c++20
+	-std=gnu++11
+	-std=gnu++14
+lib_deps=
+	HAPI      =symlink://$IOP_ROOT/HAPI
+	OneBit    =symlink://$IOP_ROOT/OneBit
+	OnePin    =symlink://$IOP_ROOT/OnePin
+	OneBus    =symlink://$IOP_ROOT/OneBus
+	OneChip   =symlink://$IOP_ROOT/OneChip
+	OneData   =symlink://$IOP_ROOT/OneData
+	OneOutput =symlink://$IOP_ROOT/OneOutput
+	OneItem   =symlink://$IOP_ROOT/OneItem
+	OneParse  =symlink://$IOP_ROOT/OneParse
+	OneMenu   =symlink://$IOP_ROOT/OneMenu
+	OneIO     =symlink://$IOP_ROOT/OneIO
+	OneHLS    =symlink://$IOP_ROOT/OneHLS
+EOF
+
+if pio run -d "$WORK/fusion" -e uno > "$WORK/fusionbuild.log" 2>&1; then
+  pass "sensorFusion.cpp builds clean via PlatformIO uno (static_asserts in the file itself pin !is_polymorphic and sizeof(Fusion)==3)"
+else
+  cat "$WORK/fusionbuild.log"
+  fail "sensorFusion PlatformIO build failed -- see log above"
+fi
+
+grep -E "^(RAM|Flash):" "$WORK/fusionbuild.log"
+
+ic=$("$AVR_OBJDUMP" -d "$WORK/fusion/.pio/build/uno/firmware.elf" | grep -c 'icall\|callx' || true)
+[ "$ic" = 0 ] && pass "0 indirect calls in the full linked sensorFusion firmware" || fail "$ic indirect calls found"
+
+echo
 echo "ALL PASS"
