@@ -525,6 +525,27 @@ co-configured with zero pin/field conflicts; `SPI1.CR1`, `TIM1.CR1`/
 exactly, unchanged by being combined into one object. The resolved
 design works end to end on real silicon, not just in isolation.
 
+## Addendum — the stm32Spi.h bug, fixed and reconfirmed on real silicon (fix lives in OneChip, LOCAL not pushed, see below)
+
+The `Stm32SpiCore::Part::begin()` bug flagged earlier (unconditionally
+re-calling `spi_init(1000000u)` after `SpiMaster<Speed>::begin()` already
+configured the real speed) is fixed, not just flagged. Every real alias
+in `stm32Spi.h` (`f0::Spi`/`f1::Spi`/`f4::Spi`) wraps `Stm32SpiCore` in
+`oneBus::SpiMaster<Speed>`, whose own `begin()` already calls
+`Base::spi_init(Speed)` before delegating further — the redundant call
+was pure clobbering, never load-bearing for any real usage in this
+codebase. Removed it; `Stm32SpiCore::Part::begin()` now just calls
+`Base::begin()`.
+
+Rebuilt `focMotor_stm32.cpp` unmodified, reflashed, read back
+`SPI1.CR1`: **`0x364`**, exactly matching hand-calculated `BR=4` (÷32,
+2.25MHz) for the real configured `SpiMaster<4000000>` — versus the old
+buggy `0x374` (`BR=6`, ÷128, 562.5kHz). Fixed and reconfirmed on the same
+real hardware that first caught it, not just re-read the new code.
+
+This fix lives in `OneChip` (`chips/stm32/stm32Spi.h`), a separate repo
+from `focCompose`'s own `.RnD/` work — see its own commit for push status.
+
 ## Files in this round
 
 - `focAPI.h` — Step 1's `SensorAPI`/`DriverAPI` contracts + mirrored enums.
