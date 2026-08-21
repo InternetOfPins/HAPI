@@ -466,6 +466,65 @@ relevant to this driver shape (see above), but board-specific enable-pin
 polarity/wiring (assumed active-high, PB0/PB1/PB10) is still a guess
 until a real driver board is on the bench to match against.
 
+## Addendum — Branch A's open design question, resolved (LOCAL, not pushed)
+
+Decision point 1's real limit (`init()` name-hiding, see Step 3 above)
+got a proper comparison instead of staying an open flag. Prototyped and
+disassembly-checked three alternatives to the flat
+`Chain<Sensor,Driver>::Part<Terminal>` shape, cloud-only, no hardware:
+
+1. **Named data members** (`struct FocMotor { SensorPart sensor;
+   DriverPart driver; };`) — `.sensor.init()`/`.driver.init()` are two
+   different members, unambiguous by construction, zero C++ lookup
+   subtlety involved at all.
+2. **Multiple inheritance**, `struct : SensorPart, DriverPart {}`, with
+   *distinct* terminals (`SensorAPI`/`DriverAPI` — no shared base, so no
+   diamond, unlike an earlier same-terminal test that did hit one) —
+   recovers `sizeof==1` (EBO), and turns the `init()` collision from
+   *silent* shadowing into a **hard ambiguity error** on unqualified
+   access — genuinely safer than the original flat chain, but still
+   needs explicit `obj.SensorPart::init()`-style qualification to use.
+3. **`Decor<>`/`Hidden<>`-style explicit redirect** (OneMenu's real,
+   production-proven pattern, `OneItem/include/oneItem/oneItem.h`):
+   stay in one linear chain, hand-write the specific colliding method to
+   forward past the shadowing layer to a named continuation. Not
+   prototyped fresh here — already real, already working code in the
+   ecosystem, discussed and traced to source rather than re-derived.
+
+All three dispatch with zero overhead (0 indirect calls, disassembly
+confirmed for 1 and 2). **Named data members won**, and not just as the
+safe default: `.sensor.`/`.driver.` is the one variant that actually
+matches real SimpleFOC's own `sensor->`/`driver->` two-pointer-member
+call shape — Branch B's eventual goal was always drop-in compatibility
+with that shape, and named members get there directly instead of via a
+workaround. The 1-byte EBO loss (2 bytes vs. Chain's 1) is a rounding
+error next to that.
+
+**Applied for real**, not just decided on paper: `focMotor_stm32.cpp`
+combines both real, hardware-verified pieces from this round —
+`MagneticSensorAS5x47<Spi>` (real SPI + CS) and `BLDCDriver3PWM_STM32`
+(real TIM1 PWM + enable pins) — as `FocMotor{ SensorPart sensor;
+DriverPart driver; }`, superseding `focCompose.cpp`/`focCompose_stm32.cpp`'s
+flawed flat-chain shape. Real PlatformIO `bluepill_f103c8` build:
+
+```
+RAM:   28 bytes   (0.1% of 20K)
+Flash: 2708 bytes (4.1% of 64K)
+```
+
+`!__is_polymorphic(FocMotor)` holds, zero `blx` in our own object, real
+symbols only (`MagneticSensorAS5x47::readRegister`, `Stm32SpiCore::
+spi_init`/`spi_transfer`, `Stm32F1Tim1Pwm3::begin`, `BLDCDriver3PWM_STM32::
+setPwm`, two separate `Stm32F1PortCore::dir_out` instantiations — one per
+GPIO base, CS on GPIOA and enables on GPIOB). Flashed for real, read back
+every subsystem's registers **together, for the first time** (previously
+verified separately): `GPIOA.CRL`/`CRH` confirms CS (PA4=`0x3`), SPI1
+(PA5/6/7=`b`/`4`/`b`), and PWM (PA8/9/10=`b`/`b`/`b`) all correctly
+co-configured with zero pin/field conflicts; `SPI1.CR1`, `TIM1.CR1`/
+`ARR`/`BDTR` all match their previously-verified individual values
+exactly, unchanged by being combined into one object. The resolved
+design works end to end on real silicon, not just in isolation.
+
 ## Files in this round
 
 - `focAPI.h` — Step 1's `SensorAPI`/`DriverAPI` contracts + mirrored enums.
