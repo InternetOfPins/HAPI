@@ -468,13 +468,27 @@ that combines HAPI, OneData, and OneParse together outside the embedded
 framing: a small CLI config loader/validator, built as an ordinary
 PlatformIO `env:native` target with no board and no embedded framework.
 
+[`examples/cutlass_layout`](examples/cutlass_layout) composes a real
+NVIDIA CuTe (`cute::Layout`, part of CUTLASS) with HAPI and OneData —
+proving the composition model reaches spatial/indexing libraries as
+cleanly as temporal ones, host-only, no GPU or `nvcc` required.
+
+[`examples/cuda_device_chain`](examples/cuda_device_chain) goes further:
+real `nvcc` device-side compilation, a new toolchain axis alongside HLS.
+HAPI's unmodified `Chain<>`/`APIOf<>` composes a `__host__ __device__`-
+annotated component and runs inside a real `__global__` kernel — the
+generated PTX shows the entire composed object folding to a single
+constant store, zero calls. Compiles clean; the kernel launch itself
+fails on this machine's specific GPU (below CUDA's real support floor) —
+a documented hardware boundary, not a HAPI or compile-time one.
+
 ---
 
 ## C++17 and embedded systems
 
 HAPI is written for C++17 and is intended for systems where static composition is useful.
 
-The repository includes examples for different environments, including embedded and HLS-oriented experiments. The examples directory currently contains `crtp`, `free`, `godbolt`, `rules`, `std`, `virt`, several HLS examples, and a non-embedded cross-library demonstrator (`config_loader`).
+The repository includes examples for different environments, including embedded and HLS-oriented experiments. The examples directory currently contains `crtp`, `free`, `godbolt`, `rules`, `std`, `virt`, several HLS examples, and three non-embedded cross-library demonstrators (`config_loader`, `cutlass_layout`, `cuda_device_chain`).
 
 The composition model can be used for applications such as:
 
