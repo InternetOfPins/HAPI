@@ -1,0 +1,3 @@
+name = server1
+port = 9090
+retries = 20

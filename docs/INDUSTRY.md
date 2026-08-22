@@ -244,6 +244,25 @@ HAPI's layer model makes dependencies explicit and ordering constraints compiler
 
 ---
 
+### General-Purpose Application Software
+
+The pattern was designed for embedded and industrial firmware, but nothing
+in `Chain`, `Part`, or `APIOf` is hardware-specific — the identical
+composition model applies to any C++17 program. HAPI's own compile-time
+benchmark against Boost.Hana measures a concern (template-instantiation
+cost) that matters equally outside embedded code. OneParse, a library built
+on HAPI, already benchmarks its runtime parsing throughput against desktop
+parsing libraries (lexy, PEGTL, simdjson, rapidjson, Boost.Spirit.X3) —
+independent of any embedded target. `examples/config_loader` (in the HAPI
+repository) is the first example combining HAPI, OneData, and OneParse
+together with no embedded target at all: a CLI config loader/validator.
+
+**Applicable to:** CLI tools, configuration/schema validation, build
+tooling, desktop application composition, server-side configuration
+loaders.
+
+---
+
 ## High-Integrity Domain Summary
 
 | Domain | Key Properties Used |

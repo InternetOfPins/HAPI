@@ -445,11 +445,36 @@ The comparison was made because compile-time cost matters for a template-based C
 
 ---
 
+## General-purpose C++
+
+The composition mechanism itself never touches hardware. `Chain<>`'s fold
+(`hapi/chain.h`) is plain recursive inheritance, and `hapi/base.h` only
+branches for AVR/no-STL freestanding toolchains — everywhere else it's
+ordinary `<cstddef>`/`<type_traits>`/`<utility>`. OneData, one of the
+libraries built on HAPI, states this directly: "Tested on AVR (avr-gcc 7+)
+and x86-64" — the same composed types run identically on a hosted target.
+
+The compile-time-cost discipline described above isn't an embedded-only
+concern either — it benefits any C++17 codebase using heavy template
+composition, not only firmware.
+
+OneParse, another library built on HAPI, already benchmarks its
+runtime parsing throughput against desktop parsing libraries — lexy, PEGTL,
+simdjson, rapidjson, and Boost.Spirit.X3 — on JSON fixtures (see
+`OneParse/benchmark/`), independent of any embedded target.
+
+[`examples/config_loader`](examples/config_loader) is the first example
+that combines HAPI, OneData, and OneParse together outside the embedded
+framing: a small CLI config loader/validator, built as an ordinary
+PlatformIO `env:native` target with no board and no embedded framework.
+
+---
+
 ## C++17 and embedded systems
 
 HAPI is written for C++17 and is intended for systems where static composition is useful.
 
-The repository includes examples for different environments, including embedded and HLS-oriented experiments. The examples directory currently contains `crtp`, `free`, `godbolt`, `rules`, `std`, `virt`, and several HLS examples.
+The repository includes examples for different environments, including embedded and HLS-oriented experiments. The examples directory currently contains `crtp`, `free`, `godbolt`, `rules`, `std`, `virt`, several HLS examples, and a non-embedded cross-library demonstrator (`config_loader`).
 
 The composition model can be used for applications such as:
 
