@@ -67,6 +67,4 @@ Host-only (`g++`/native), verified against local `HAPI` `main`. Not yet
 checked on avr-gcc, arm-none-eabi-gcc, RISC-V, or Bambu/Vitis HLS front
 ends -- particularly worth re-checking whether the hard-error property
 fires at the same point (composing the type) on every toolchain; observed
-on GCC specifically, not assumed universal. Full round-by-round design
-history -- rejected alternatives and why, plus what's still open -- is in
-`.RnD/contractCompose/HANDOFF.md`.
+on GCC specifically, not assumed universal.
