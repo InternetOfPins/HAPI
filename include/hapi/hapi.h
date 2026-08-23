@@ -23,7 +23,20 @@ namespace hapi {
     template<typename T>
     using Part = typename Chain<OO...>::template Part<T>;
 
-    static_assert(BuildRules<Chain<>,Chain<OO...>>::rules(), "HAPI: validation failed");
+    // validated over Types (API included), not just OO... — API is a real
+    // component in the resulting inheritance chain and must be visible to
+    // ordering/uniqueness rules like any other element.
+    static_assert(BuildRules<Chain<>,Chain<API,OO...>>::rules(), "HAPI: validation failed");
   };
+
+  /// @brief a nested APIOf used as one component is spliced into the walk in
+  /// place via its own Types, exactly like rules.h's nested-bare-Chain splice —
+  /// otherwise a closed composition placed as the API/fallback of an outer
+  /// APIOf hides its contents from the outer chain's rules() fold, letting the
+  /// same component type appear twice (once inside the nested APIOf, once in
+  /// the outer OO...) without tripping any uniqueness/ordering static_assert.
+  template<typename Before, typename API2, typename... OO2, typename... Rest>
+  struct BuildRules<Before, Chain<APIOf<API2,OO2...>, Rest...>>
+    : BuildRules<Before, Chain<API2, OO2..., Rest...>> {};
 
 }; // namespace hapi

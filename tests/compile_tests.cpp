@@ -80,6 +80,10 @@ constexpr ItemDef<Chain<A,B>> ok3{};//A,B nested one level (mono_block) -- same 
 // constexpr ItemDef<A,B,B> fail_unicity{};//will fail with compile error "error: static assertion failed: do not repeat B!""
 // constexpr ItemDef<Chain<B,A>> fail_nested_order{};//same as fail_order, nested: "error: static assertion failed: A must be before B"
 
+using ClosedAB = APIOf<A,B>; //closed composition, valid standalone
+constexpr ClosedAB ok4{};
+// constexpr APIOf<ClosedAB,B> fail_nested_unicity{};//ClosedAB (an APIOf) nested as another APIOf's own API/fallback must stay visible to unicity rules; will fail "do not repeat B!"
+
 // ── meta.h surface coverage ────────────────────────────────────────────────
 // Everything below exercises a meta.h (or rules.h) construct that had zero
 // compile coverage before -- the At<idx,O> termination bug (fixed 2026-08-20,

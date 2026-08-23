@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # HAPI vs Hana compile-time benchmark (all test categories)
-# Usage: ./run_bench.sh [CXX=g++] [SIZES="10 25 50 100 200"] [TREE_SIZES="5 10 13"] [REPEAT=1]
+# Usage: ./run_bench.sh [CXX=g++] [SIZES="50 100 200 300"] [TREE_SIZES="5 10 13"] [REPEAT=1]
+#
+# SIZES starts at 50: below that, signal (hapi/hana time minus baseline) is
+# within single-shot scheduling noise. 300 added at the top end to keep 4
+# data points and extend the range where Hana's growth is most visible.
 #
 # REPEAT>1 compiles each data point REPEAT times and reports the mean,
 # to smooth out scheduling noise on a single-shot timing.
@@ -23,7 +27,7 @@ TIMESTAMP=$(date '+%Y-%m-%d_%H-%M-%S')
 LOG="${RESULTS_DIR}/${TIMESTAMP}.log"
 
 : "${CXX:=g++}"
-: "${SIZES:=10 25 50 100 200}"
+: "${SIZES:=50 100 200 300}"
 : "${TREE_SIZES:=5 7 10 13}"
 : "${REPEAT:=1}"
 
