@@ -151,8 +151,8 @@ tools were investigated:
 | Bambu (GCC8 frontend) | **Done** — rejects HAPI's template-template-parameter usage, see below |
 | Bambu (Lattice ECP5 device) | **Done** — see below |
 | Vitis HLS | **Done** — AMD Vitis HLS 2026.1, see the primary Results table's own Vitis column above |
-| Intel HLS Compiler | **Ruled out** — the classic `i++` command-line compiler this pass targeted now appears to require Quartus Prime **Pro** edition (paid); the free Lite-edition add-on catalog only offers a different, newer tool ("HLS IP Gen (Beta)") with a different IP-generation workflow, not a drop-in. No integration script kept — see `HAPI/.RnD/legupHLS/HANDOFF.md`'s LegUp entry for the same kind of "ruled out, not a compile failure" finding |
-| LegUp | **Ruled out** — free academic version is a frozen, single-commit, pre-C++17, VM-only 2015-era snapshot under a non-commercial license; actively-maintained descendant (SmartHLS) is closed/commercial. Full reasoning: `HAPI/.RnD/legupHLS/HANDOFF.md` |
+| Intel HLS Compiler | **Ruled out** — the classic `i++` command-line compiler this pass targeted now appears to require Quartus Prime **Pro** edition (paid); the free Lite-edition add-on catalog only offers a different, newer tool ("HLS IP Gen (Beta)") with a different IP-generation workflow, not a drop-in. No integration script kept — same "ruled out, not a compile failure" finding as LegUp below |
+| LegUp | **Ruled out** — free academic version is a frozen, single-commit, pre-C++17, VM-only 2015-era snapshot under a non-commercial license; actively-maintained descendant (SmartHLS) is closed/commercial. |
 
 To run the Vitis HLS target:
 
@@ -167,8 +167,7 @@ pio run -e hls-vitis -t synthesize-can-disabler-vitis
   tree parser doesn't recognize the AST node for a template-template-
   parameter binding that `Chain<>`'s recursive composition produces; the
   bundled clang16 frontend accepts the same construct cleanly. `I386_CLANG16`
-  is the only viable frontend for this codebase — see
-  `HAPI/.RnD/bambuHLS/HANDOFF.md` finding #4 for the full writeup.
+  is the only viable frontend for this codebase.
 - **Lattice ECP5 device (`LFE5U85F8BG756C`): DSP inference is
   device-independent, flip-flop/area counts are not.** DSP count (0),
   `mult_expr_FU` count (0), and the "no multiply in this design" structural

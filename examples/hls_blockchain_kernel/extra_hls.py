@@ -18,8 +18,8 @@ README.md for why an unconfirmed/default device isn't citable.
 -gcc8 variants exist for the same reason hls_fir/hls_smoke/
 hls_can_disabler carry one: Bambu's I386_GCC8 frontend has a known,
 already-documented rejection of the AST node Chain<>'s recursive
-composition produces (HANDOFF.md finding referenced in this example's own
-README). Expected outcome here is the same rejection, not a pass -- run
+composition produces (see this example's own README). Expected outcome
+here is the same rejection, not a pass -- run
 it anyway; if it ever starts passing, that's the interesting result, not
 the other way around.
 """

@@ -63,8 +63,8 @@ def _bambu_cmd(top_fname, src_file, outdir, frontend="I386_CLANG16",
         # AC_VERSION 3) ac_types fork on its default include path, so
         # omitting -I here would silently synthesize against that fork
         # instead of the real upstream (AC_VERSION 4) headers this target
-        # exists to check -- see HAPI/.RnD/acTypesHLS/HANDOFF.md. Ordering
-        # of this flag relative to HAPI_INC does NOT matter (empirically
+        # exists to check. Ordering of this flag relative to HAPI_INC does
+        # NOT matter (empirically
         # confirmed both ways) -- the only real failure mode is omitting
         # it entirely, which the target source's own AC_VERSION guard
         # catches with a hard build error regardless of this script.

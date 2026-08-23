@@ -4,8 +4,7 @@
 // composition shape are byte-for-byte identical. Deliberately has no
 // multiply (shifts + xors only), unlike MurmurHash's `h *= 0x5bd1e995u` --
 // predicted to route through logic fabric rather than a DSP block; see
-// HANDOFF.md's prediction table before running this, and fill in the
-// actual result next to it either way.
+// README.md's synthesis results for whether that prediction held.
 
 #include <hapi/hapi.h>
 #include <cstdint>

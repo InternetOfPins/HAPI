@@ -3,9 +3,8 @@
 // unchanged), Network swapped from Serial to the new Mqtt<>. Builds
 // against the real framework-arduinoespressif32 core + real
 // knolleary/PubSubClient (PlatformIO espressif32/esp32dev), not a stub
-// SDK -- see HANDOFF.md's Round 3 addendum for the real flash/RAM
-// numbers and the app_main()/Arduino-main.cpp conflict this build
-// caught that a stub build couldn't.
+// SDK -- real flash/RAM numbers and an app_main()/Arduino-main.cpp
+// conflict this build caught that a stub build couldn't.
 #include <hapi/hapi.h>
 #include <oneData/oneData.h>
 #include <oneHLS/oneHLS.h>

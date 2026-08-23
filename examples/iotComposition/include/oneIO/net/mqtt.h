@@ -10,14 +10,13 @@ namespace oneIO::net {
   // Mqtt<Ssid,Pass,Broker,Port> -- WiFi + PubSubClient wrapper for IOP,
   // same shape as oneIO::storage::SDCard: wraps a vendor Arduino library,
   // not a from-scratch protocol stack. One transport for the ESP32 leg
-  // of the IoT composition experiment, per HANDOFF's "one transport per
-  // target" scope decision.
+  // of the IoT composition experiment (one transport per target, by
+  // scope decision).
   //
   // Example-local, not promoted into OneIO proper: compiles and links
   // against the real framework-arduinoespressif32 core + real
   // knolleary/PubSubClient (see this example's README), but no live
-  // broker round-trip has been verified yet -- see .RnD/iotComposition/
-  // HANDOFF.md for the full provenance.
+  // broker round-trip has been verified yet.
   //
   // Ssid/Pass/Broker: pointers to string literals (NTTPs -- same pattern
   // filenames use in oneIO::storage::SDCard).

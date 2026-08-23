@@ -4,8 +4,10 @@
 //
 // Sensor(AHT)+Actuator(PCA9685)+Network(Serial) spliced into one Chain<>;
 // Storage(AT24C) used directly (it's a closed static utility, not a
-// Chain-splice-able Part -- see HANDOFF for why); Control(oneHLS::Pid) held
-// as a plain member, exactly like the hls_core_components example.
+// Chain-splice-able Part -- its terminal has a deliberately deleted
+// default constructor, usable as a static-methods-only chain layer, not
+// as a standalone instance); Control(oneHLS::Pid) held as a plain member,
+// exactly like the hls_core_components example.
 
 #include <hapi/hapi.h>
 #include <oneData/oneData.h>

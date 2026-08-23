@@ -8,10 +8,9 @@ that were never written with each other in mind — the real measurement is
 the pipeline `application → composed C++ object → generated firmware →
 ELF/assembly → measured footprint`, not just "HAPI compiles."
 
-Full provenance, every dead end, and every real bug found along the way:
-`HAPI/.RnD/iotComposition/HANDOFF.md`. This directory is the promoted,
-buildable result — matching `examples/hls_blockchain_kernel`'s own
-graduation from its `.RnD/` origin.
+This directory is the promoted, buildable result of an earlier local
+exploration — matching `examples/hls_blockchain_kernel`'s own graduation
+path.
 
 ## What it is
 
@@ -30,10 +29,9 @@ stands in for "Network" on this leg. `Control` (`oneHLS::Pid<>`) held as a
 plain member — same header used for HLS synthesis elsewhere in this
 ecosystem, just parameterized with plain `int16_t`/`int32_t` here instead of
 `ac_fixed`/`ap_fixed`. `Storage` (`oneIO::eeprom::AT24C<I2c>`) called
-directly, not chain-spliced — see the design note in `stage1_avr.cpp`/
-HANDOFF.md for why (its terminal has a deliberately deleted default
-constructor; usable as a static-methods-only chain layer, not as a
-standalone instance).
+directly, not chain-spliced — see the design note in `stage1_avr.cpp` for
+why (its terminal has a deliberately deleted default constructor; usable
+as a static-methods-only chain layer, not as a standalone instance).
 
 ```
 RAM:   17 bytes  (0.8% of 2K)
@@ -132,9 +130,9 @@ pio run -e sensorFusion    # atmega328p, StaticList composition
    `<utility>`/`<type_traits>`, none available on AVR. Fixed the same way,
    plus HAPI's existing `avr_std.h` shim for `std::forward`/`std::decay_t`.
 
-Full details, plus a bug in `pca9685.h`'s stale doc comment and the
+A third bug (a stale `pca9685.h` doc comment) and an
 `app_main()`/Arduino-`main.cpp` symbol collision Stage 2 hit against the
-real framework (not the stub SDK), in `.RnD/iotComposition/HANDOFF.md`.
+real framework (not the stub SDK) were found and fixed the same way.
 
 ## What's not verified yet (real hardware needed)
 

@@ -145,7 +145,7 @@ cross-check; further independent tools are tracked the same way as
 | Bambu (Lattice ECP5 device) | **Done** — see below |
 | Vitis HLS | **Done** — AMD Vitis HLS 2026.1, see the primary Results table's own Vitis column above |
 | Intel HLS Compiler | **Ruled out** — the classic `i++` command-line compiler this pass targeted now appears to require Quartus Prime **Pro** edition (paid); the free Lite-edition add-on catalog only offers a different, newer tool ("HLS IP Gen (Beta)") with a different IP-generation workflow, not a drop-in. No integration script kept |
-| LegUp | **Ruled out** — see `HAPI/.RnD/legupHLS/HANDOFF.md` (frozen pre-C++17 academic snapshot, closed commercial successor) |
+| LegUp | **Ruled out** — frozen pre-C++17 academic snapshot, closed commercial successor |
 
 - **GCC8 frontend: rejected, not a HAPI bug.** Fails at parse time —
   `Unrecognized keyword ... bound_template_template_parm` / `Parse error`
@@ -153,8 +153,7 @@ cross-check; further independent tools are tracked the same way as
   GCC8-based tree parser doesn't recognize the AST node for a
   template-template-parameter binding that `Chain<>`'s recursive
   composition produces; `I386_CLANG16` remains the only viable frontend
-  for this codebase. Full writeup: `HAPI/.RnD/bambuHLS/HANDOFF.md`
-  finding #4.
+  for this codebase.
 - **Lattice ECP5 device: structural result is device-independent.** One
   `ui_plus_expr_FU`, zero flip-flops, zero DSPs, 1 control step/cycle —
   identical across both devices. Only the continuously-valued figures

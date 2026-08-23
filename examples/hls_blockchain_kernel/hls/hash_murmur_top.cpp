@@ -1,8 +1,7 @@
 // HLS synthesis target: MurmurHash-style mixing over a Transaction, via
 // Chain<MurmurHash,Transaction>::Part<Terminal> -- the Hash/Transaction
-// slice of the composition already verified natively (steps 8-9 of
-// HAPI/.RnD/blockchainKernelHLS/HANDOFF.md; see that file before touching
-// this one). This is the first of two Hash variants -- the point of the
+// slice of the composition already verified natively. This is the first
+// of two Hash variants -- the point of the
 // pair is comparing synthesized hardware for the SAME composition
 // mechanism with only Hash's mixing body swapped (hash_xorfold_top.cpp).
 //

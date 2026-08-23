@@ -1,8 +1,8 @@
 # hls_blockchain_kernel
 
 Synthesizes the `Hash`/`Transaction` slice of the blockchain-as-HAPI-
-composition experiment (see `HAPI/.RnD/blockchainKernelHLS/HANDOFF.md`)
-through a real HLS backend, and checks whether swapping just the `Hash`
+composition experiment through a real HLS backend, and checks whether
+swapping just the `Hash`
 component produces genuinely different synthesized hardware -- the same
 question `hls_fir`'s `fir4`/`fir8` pair asks for tap count, here asked for
 composed-in algorithm choice instead.
@@ -147,9 +147,9 @@ work reaching completion in 1 cycle each** (`Number of states: 1`,
 `Minimum/Maximum number of cycles: 1`) -- purely combinational, same as
 `hls_smoke`'s `wrapSum`. `0x5bd1e995u` is a plain inline integer literal,
 not a `static const` fixed-point object, so the known Bambu
-lazy-init-guard bug (documented in `HAPI/.RnD/hlsLibsCheck` and
-`OneHLS`'s own notes) does not apply here, as predicted -- confirmed by
-the absence of any register/state in either synthesis report.
+lazy-init-guard bug (documented in `OneHLS`'s own notes) does not apply
+here, as predicted -- confirmed by the absence of any register/state in
+either synthesis report.
 
 ### Cross-tool/cross-config validation
 

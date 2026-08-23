@@ -322,7 +322,7 @@ cross-check. Two more independent tools were investigated:
 | Bambu (Lattice ECP5 device) | **Done**, `fir4Top` only — see below |
 | Vitis HLS | **Done** — AMD Vitis HLS 2026.1, all six targets; see both "Also verified under AMD Vitis HLS 2026.1" sections above (compile-time-coefficient kernels and the Hamming LPF family) |
 | Intel HLS Compiler | **Ruled out** — the classic `i++` command-line compiler this pass targeted now appears to require Quartus Prime **Pro** edition (paid); the free Lite-edition add-on catalog only offers a different, newer tool ("HLS IP Gen (Beta)") with a different IP-generation workflow, not a drop-in. No integration script kept |
-| LegUp | **Ruled out** — free academic version is a frozen, single-commit, pre-C++17, VM-only 2015-era snapshot under a non-commercial license; actively-maintained descendant (SmartHLS) is closed/commercial. Full reasoning: `HAPI/.RnD/legupHLS/HANDOFF.md` |
+| LegUp | **Ruled out** — free academic version is a frozen, single-commit, pre-C++17, VM-only 2015-era snapshot under a non-commercial license; actively-maintained descendant (SmartHLS) is closed/commercial. |
 
 To run the Vitis HLS targets:
 
@@ -339,8 +339,7 @@ pio run -e hls-vitis -t synthesize-fir4-vitis   # ...and the other 5
   recognize the AST node for a template-template-parameter binding that
   `Chain<>`'s recursive composition produces; the bundled clang16 frontend
   accepts the same construct cleanly across all six designs. `I386_CLANG16`
-  is the only viable frontend for this codebase — see
-  `HAPI/.RnD/bambuHLS/HANDOFF.md` finding #4 for the full writeup.
+  is the only viable frontend for this codebase.
 - **Lattice ECP5 device (`LFE5U85F8BG756C`), `fir4Top` only: DSP inference
   and latency are device-independent, flip-flop/area/frequency are not.**
 
