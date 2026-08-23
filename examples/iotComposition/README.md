@@ -121,19 +121,6 @@ pio run -e stage2_esp32    # esp32dev, real Arduino-ESP32 core + PubSubClient
 pio run -e sensorFusion    # atmega328p, StaticList composition
 ```
 
-## Two real bugs found and fixed along the way
-
-1. **`oneHLS.h` wasn't AVR-safe as shipped** — unconditional
-   `#include <cstdint>` (no libstdc++ on AVR). Fixed with a `__AVR__` gate to
-   `<stdint.h>`.
-2. **`oneHLS/staticList.h` had the same gap** — `<cstdint>`/`<cstddef>`/
-   `<utility>`/`<type_traits>`, none available on AVR. Fixed the same way,
-   plus HAPI's existing `avr_std.h` shim for `std::forward`/`std::decay_t`.
-
-A third bug (a stale `pca9685.h` doc comment) and an
-`app_main()`/Arduino-`main.cpp` symbol collision Stage 2 hit against the
-real framework (not the stub SDK) were found and fixed the same way.
-
 ## What's not verified yet (real hardware needed)
 
 Physical I2C/bus behavior (no hardware attached — this proves the types

@@ -47,10 +47,8 @@ Bambu is target-aware, not target-independent: functional-unit selection
 and every area/frequency/slack number are characterized against a
 specific device technology library -- a run with no `--device-name`
 produces numbers against Bambu's undocumented internal default, which
-aren't citable against any real, ownable board. **This example originally
-ran against that undocumented default** (the raw invocation this section
-used to show had no `--device-name`/`--clock-period` at all); it now pins
-the same device/period as `hls_fir`/`hls_can_disabler`:
+aren't citable against any real, ownable board. This example pins the
+same device/period as `hls_fir`/`hls_can_disabler`:
 
 ```
 --device-name=xc7a100t-1csg324-VVD --clock-period=10
@@ -58,10 +56,9 @@ the same device/period as `hls_fir`/`hls_can_disabler`:
 
 `xc7a100t-1csg324-VVD` is the Xilinx Artix-7 on the Digilent Arty A7/
 Nexys A7 (10ns targets 100MHz). The structural result (exactly one real
-`ui_plus_expr_FU`, zero flip-flops, zero DSPs) is unchanged from the
-original default-device run — only the frequency/slack/area figures
-below are new, now citable against a confirmed device instead of an
-undocumented one.
+`ui_plus_expr_FU`, zero flip-flops, zero DSPs) is device-independent —
+only the frequency/slack/area figures below need a confirmed device (as
+opposed to Bambu's undocumented default) to be citable.
 
 ## Run it through Bambu HLS
 
@@ -163,8 +160,8 @@ cross-check; further independent tools are tracked the same way as
 ## Automated check
 
 `run_hls_smoke.sh` runs the same two checks as a CI-style regression guard:
-the `static_assert`s (no Bambu needed), then a real Bambu synthesis (now
-pinned to the same explicit device/period as the `pio run -e hls` targets
+the `static_assert`s (no Bambu needed), then a real Bambu synthesis
+(pinned to the same explicit device/period as the `pio run -e hls` targets
 above) with an adder-count check against Bambu's own
 `Summary of resources:` output -- **not** a `grep` over the generated
 Verilog. A single real functional-unit instance shows up as that substring

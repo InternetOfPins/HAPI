@@ -9,10 +9,9 @@ footprint number.
 
 **Scope note:** this example is an original design built to exercise the
 composition model on this problem shape, *not* a reproduction of any
-specific published CAN-bus-disabler paper — it was designed and Bambu-
-verified before the paper below was actually read. See
+specific published CAN-bus-disabler paper. See
 [Comparison to the CAN Disabler paper](#comparison-to-the-can-disabler-paper)
-for the structural differences found once it was, and for why no
+for the structural differences from that paper's design, and for why no
 number-vs-number footprint comparison is offered.
 
 ## The design
@@ -41,11 +40,11 @@ design.
 compile-time regression check on the whitelist logic itself
 (`static_assert(DisablerTop::allowed(0,0x100) && ...)` in
 `src/main.cpp`, only possible because it's a constant expression) — it
-does **not** change the synthesized hardware, confirmed by re-running
-Bambu after adding it: identical 22 flip-flops / 0 DSPs / 2147 area to
-before, since every real `permit()` call passes runtime `mailbox`/`id`
-values, and a trivial one-line static predicate inlines the same way
-with or without the keyword.
+does **not** change the synthesized hardware — synthesis with and
+without it yields identical 22 flip-flops / 0 DSPs / 2147 area, since
+every real `permit()` call passes runtime `mailbox`/`id` values, and a
+trivial one-line static predicate inlines the same way with or without
+the keyword.
 
 ## Run it natively (regression check, all five cases)
 
@@ -231,7 +230,7 @@ Given all three, a "2147 vs. 3106" sentence would imply a precision this
 comparison cannot support — so this README states the paper's numbers
 for the record and stops there, rather than manufacture a ratio.
 
-### Structural differences found, now that the paper's been read
+### Structural differences from the paper
 
 - **Protection functions 1 and 2 are one combined check here, two
   independent ones in the paper.** The paper's device disabler runs
@@ -257,8 +256,8 @@ for the record and stops there, rather than manufacture a ratio.
   messages from this ECU" (Sec. V-C-2). This example's one-counter
   simplification matches the paper's simplest framing (a single message
   type gated by a single interval) but not its multi-message caveat.
-- **Confirms the open `tick`-argument question — genuinely not a fair
-  stand-in as built.** The paper is explicit that its minimum-
+- **The `tick` argument is genuinely not a fair stand-in for real
+  hardware, as built.** The paper is explicit that its minimum-
   transmission-cycle counter is real hardware: "embedded as a bit/time
   unit counter on the CAN network. The counter starts to count up after
   the initial transmission request is generated" (Sec. V-A) — an actual

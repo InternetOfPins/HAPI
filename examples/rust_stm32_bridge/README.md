@@ -50,7 +50,7 @@ compiler directly (not the `cc` crate — its target-detection heuristics
 don't know `thumbv7m-none-eabi`) and links the result into the Rust
 binary.
 
-**Real result: linked completely clean, first attempt.** No symbol
+**Real result: links completely clean.** No symbol
 conflicts, no vector-table clash (Rust's `cortex-m-rt` owns the reset
 handler/vector table; the C++ shim contributes no startup code of its
 own, since `Ticker`'s default constructor is trivial — zero-init only,

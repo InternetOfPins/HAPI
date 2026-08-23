@@ -40,27 +40,18 @@ dump, not a hand-assembled device spec). 10ns targets 100MHz, in the
 ballpark of OneParse's `jsonCharTop`/`jsonBufTop` results for rough
 comparability.
 
-**Confirming what the original numbers ran against:** checking
-`extra_hls.py`'s history shows `fir4Top`/`fir8Top`/`firRtTop` were never
-run with an explicit `--device-name`/`--clock-period` — those numbers
-(as originally published) were against Bambu's undocumented default, not
-a confirmed device. All three were re-run for this pass against the
-explicit device above, alongside the three Hamming-LPF/cascade targets,
-so every number in both Results tables below is now directly comparable.
+All six targets are run against this explicit device, so every number in
+both Results tables below is directly comparable.
 
-**What changed and what didn't, re-running the original three targets
-against a confirmed device instead of the default:** every *structural*
-count — flip-flops, registers, DSP count, `mult_expr_FU` count, mux
-count, control steps, states/cycles — came back **identical** to the
-original default-device numbers. Only the *continuously-valued* metrics
-that come directly from the device's characterized timing/area library
-(estimated max frequency, minimum slack, total estimated area) shifted,
-by single-digit percentages. In other words: every non-numeric claim in
-this README (does a real multiplier appear, does resource sharing
-happen, does latency scale with tap count, …) was already correct: only
-the specific frequency/area/slack figures needed a confirmed device to
-be citable, and one genuinely device-sensitive finding did turn up — see
-[Cascaded stages](#cascaded-stages)'s corrected slack finding below.
+**Structural vs. continuous metrics under an explicit device:** the
+*structural* counts — flip-flops, registers, DSP count, `mult_expr_FU`
+count, mux count, control steps, states/cycles — are device-independent
+for these designs. Only the *continuously-valued* metrics that come
+directly from the device's characterized timing/area library (estimated
+max frequency, minimum slack, total estimated area) are device-sensitive.
+An unconfirmed/default-device run is not citable for those figures — see
+[Cascaded stages](#cascaded-stages) for a case where the slack figure in
+particular depends on a confirmed device.
 
 ## The targets
 
@@ -252,8 +243,8 @@ into ROM.
 flip-flops 32→85 (2.66x), operations 33→72 (2.18x), estimated area
 7590→15286 — a different metric from the flip-flop ratio, not a
 conflicting measurement of the same one; both a ~2.66x FF scaling and a
-separately-scaling area number can be true at once, and both are
-confirmed again against this pass's explicit device. **Latency did not
+separately-scaling area number hold against the explicit device above.
+**Latency did not
 scale**: both stay at 2 states / 2 cycles minimum-and-maximum — Bambu
 scheduled every tap's shift-add network to complete combinationally
 within the same 2-cycle window regardless of tap count, so 8 taps cost
@@ -273,10 +264,10 @@ output to `fir4Top`, see above), and this time:
 
 - **`mult_expr_FU: 2`, `Estimated number of DSPs: 2`** — real,
   DSP-mappable multiplier hardware, unlike either compile-time variant.
-  Confirmed against a real Artix-7 device library, not an unconfirmed
-  default — this device genuinely has DSP48 blocks Bambu could target,
-  so the inference is meaningful, not an artifact of a generic/default
-  technology library that might not model hard multiplier blocks at all.
+  Confirmed against a real Artix-7 device library — this device
+  genuinely has DSP48 blocks Bambu can target, so the inference is
+  meaningful, not an artifact of a generic/default technology library
+  that might not model hard multiplier blocks at all.
 - Only **2** multiplier instances cover **4** logical tap multiplies —
   Bambu's own binding/allocation algorithm chose to time-share 2 physical
   multipliers across the 4 taps rather than instantiate 4, and added
@@ -285,9 +276,8 @@ output to `fir4Top`, see above), and this time:
 - That sharing costs real latency: control steps go 4→8 and states/cycles
   go 2→6 (vs. either compile-time variant), and flip-flops jump to 267
   (register binding explicitly reports a *sub-optimal* result here — "21
-  registers (LB:14)", the same SE:12+STD:9 breakdown confirmed again
-  against the explicit device — the extra scheduling complexity of shared
-  multiplier access, not a free lunch).
+  registers (LB:14)", an SE:12+STD:9 breakdown — the extra scheduling
+  complexity of shared multiplier access, not a free lunch).
 - Estimated max frequency (126.63 MHz) and minimum slack (2.103 ns) stayed
   comparable to the compile-time variants — the critical path through one
   real multiplier is not, by itself, tighter than the shift-add chains
@@ -300,13 +290,12 @@ output to `fir4Top`, see above), and this time:
   routing muxes. DSP count alone is not the whole resource picture —
   which is exactly why this variant is reported as three separate metrics
   (DSPs, flip-flops, area) rather than collapsed into one "cost" number.
-- **All of the above — DSP count, mux count, control steps, register
-  breakdown — matched exactly** between the original (unconfirmed-device)
-  run and this pass's confirmed-device re-run; only the frequency/slack/
-  area figures moved, by single-digit percentages. The structural finding
-  ("a real multiplier appears when coefficients are genuinely runtime")
-  was never in question — this pass makes the specific numbers citable
-  against a real, ownable device.
+- **All structural metrics — DSP count, mux count, control steps, register
+  breakdown — are device-independent**; only the frequency/slack/area
+  figures are device-sensitive. The structural finding ("a real multiplier
+  appears when coefficients are genuinely runtime") holds regardless of
+  device; the frequency/slack/area figures above are citable because they
+  come from a confirmed, real, ownable device.
 
 ### Cross-tool/cross-config validation
 
@@ -487,7 +476,7 @@ Same-question checklist as the [Results](#results-verified-not-estimated)
 table above, answered with real numbers:
 
 - **Does coefficient *value* change Bambu's resource report the way
-  coefficient *source* does?** Not the way originally guessed. `firLpf4Top`
+  coefficient *source* does?** Only partially. `firLpf4Top`
   lands close to `fir4Top` (32 FF vs 32, area 7653 vs 7590 — both
   Q8-Hamming and binomial 4-tap kernels cost almost the same). But
   `firLpf8Top` does **not** land close to `fir8Top`: 49 FF vs 85, area
@@ -496,9 +485,7 @@ table above, answered with real numbers:
   constants (1,10,41,76 vs 1,7,21,35) shift-add into different-sized
   hardware even though both strength-reduce to zero multipliers. Coefficient
   value *can* move the FF number; it just doesn't move it predictably.
-  **Confirmed a second time against the explicit device** — this isn't a
-  default-device artifact, the mismatch survives re-synthesis against
-  real Artix-7 characterization.
+  Confirmed against the explicit device, not a default-device artifact.
 - **Does `firLpfCascade2Top` cost roughly 2× a single `firLpf4Top`?** Total
   estimated area does: 15237 vs 7653 is **~1.99×** — almost exactly
   double, the cleanest confirmation that Bambu built two genuinely
@@ -525,21 +512,13 @@ table above, answered with real numbers:
   cost real area (≈2×) but not extra latency; Bambu scheduled the whole
   two-stage combinational path to complete within the same 2-cycle window
   as a single stage.
-- **Correction from an earlier, unconfirmed-device pass of this same
-  table:** a prior run (against Bambu's undocumented default device, not
-  the explicit Artix-7 device this table uses) showed minimum slack
-  dropping for the cascade (0.099 ns) versus either single stage
-  (0.205 ns), read at the time as "the real cost of doubling combinational
-  depth while keeping latency flat." **That finding does not survive
-  re-synthesis against a confirmed device** — here, `firLpf4Top`,
+- **Minimum slack does not drop for the cascade**: `firLpf4Top`,
   `firLpf8Top`, and `firLpfCascade2Top` all report essentially identical
   minimum slack (0.322 ns, differing only in the 8th significant digit)
-  and identical estimated max frequency (103.33 MHz). Whatever produced
-  the apparent slack drop under the default/unconfirmed device did not
-  reproduce under real device characterization — a concrete example of
-  why device-unconfirmed timing numbers aren't safe to build a narrative
-  on, and exactly the risk [Target device](#target-device) above exists
-  to close off.
+  and identical estimated max frequency (103.33 MHz) against the explicit
+  device — cascading two stages does not cost timing slack here, which is
+  exactly why timing figures must be read only against a confirmed device
+  (see [Target device](#target-device) above).
 
 ## Not done (if a real number is needed)
 
