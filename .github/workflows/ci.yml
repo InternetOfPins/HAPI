@@ -1,0 +1,11 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  smoke-build:
+    uses: InternetOfPins/HAPI/.github/workflows/smoke-build.yml@main
+    with:
+      repo: HAPI

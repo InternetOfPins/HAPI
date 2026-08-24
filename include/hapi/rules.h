@@ -71,7 +71,9 @@ namespace hapi {
   /// @brief a nested Chain used as one component (mono_block) is spliced
   /// into the walk in place, so its own elements' rules see correct
   /// Before/After context — mirrors Chain<>::Part<T>'s own transparent
-  /// handling of a nested Chain as a component.
+  /// handling of a nested Chain as a component. Sibling specialization
+  /// for nested APIOf is in hapi.h (kept separate, not a generic
+  /// ::Types-keyed splice — see that file for why).
   template<typename Before, typename... PP, typename... Rest>
   struct BuildRules<Before, Chain<Chain<PP...>, Rest...>>
     : BuildRules<Before, Chain<PP..., Rest...>> {};

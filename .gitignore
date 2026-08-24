@@ -1,5 +1,7 @@
 .pio/
 .*
+!.github/
+!.github/**
 benchmark/build/
 benchmark/*.png
 benchmark/*.zip

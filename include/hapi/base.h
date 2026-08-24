@@ -19,12 +19,12 @@
 
 #if defined(__AVR__) || !HAPI_HAS_STL_HEADERS
   #include "platform/avr/avr_std.h"
-  using SizeT=__SIZE_TYPE__;
+  namespace hapi { using SizeT=__SIZE_TYPE__; }
 #else
   #include <cstddef>
   #include <type_traits>
   #include <utility>
-  using SizeT=size_t;
+  namespace hapi { using SizeT=size_t; }
 #endif
 
 #ifdef HAPI_DEBUG

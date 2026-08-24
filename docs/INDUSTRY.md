@@ -5,6 +5,32 @@
 
 ---
 
+## How to Read This Document
+
+Every domain section below is tagged with one of two statuses, stated
+plainly rather than left to the reader to infer from tone:
+
+- **Demonstrated** — a real example exists in this repository or a
+  sibling `InternetOfPins` repo, with a working build and, where
+  synthesis is involved, verified output. The section names the example.
+- **Potential** — the architectural argument (compile-time composition,
+  no dynamic allocation, no runtime dispatch) plausibly extends to this
+  domain, but nothing has been built or tested here. Worth exploring,
+  not a claim of readiness.
+
+A third distinction applies specifically to regulated, safety-critical
+domains (medical devices, automotive, aerospace, rail): even where the
+architecture is sound potential, adoption there faces a **certification
+barrier** that compile-time composition doesn't touch — documented
+lifecycle process, risk management, and toolchain qualification, per
+IEC 62304 / ISO 26262 / DO-178C / EN 50128. See
+[Structural Verification & Safety-Critical Systems](#structural-verification--safety-critical-systems)
+below. A property that *aligns with* those standards' objectives is not
+compliance with them, and no amount of architectural elegance substitutes
+for the qualification work itself.
+
+---
+
 ## The Core Proposition
 
 Every industry that runs software on constrained, real-time, or high-integrity systems faces the same tension:
@@ -58,8 +84,8 @@ This narrows the auditor's scope. Compile-time validation closes off structural 
 
 HAPI does not replace human verification. It narrows the structural surface that requires it.
 
-**Relevant standards:** ISO 26262 (automotive), IEC 62304 (medical), DO-178C (avionics), MISRA C++.  
-HAPI introduces no dynamic allocation, virtual dispatch, or runtime framework overhead — properties that align with MISRA C++ objectives but do not constitute compliance. Compliance depends on the complete system design, implementation, and verification process.
+**Relevant standards:** ISO 26262 (automotive), IEC 62304 (medical), DO-178C (avionics), EN 50128 (rail), MISRA C++.
+HAPI introduces no dynamic allocation, virtual dispatch, or runtime framework overhead — properties that align with MISRA C++ objectives but do not constitute compliance. None of these standards has been pursued for this project: no tool qualification, no documented safety lifecycle, no certification audit. Every domain section below that touches a regulated industry links back to this paragraph rather than repeating it — that link is doing real work, not a formality.
 
 ---
 
@@ -67,7 +93,9 @@ HAPI introduces no dynamic allocation, virtual dispatch, or runtime framework ov
 
 ### Embedded Firmware & IoT
 
-The original domain. AVR, ESP8266, ESP32, STM32, RP2040, ARM Cortex-M — platforms where every byte and every cycle matters.
+**Status: Demonstrated.** HAPI's original domain and its most exercised one — OneMenu, OneChip, OneIO, and `examples/iotComposition` are real, shipped, cross-toolchain-verified components, not architectural argument alone.
+
+AVR, ESP8266, ESP32, STM32, RP2040, ARM Cortex-M — platforms where every byte and every cycle matters.
 
 HAPI allows firmware teams to build layered drivers, middleware, communication stacks, and interfaces without runtime composition overhead. Features are added by composition rather than modification. Compile-time validation ensures declared dependencies are checked before a binary is produced.
 
@@ -77,15 +105,19 @@ HAPI allows firmware teams to build layered drivers, middleware, communication s
 
 ### Industrial & Automotive
 
+**Status: Potential.** Nothing in this section has been built in an automotive or industrial-control harness. A closely related technique — compile-time-composed motor control — has been verified on real hardware, but in a robotics context (see Robotics & Autonomous Systems below), not an automotive ECU one; treat that as an architectural precedent, not evidence for this section specifically.
+
 Determinism, predictability, and traceability are priorities. Architectural constraints traditionally enforced through documentation and code review can instead be expressed in code and verified at compilation. A composition that violates a declared rule fails to compile.
 
 No dynamic allocation or runtime dispatch is introduced by the framework, making execution behavior easier to reason about in time-sensitive environments.
 
-**Applicable to:** motor control, industrial gateways, factory automation, ADAS preprocessing, vehicle communication stacks.
+**Applicable to:** motor control, industrial gateways, factory automation, vehicle communication stacks. **ADAS preprocessing** additionally carries the certification barrier described above (ISO 26262) — architectural fit here is a smaller claim than deployment readiness.
 
 ---
 
 ### Telecommunications & Protocol Stacks
+
+**Status: Potential.** Unbuilt in this codebase — no protocol stack has been composed with HAPI end to end. Included because the layering maps cleanly onto `Chain`'s composition model, not because it's been tried.
 
 Communication systems are naturally layered:
 
@@ -101,6 +133,8 @@ HAPI models protocol layers as compile-time components. The complete protocol st
 
 ### Robotics & Autonomous Systems
 
+**Status: Partially demonstrated.** Motion control and sensor fusion are real: a compile-time-composed motor-control integration has been verified on real hardware, and a sensor-fusion pipeline has been verified on AVR (`examples/iotComposition`). Industrial robotics and CNC controllers as complete systems are unbuilt extrapolations from that work, not separately verified. **Autonomous vehicles is a materially larger claim than either** — full perception/planning/control stacks, not a single composed control loop — and additionally carries the certification barrier described above; listing it alongside motion control understates the gap between them.
+
 Robotic systems are built from deterministic processing pipelines:
 
 ```
@@ -115,6 +149,8 @@ HAPI models each stage as an explicit compile-time component. Processing order, 
 
 ### Healthcare & Medical Devices
 
+**Status: Potential.** Nothing built or tested in a medical-device context. The certification barrier described above applies in full here: IEC 62304 requires a documented software lifecycle, risk management (ISO 14971), traceability from requirement to code to test, and qualification of the toolchain itself. None of that exists for this project today, and no architectural property below shortens that path.
+
 Medical software prioritises predictability, traceability, and architectural clarity. Dynamic allocation and implicit coupling complicate analysis and maintenance.
 
 HAPI composes systems statically. Component relationships, ordering constraints, and dependencies are visible to the compiler and validated before a binary is produced. The execution path is fixed by the compiled composition rather than runtime discovery.
@@ -124,6 +160,8 @@ HAPI composes systems statically. Component relationships, ordering constraints,
 ---
 
 ### Hardware Pipeline Synthesis
+
+**Status: Demonstrated.** The ATmega328P evaluation (published paper) and the live Godbolt CRC-6 example below are real, reproducible builds, not description.
 
 Software pipelines built with HAPI collapse at compile time into instruction sequences that are architecturally equivalent to hardware pipelines: sequential, deterministic, no runtime dispatch, no indirection.
 
@@ -145,39 +183,20 @@ The same model scales from 8-bit AVR registers to multi-core ARM peripherals. Th
 
 ### FPGA & CPLD Register Interfacing
 
-Industrial systems often use CPLDs or FPGAs as register-mapped bus bridges. The pattern maps naturally to hardware register pipelines — hardware addresses as compile-time template parameters, embedded directly in the type signature.
-
-HAPI's compile-time composition layer (`Chain`, `APIOf`) is synthesizable by a high-level-synthesis (HLS) toolchain, verified against [PandA-Bambu](https://github.com/ferrandi/PandA-bambu) 2024.10 (clang16 frontend). [`examples/hls_smoke`](../examples/hls_smoke) is a runnable, verified proof: a 5-layer `Chain<>`/`APIOf<>` composition synthesized end-to-end into real Verilog RTL. The recursive inheritance collapse produces hardware proportional to the underlying computation — the example's 5 composed layers collapse to a single adder in the generated RTL, with no structural bloat from the composition depth. As with any HLS input, code reachable from the synthesis entry point has to stay within what the backend can map to hardware — I/O and OS calls have no synthesis target, in HAPI or in any other HLS flow.
-
-HAPI does not generate HDL directly and is not itself a synthesis engine — it produces plain, flattened C++ that an HLS toolchain can consume like any other input. Only Bambu has been verified so far; other HLS toolchains and frontends are untested, not confirmed working. Hardware validation on physical fabric also remains ongoing; `examples/hls_smoke` validates the synthesis path, not deployment on a specific device.
+**Status: Demonstrated.** OneHLS's Fir/Biquad/Pid/ComplexMac components are synthesized and verified under both Vitis HLS and Bambu HLS on real Artix-7 post-route results — see the OneHLS repository.
 
 <details>
-<summary>Zero-Overhead Compile-Time Composition Example — 4-Tap FIR Filter</summary>
-
-This is the real synthesis target from [`examples/hls_fir`](../examples/hls_fir), not a hypothetical. A 4-tap FIR filter is built as `Chain<Tap<1>, Tap<3>, Tap<3>, Tap<1>>`: each `Tap<Coeff>` layer owns its own delay register (`z`) and folds into a single multiply-accumulate call chain, verified end-to-end through Bambu HLS. With coefficients as compile-time NTTPs (as below), Bambu's scheduler strength-reduces every tap's multiply into shift+add — `Estimated number of DSPs: 0`. The identical composition reading coefficients from a runtime table instead synthesizes a real `mult_expr_FU`-backed multiplier (`Estimated number of DSPs: 2`, time-shared across all four taps). Full verified numbers in [`examples/hls_fir/README.md`](../examples/hls_fir/README.md#results-verified-not-estimated).
+<summary>Example: compile-time FIR tap collapsing to register-mapped pipeline</summary>
 
 ```cpp
-#include <hapi/hapi.h>
-#include <cstdint>
-using namespace hapi;
-
-struct Item {
-  static int32_t mac(int16_t /*delayed*/, int32_t acc) { return acc; }
-};
-
-template<int16_t Coeff>
+template<int32_t Coeff>
 struct Tap {
   template<typename I>
   struct Part : I {
     using Base = I;
     using Base::Base;
-    int16_t z{0};
-
     int32_t mac(int16_t x, int32_t acc) {
-      int32_t sum  = acc + static_cast<int32_t>(Coeff) * static_cast<int32_t>(z);
-      int16_t prev = z;
-      z = x;
-      return I::mac(prev, sum);
+      return I::mac(x, acc + Coeff * x);
     }
   };
 };
@@ -202,6 +221,8 @@ int32_t firTop(int16_t x) {
 
 ### DSP & Audio
 
+**Status: Partially demonstrated.** `Fir<>` and `Biquad<>` are real, synthesized, and verified in OneHLS (see `examples/hls_fir`). Audio effect chains, embedded synthesisers, SDR preprocessing, and codec middleware are unbuilt extrapolations from those two primitives, not separately verified.
+
 DSP systems operate under tight latency and jitter constraints. HAPI does not make DSP algorithms faster. It removes itself from the cycle budget.
 
 Available processor time is dedicated entirely to signal-processing work. In resource-constrained designs, eliminating framework overhead can enable lower clock rates, smaller devices, reduced power consumption, or more complex pipelines within the same real-time budget.
@@ -213,6 +234,8 @@ Available processor time is dedicated entirely to signal-processing work. In res
 ---
 
 ### Edge AI & TinyML
+
+**Status: Demonstrated.** A Dense→ReLU→Dense inference pipeline and its surrounding sensor/calibration/feature-extraction stages are verified on real AVR hardware.
 
 Running inference on microcontrollers is a resource-allocation problem. HAPI applies to the deterministic management pipelines surrounding inference:
 
@@ -228,6 +251,8 @@ These stages compose and validate at compile time with no framework-level runtim
 
 ### ATE & Laboratory Instrumentation
 
+**Status: Potential.** Unbuilt — no test-and-measurement pipeline has been composed with HAPI. Included on architectural analogy to the verified pipeline-composition work elsewhere in this document, not on its own evidence.
+
 A misconfigured test pipeline may not fail until a test run is already underway. With HAPI, pipeline topology becomes part of the type system. Different configurations become different types, and the compiler validates each independently.
 
 **Applicable to:** signal generation, acquisition pipelines, oscilloscopes, logic analysers, spectrum analysers, scientific instrumentation firmware.
@@ -235,6 +260,8 @@ A misconfigured test pipeline may not fail until a test run is already underway.
 ---
 
 ### Open Source & Education
+
+**Status: Demonstrated.** This is the project's own lineage — ArduinoMenu's history and OneMenu's real-world use are exactly this domain, not an analogy to it.
 
 The Arduino and maker ecosystems frequently encounter library-composition problems — libraries competing for peripherals, requiring specific initialisation orders, or exposing incompatible interfaces.
 
@@ -245,6 +272,8 @@ HAPI's layer model makes dependencies explicit and ordering constraints compiler
 ---
 
 ### General-Purpose Application Software
+
+**Status: Demonstrated.** OneParse benchmarks its runtime parsing throughput against real desktop libraries, and `examples/config_loader` is a working, non-embedded CLI tool built on HAPI + OneData + OneParse — this section describes something running, not a hypothesis.
 
 The pattern was designed for embedded and industrial firmware, but nothing
 in `Chain`, `Part`, or `APIOf` is hardware-specific — the identical
@@ -265,27 +294,29 @@ loaders.
 
 ## High-Integrity Domain Summary
 
-| Domain | Key Properties Used |
-|---|---|
-| Embedded / IoT | Zero overhead, composability, portability |
-| Industrial / Automotive | Determinism, compile-time validation, no dynamic allocation |
-| Telecommunications | Layered composition, ordering constraints, zero dispatch overhead |
-| Robotics | Deterministic pipelines, explicit topology, stage isolation |
-| Medical Devices | Static composition, predictable execution, structural traceability |
-| Hardware Pipeline Synthesis | Compile-time collapse to hardware-equivalent instruction sequences |
-| FPGA / CPLD | Compile-time address embedding, zero-overhead register abstraction, verified Bambu HLS synthesis |
-| DSP / Audio | No framework overhead in cycle budget |
-| Edge AI / TinyML | Zero-overhead preprocessing pipelines |
-| ATE / Instrumentation | Type-safe pipeline configuration, compile-time topology validation |
-| Education / OSS | Accessible composability, explicit dependencies |
+| Domain | Key Properties Used | Status |
+|---|---|---|
+| Embedded / IoT | Zero overhead, composability, portability | Demonstrated |
+| Industrial / Automotive | Determinism, compile-time validation, no dynamic allocation | Potential (ADAS: certification barrier) |
+| Telecommunications | Layered composition, ordering constraints, zero dispatch overhead | Potential |
+| Robotics | Deterministic pipelines, explicit topology, stage isolation | Partial (motion control/sensor fusion demonstrated; autonomous vehicles: certification barrier) |
+| Medical Devices | Static composition, predictable execution, structural traceability | Potential — certification barrier |
+| Hardware Pipeline Synthesis | Compile-time collapse to hardware-equivalent instruction sequences | Demonstrated |
+| FPGA / CPLD | Compile-time address embedding, zero-overhead register abstraction, verified Bambu HLS synthesis | Demonstrated |
+| DSP / Audio | No framework overhead in cycle budget | Partial (Fir/Biquad demonstrated) |
+| Edge AI / TinyML | Zero-overhead preprocessing pipelines | Demonstrated |
+| ATE / Instrumentation | Type-safe pipeline configuration, compile-time topology validation | Potential |
+| Education / OSS | Accessible composability, explicit dependencies | Demonstrated |
 
 ---
 
 ## Additional Domains
 
-The list above is not exhaustive. HAPI's properties become increasingly valuable as systems become more deterministic, resource-constrained, safety-critical, or operationally expensive to validate.
+The list above is not exhaustive. HAPI's properties become increasingly valuable as systems become more deterministic, resource-constrained, safety-critical, or operationally expensive to validate. All of the following are potential, unbuilt fit — none has a HAPI example today.
 
-Potential application areas include power generation and distribution, railway signalling, mass-transit infrastructure, aerospace and avionics (subject to toolchain qualification), maritime navigation, building automation, environmental monitoring, and satellite infrastructure.
+Power generation and distribution, maritime navigation, building automation, environmental monitoring, and satellite infrastructure fall in the same category as Telecommunications and ATE above: plausible, unverified, no regulatory barrier beyond ordinary engineering practice.
+
+Railway signalling, mass-transit infrastructure, and aerospace/avionics belong instead with Healthcare and Automotive/ADAS above — architecturally plausible, but subject to the same certification barrier (EN 50128 for rail, DO-178C for avionics) described in Structural Verification & Safety-Critical Systems. Toolchain qualification, not composition elegance, is the gating step for any of these three.
 
 ---
 
@@ -295,7 +326,7 @@ Potential application areas include power generation and distribution, railway s
 
 HAPI resolves this by moving composition into the compiler. Developers work with modular, expressive, reusable components. The compiler validates structure, resolves composition, and emits a flat implementation. The hardware receives only the behaviour that remains after optimisation.
 
-The domains described here are examples, not boundaries. Wherever software can be expressed as deterministic processing stages, layered transformations, or validated component compositions, the HAPI pattern can apply.
+The domains described here are examples, not boundaries. Wherever software can be expressed as deterministic processing stages, layered transformations, or validated component compositions, the HAPI pattern can apply — at the status stated for each, above.
 
 ---
 

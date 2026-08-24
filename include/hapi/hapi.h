@@ -35,6 +35,15 @@ namespace hapi {
   /// APIOf hides its contents from the outer chain's rules() fold, letting the
   /// same component type appear twice (once inside the nested APIOf, once in
   /// the outer OO...) without tripping any uniqueness/ordering static_assert.
+  /// Kept as its own specialization here rather than folded into rules.h's
+  /// splice via a generic "anything exposing ::Types" trait: that generic
+  /// form was tried and reverted (see HAPI commit 7c5e779) because ::Types
+  /// is a load-bearing convention on many unrelated types across the repos
+  /// (ItemDef, TypedDef, StaticBody, ...), and auto-splicing all of them
+  /// broke OneMenu partitionBody.h's whole-object Filter<FromTypes<...>>
+  /// matching on StaticBody. Any future consolidation of these two
+  /// specializations must stay keyed on the literal Chain<PP...> /
+  /// APIOf<API2,OO2...> patterns, not on ::Types presence.
   template<typename Before, typename API2, typename... OO2, typename... Rest>
   struct BuildRules<Before, Chain<APIOf<API2,OO2...>, Rest...>>
     : BuildRules<Before, Chain<API2, OO2..., Rest...>> {};

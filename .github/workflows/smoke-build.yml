@@ -1,0 +1,95 @@
+name: Smoke build (reusable)
+
+# Native g++ compile+run of test/tests for one InternetOfPins repo, called
+# by each repo's own .github/workflows/ci.yml. Cross-toolchain (AVR/STM32/
+# Bambu/Vitis) coverage is out of scope for this pass.
+
+on:
+  workflow_call:
+    inputs:
+      repo:
+        description: "Repo name under github.com/InternetOfPins (e.g. OneParse)"
+        required: true
+        type: string
+
+jobs:
+  smoke-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout ${{ inputs.repo }}
+        uses: actions/checkout@v4
+        with:
+          path: ${{ inputs.repo }}
+
+      # Resolves library.json's "dependencies" transitively by cloning each
+      # named sibling repo's default branch — a deliberate simplification,
+      # not a real semver/URL-pin resolver (library.json mixes "*", ">=x",
+      # and bare git URLs across repos).
+      - name: Resolve sibling dependencies
+        run: |
+          python3 - <<'PY'
+          import json, os, subprocess
+
+          org = "https://github.com/InternetOfPins"
+          root = "${{ inputs.repo }}"
+          seen = {root}
+          queue = [root]
+
+          def deps_of(name):
+              path = os.path.join(name, "library.json")
+              if not os.path.isfile(path):
+                  return []
+              with open(path) as f:
+                  data = json.load(f)
+              return list(data.get("dependencies", {}).keys())
+
+          while queue:
+              name = queue.pop(0)
+              for dep in deps_of(name):
+                  if dep in seen:
+                      continue
+                  seen.add(dep)
+                  subprocess.run(
+                      ["git", "clone", "--depth", "1", f"{org}/{dep}.git", dep],
+                      check=True,
+                  )
+                  queue.append(dep)
+
+          with open("include_dirs.txt", "w") as f:
+              for name in sorted(seen):
+                  inc = os.path.join(name, "include")
+                  if os.path.isdir(inc):
+                      f.write(inc + "\n")
+          PY
+
+      # OneHLS needs the real Siemens/Mentor ac_types and Xilinx ap_types
+      # vendor headers, which aren't InternetOfPins repos.
+      - name: Fetch ac_types/ap_types
+        if: inputs.repo == 'OneHLS'
+        run: |
+          git clone --depth 1 https://github.com/hlslibs/ac_types.git ac_types
+          git clone --depth 1 https://github.com/Xilinx/HLS_arbitrary_Precision_Types.git ap_types
+          echo "ac_types/include" >> include_dirs.txt
+          echo "ap_types/include" >> include_dirs.txt
+
+      - name: Compile and run tests
+        run: |
+          shopt -s nullglob
+          INC=$(sed 's/^/-I /' include_dirs.txt | tr '\n' ' ')
+          repo="${{ inputs.repo }}"
+          files=("$repo"/test/*.cpp "$repo"/tests/*.cpp)
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "no test files found under $repo/test or $repo/tests"
+            exit 0
+          fi
+          status=0
+          for f in "${files[@]}"; do
+            echo "=== $f ==="
+            bin="/tmp/$(basename "$f" .cpp)"
+            if g++ -std=c++17 -Wall -Wextra -Wpedantic $INC "$f" -o "$bin"; then
+              "$bin" || { echo "FAILED (runtime): $f"; status=1; }
+            else
+              echo "FAILED (compile): $f"; status=1
+            fi
+          done
+          exit $status
