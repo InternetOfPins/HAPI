@@ -55,7 +55,7 @@ Before examining specific domains, these are the properties HAPI contributes —
 |---|---|
 | Runtime composition overhead | Zero — all folding happens at compile time |
 | Dynamic allocation | None introduced by the framework |
-| Virtual dispatch | None introduced by the framework |
+| Virtual dispatch | None introduced by the framework — HAPI's own core (`Chain<>`/`Part<>`) has no vtables. Consumer libraries (e.g. OneMenu's `IItem`/`INav`, OneOutput's `IOut`) may deliberately introduce their own, opt-in, for genuine runtime-polymorphic use cases (e.g. an output device chosen at runtime) — always explicitly commented where it happens. |
 | Composition validity | Declared constraints verified at compile time |
 | Component data isolation | Guaranteed by standard C++ access control, scoped to the specific `Chain<>` instantiation — `private` members are reachable only within their own layer; `protected`/`public` members are reachable by layers above, by declared choice. |
 | Algorithm correctness | Not guaranteed — depends on implementation |
