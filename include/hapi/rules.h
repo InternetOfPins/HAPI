@@ -47,7 +47,7 @@ namespace hapi {
   struct RuleLayer<Current, Before, After, true> {
     template<typename O>
     struct Part : O {
-      static constexpr bool rules() {
+      [[nodiscard]] static constexpr bool rules() {
         return Current::template rules<Before,After>() && O::rules();
       }
     };
@@ -65,7 +65,7 @@ namespace hapi {
   //rules fold termination
   template<typename Before>
   struct BuildRules<Before,Chain<>> {
-    static constexpr bool rules() {return true;}
+    [[nodiscard]] static constexpr bool rules() {return true;}
   };
 
   /// @brief a nested Chain used as one component (mono_block) is spliced

@@ -193,7 +193,7 @@ void run() {
   // find(): runtime, takes C& (non-const) -- ok/ok2/ok3 above are constexpr
   // (implicitly const), so this needs its own mutable instance.
   ItemDef<A,B> okMutable{};
-  find<SameAs<A>>(okMutable); // compiles only if A is reachable via ::Types; nothing to print, presence is the test
+  (void)find<SameAs<A>>(okMutable); // compiles only if A is reachable via ::Types; nothing to print, presence is the test
 
   // at<idx>(obj): confirm all three overloads actually alias the same object
   // at runtime, not just at the type level. The && case binds to a named

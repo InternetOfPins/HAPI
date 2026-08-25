@@ -238,23 +238,23 @@ namespace hapi {
   // such restriction and additionally work on locals/temporaries, which a
   // linkage-requiring NTTP never could either way.
   template<std::size_t idx,typename O>
-  constexpr auto& at(O& obj) {return static_cast<typename At<idx,O>::Type&>(obj);}
+  [[nodiscard]] constexpr auto& at(O& obj) {return static_cast<typename At<idx,O>::Type&>(obj);}
 
   template<std::size_t idx,typename O>
-  constexpr auto& at(O* obj) {return at<idx>(*obj);}
+  [[nodiscard]] constexpr auto& at(O* obj) {return at<idx>(*obj);}
 
   /// @brief for a temporary: bind the result to a named reference first
   /// (e.g. `auto&& tmp=T{}; at<idx>(tmp);`) -- otherwise the returned
   /// reference dangles past the end of the full expression, same as any
   /// function returning a reference into an rvalue argument.
   template<std::size_t idx,typename O>
-  constexpr auto&& at(O&& obj) {return static_cast<typename At<idx,O>::Type&&>(obj);}
+  [[nodiscard]] constexpr auto&& at(O&& obj) {return static_cast<typename At<idx,O>::Type&&>(obj);}
 
   // ── Runtime query functions ────────────────────────────────────────────────────--
 
   /// @brief find first match of Q in C's ::Types: verify Q matches, return full object ref.
   template<typename Q, typename C>
-  decltype(auto) find(C& c) {
+  [[nodiscard]] decltype(auto) find(C& c) {
     using Types = typename C::Types;
     static_assert(HasResult<FindFirst_<Q, Types>>::value, "find: predicate Q not found in C::Types");
     return c;

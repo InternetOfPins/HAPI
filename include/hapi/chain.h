@@ -56,10 +56,10 @@ namespace hapi {
   template<typename O>
   struct CRTP {
     using Obj=O;
-    O& obj() {return static_cast<O&>(*this);}
-    const O& obj() const {return static_cast<const O&>(*this);}
-    O* operator->() {return static_cast<O*>(this);}
-    const O* operator->() const {return static_cast<const O*>(this);}
+    [[nodiscard]] O& obj() {return static_cast<O&>(*this);}
+    [[nodiscard]] const O& obj() const {return static_cast<const O&>(*this);}
+    [[nodiscard]] O* operator->() {return static_cast<O*>(this);}
+    [[nodiscard]] const O* operator->() const {return static_cast<const O*>(this);}
   };
 
 }; // namespace hapi

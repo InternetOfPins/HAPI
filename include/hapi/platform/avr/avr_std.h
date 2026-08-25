@@ -79,12 +79,12 @@ namespace std {
   template< class T > using remove_reference_t = typename remove_reference<T>::type;
 
   template<typename _Tp>
-  constexpr _Tp&& forward(typename remove_reference<_Tp>::type& __t) noexcept { 
-    return static_cast<_Tp&&>(__t); 
+  [[nodiscard]] constexpr _Tp&& forward(typename remove_reference<_Tp>::type& __t) noexcept {
+    return static_cast<_Tp&&>(__t);
   }
 
   template<typename _Tp>
-  constexpr _Tp&& forward(typename remove_reference<_Tp>::type&& __t) noexcept {
+  [[nodiscard]] constexpr _Tp&& forward(typename remove_reference<_Tp>::type&& __t) noexcept {
     static_assert(!is_lvalue_reference<_Tp>::value, "forward must not convert rvalue to lvalue");
     return static_cast<_Tp&&>(__t);
   }
@@ -178,7 +178,7 @@ namespace std {
   template <class T, class... Args> using is_constructible = is_constructible_<void_t<>, T, Args...>;
 
   template<int n, typename T>
-  const char* bitset(const T val) {
+  [[nodiscard]] const char* bitset(const T val) {
     static char o[n + 1]{0};
     for(int i = 0; i < n; i++) o[n - i - 1] = (val & (1 << i)) ? '1' : '0';
     return o;

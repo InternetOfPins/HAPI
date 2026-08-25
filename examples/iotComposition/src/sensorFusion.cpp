@@ -85,8 +85,8 @@ int main() {
   // Native-typed accessors, called directly, outside visit() -- proves
   // Branch B's "zero uniformity imposed" claim actually holds end to end,
   // not just at the visit() call site.
-  AhtDevice::measure();
-  int16_t   tC10 = AhtDevice::tempC10();     // native: int16_t, degC x10
+  bool measured = AhtDevice::measure();
+  int16_t   tC10 = measured ? AhtDevice::tempC10() : int16_t(0); // native: int16_t, degC x10; 0 if measurement failed
   uint16_t  lux  = LightDevice::read();      // native: uint16_t, raw ADC
   bool      pir  = MotionDevice::read();     // native: bool
 

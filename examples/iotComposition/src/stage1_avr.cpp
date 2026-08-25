@@ -37,19 +37,19 @@ static oneHLS::Pid<int16_t, int32_t, 256, 32, 16> heaterPid;
 
 int main() {
   IotDevice::begin();
-  IotDevice::measure();                 // AHT: trigger + block + read
+  if (IotDevice::measure()) {           // AHT: trigger + block + read
+    int16_t setpointX10 = 235;            // 23.5C -- would be restored from Store
+    int16_t errorX10     = int16_t(setpointX10 - IotDevice::tempC10());
+    int32_t u            = heaterPid.step(errorX10);
+    uint16_t duty         = uint16_t(u < 0 ? 0 : (u > 4095 ? 4095 : u));
 
-  int16_t setpointX10 = 235;            // 23.5C -- would be restored from Store
-  int16_t errorX10     = int16_t(setpointX10 - IotDevice::tempC10());
-  int32_t u            = heaterPid.step(errorX10);
-  uint16_t duty         = uint16_t(u < 0 ? 0 : (u > 4095 ? 4095 : u));
+    IotDevice::set(0, duty);              // drive heater PWM channel 0
 
-  IotDevice::set(0, duty);              // drive heater PWM channel 0
+    uint8_t buf[2] = { uint8_t(setpointX10 >> 8), uint8_t(setpointX10) };
+    Store::write(0, buf, 2);              // persist setpoint
 
-  uint8_t buf[2] = { uint8_t(setpointX10 >> 8), uint8_t(setpointX10) };
-  Store::write(0, buf, 2);              // persist setpoint
-
-  IotDevice::println("report");         // Network leg placeholder
+    IotDevice::println("report");         // Network leg placeholder
+  }
 
   return 0;
 }
