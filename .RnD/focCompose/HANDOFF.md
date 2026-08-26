@@ -552,6 +552,15 @@ from `focCompose`'s own `.RnD/` work — see its own commit for push status.
 - `stub_foc.h` — Step 2's `Encoder`/`MagneticSensorSPI`/`BLDCDriver3PWM` stubs.
 - `focCompose.cpp` — Step 3's composition, the two real findings' pinning
   `static_assert`s, and the `main()` exercised for disassembly.
+- `nocollision_check.cpp` — negative test: the `init()` name-hiding finding
+  above is no longer just documented, it's now an enforced compile error.
+  HAPI core gained a general diagnostic for this hazard (`rules.h`'s
+  `NoCollision`, opt-in, usable at any `Chain<>` composition site, bare or
+  via `APIOf`) — this file wires it against this round's exact real
+  `Encoder`/`BLDCDriver3PWM`/`MotorTerminal` collision and confirms it
+  fails to compile, on both native g++ and real avr-g++ 7.3.0, naming the
+  two colliding types directly in the diagnostic. Kept separate from
+  `focCompose.cpp` since that file's `run_tests.sh` asserts a clean build.
 
 ## TODO for local agent (Steps 4-5, cannot be done in this sandbox)
 

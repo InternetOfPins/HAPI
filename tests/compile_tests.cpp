@@ -145,6 +145,40 @@ static_assert(!Requires<SameAs<C>,Chain<A,B>>, "Requires: C is absent");
 static_assert( Excludes<SameAs<C>,Chain<A,B>>, "Excludes: C is absent");
 static_assert(!Excludes<SameAs<A>,Chain<A,B>>, "Excludes: A is present");
 
+// -- NoCollision (rules.h): member name-hiding diagnostic --
+// Mirrors the real .RnD/focCompose finding: two Chain<> siblings declaring
+// the same member name with different signatures silently hide one behind
+// the other via ordinary C++ name lookup (Sensor's void init() vs.
+// Driver's int init() -- only the driver's stayed reachable, no error, no
+// warning). Detector/A/B below match that shape one-for-one: component-
+// position (nested Part<T>, probed via Part<Nil>) vs. terminal-position
+// (no nested Part<T>, probed directly).
+HAPI_DETECT_MEMBER(init);
+HAPI_DETECT_MEMBER(begin);
+
+struct WithInitVoid {   // component-position, mirrors BLDCDriver3PWM's shape
+  template<typename O>
+  struct Part : O {
+    using Base=O;
+    using Base::Base;
+    static void init() {}
+  };
+};
+struct TerminalInitInt { static int init() { return 1; } }; // terminal-position, mirrors SensorAPI's shape
+
+struct WithBeginA    { template<typename O> struct Part : O { using Base=O; using Base::Base; static void begin() {} }; };
+struct TerminalBeginB{ static void begin() {} };
+
+static_assert(NoCollision<HapiMember_begin, Chain<WithBeginA,TerminalBeginB>>,
+  "NoCollision: identical signatures on both sides must not be flagged");
+static_assert(NoCollision<HapiMember_init, Chain<WithBeginA,TerminalBeginB>>,
+  "NoCollision: neither side provides init() -- nothing to compare");
+// constexpr bool fail_collision = NoCollision<HapiMember_init, Chain<WithInitVoid,TerminalInitInt>>;
+// will fail with compile error "static assertion failed: HAPI: member
+// collision -- two composed types provide the same member with different
+// signatures..." -- the instantiation backtrace names
+// MemberCollision<HapiMember_init, WithInitVoid, TerminalInitInt, true> directly
+
 // -- At<idx,O> / at<idx>(obj) --
 // Real inheritance (not just a ::Base alias) so at<>()'s static_cast upcast
 // is well-formed -- mirrors how a real Chain::Part<T> composition looks.
