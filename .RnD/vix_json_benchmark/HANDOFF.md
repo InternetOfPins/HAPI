@@ -52,7 +52,8 @@ readability matters more than throughput.
 
 Chart: `OneParse/benchmark/bench_comparison.png` (regenerated, includes
 the new teal-hatched nlohmann bar, labeled "vix.cpp's backend" directly
-in the legend).
+in the legend). **Read the "Honest scope" section below before quoting
+these numbers anywhere** — the comparison isn't fully apples-to-apples.
 
 ## Honest scope
 
@@ -67,6 +68,28 @@ faster opt-in path for the hot parse/serialize case specifically,
 matching vix's own README's already-stated guidance. Not attempted this
 round — flagging as the natural next step if this opportunity moves
 toward a real PR.
+
+**A second, more important scope caveat, found on review and confirmed
+by reading the actual benchmarked code path**: the `"oneParse"` row above
+is `PARSER_ONEPARSE_INDEX` (`bench_runtime.cpp`), which emits
+`Arr<Pair<std::string_view,std::string_view>,8>` — key **and value** are
+raw spans into the original buffer, confirmed by the extractor's own
+comment ("emits a std::string_view span for every key and every value").
+No numeric conversion happens anywhere in that path (no `strtod`/
+`from_chars`/`atof` anywhere in OneParse's `include/`, confirmed by grep)
+— a JSON number stays exactly as its source text. `nlohmann::json::parse`
+does materially more work per field: it converts numbers to typed
+`double`/`int64_t`, unescapes and owns strings, and builds a real DOM
+tree. So this table is **not** an apples-to-apples "who parses JSON
+faster" result — it's closer to "OneParse's structural span-extraction"
+vs. "nlohmann's structural extraction *plus* full value materialization."
+The numbers themselves are real and correctly measured; the claim they
+support is narrower than the table's framing implies. Don't quote this
+as "OneParse is 10-21x faster than vix's JSON backend" without this
+caveat attached — that overstates it. The honest fix is either scoping
+the write-up to the narrower claim explicitly (done here, now) or adding
+real numeric conversion to OneParse's benchmarked path before re-running
+— deliberately deferred as a separate piece of work, not done this round.
 
 ## Next
 
