@@ -54,7 +54,7 @@ Before examining specific domains, these are the properties HAPI contributes —
 | Property | HAPI Guarantee |
 |---|---|
 | Runtime composition overhead | Zero — all folding happens at compile time |
-| Dynamic allocation | None introduced by the framework |
+| Dynamic allocation | None introduced by the framework — HAPI's own core (`Chain<>`/`Part<>`) allocates nothing. Consumer libraries (e.g. OneChip's ESP32/nRF52 BLE support) may deliberately allocate once, at startup, where the vendor SDK's own object model expects it (BLE descriptors/callbacks/characteristics with process-lifetime, not stack, duration) — always explicitly commented where it happens. |
 | Virtual dispatch | None introduced by the framework — HAPI's own core (`Chain<>`/`Part<>`) has no vtables. Consumer libraries (e.g. OneMenu's `IItem`/`INav`, OneOutput's `IOut`) may deliberately introduce their own, opt-in, for genuine runtime-polymorphic use cases (e.g. an output device chosen at runtime) — always explicitly commented where it happens. |
 | Composition validity | Declared constraints verified at compile time |
 | Component data isolation | Guaranteed by standard C++ access control, scoped to the specific `Chain<>` instantiation — `private` members are reachable only within their own layer; `protected`/`public` members are reachable by layers above, by declared choice. |
