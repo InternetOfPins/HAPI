@@ -223,9 +223,9 @@ Presence can also be checked directly:
 ```cpp
 using Input = Chain<A,B>;
 
-static_assert(Exists<SameAs<A>,Input>);
-static_assert(Exists<SameAs<B>,Input>);
-static_assert(!Exists<SameAs<int>,Input>);
+static_assert(Exists<SameAs<A>,Input>::value);
+static_assert(Exists<SameAs<B>,Input>::value);
+static_assert(!Exists<SameAs<int>,Input>::value);
 ```
 
 `Exists` is the non-failing presence query: it produces a boolean result rather than requiring a successful match.
