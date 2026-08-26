@@ -94,10 +94,15 @@ confirmed here as literal `new`/`delete` calls, not just an abstract cost.
 only shows wins isn't credible to a team this careful about tradeoffs;
 their own JSON benchmark README already models exactly this kind of
 both-sides accounting): N=1 averages ~0.628s, N=8 averages ~0.647s (3
-runs each) — a real but small (~3%) increase across an 8x depth increase,
-dominated by fixed per-translation-unit overhead (HAPI header parsing,
-g++ startup), not per-layer template-instantiation cost. Not a real
-concern at the depths a middleware chain would realistically use.
+runs each). **Caveat on review**: 3 runs is too small a sample to state
+as a precise "~3%" figure — OneParse's own benchmark notes already flag
+run-to-run variance in this range for measurements this short. The
+honest claim is "no meaningful compile-time cost detected at this depth,"
+not a specific percentage — read it that way, not as a precise number.
+Either way, nothing here suggests compile time is a real concern at the
+depths a middleware chain would realistically use; a more rigorous
+figure (more runs, wider N range) would be needed before quoting an
+exact number anywhere.
 
 ## Honest scope
 
