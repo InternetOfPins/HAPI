@@ -48,4 +48,12 @@ namespace hapi {
   struct BuildRules<Before, Chain<APIOf<API2,OO2...>, Rest...>>
     : BuildRules<Before, Chain<API2, OO2..., Rest...>> {};
 
+  /// @brief same nested-APIOf splice as BuildRules's own above, mirrored
+  /// for NoCollision (rules.h) for the same reason: a closed APIOf placed
+  /// as one component must stay visible to collision checks on the outer
+  /// chain, not hidden behind its own closed boundary.
+  template<typename Detector, typename API2, typename... OO2, typename... Rest>
+  struct NoCollision_<Detector, Chain<APIOf<API2,OO2...>, Rest...>>
+    : NoCollision_<Detector, Chain<API2, OO2..., Rest...>> {};
+
 }; // namespace hapi

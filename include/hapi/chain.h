@@ -44,6 +44,11 @@ namespace hapi {
     template<typename... XX> using Ins = Chain<O, OO..., XX...>;
     template<template<typename> class M> using Map = Chain<M<O>, M<OO>...>;
 
+    // A bare Chain<> used directly (no APIOf) has no validation hook of its
+    // own -- name collisions between siblings (same method, different
+    // signature -- one silently hides the other) go unchecked unless you
+    // opt in yourself: see rules.h's NoCollision, usable standalone in a
+    // static_assert at your own composition site.
     template<typename T>
     struct Part : O::template Part<typename Chain<OO...>::template Part<T>> {
       using Base = typename O::template Part<typename Chain<OO...>::template Part<T>>;
