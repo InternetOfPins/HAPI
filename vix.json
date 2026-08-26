@@ -1,0 +1,25 @@
+{
+  "name": "hapi",
+  "namespace": "internetofpins",
+  "version": "0.6.0",
+  "type": "header-only",
+  "include": "include",
+  "license": "MIT",
+  "description": "Zero-overhead compile-time composition for C++17/20: Chain<>/Part<T> compose components into one flat inheritance stack via alias templates only, provably zero-cost for the core composition mechanism.",
+  "keywords": [
+    "cpp",
+    "template-metaprogramming",
+    "zero-overhead",
+    "compile-time",
+    "composition",
+    "embedded",
+    "header-only"
+  ],
+  "repository": "https://github.com/InternetOfPins/HAPI",
+  "authors": [
+    {
+      "name": "Rui Azevedo",
+      "github": "neu-rah"
+    }
+  ]
+}
