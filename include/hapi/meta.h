@@ -119,7 +119,7 @@ namespace hapi {
   struct Any {
     template<typename O> using Check = typename Traverse<Any<Q>, O>::Beta;
     template<typename O> using Apply = typename Q::template Apply<O>;
-    template<typename... OO> using ApplyPack = std::bool_constant<(OO::value || ...)>;
+    template<typename... OO> using ApplyPack = std::bool_constant<(bool(OO::value) || ...)>;
   };
 
   // ── Filter ─────────────────────────────────────────────────────────────────────--
