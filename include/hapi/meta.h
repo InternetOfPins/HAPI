@@ -114,12 +114,20 @@ namespace hapi {
   using Transform = Eval<Map<F>, Input>;
 
   // ── Fold: Any ──────────────────────────────────────────────────────────────────--
+  // Recursive, not a fold expression: MSVC rejects a unary fold over a
+  // dependent pack member (e.g. (OO::value || ...)). Not std::disjunction --
+  // AVR's <type_traits> shim (avr_std.h) only provides bool_constant.
+
+  template<typename... OO> struct OrPack;
+  template<> struct OrPack<> : std::false_type {};
+  template<typename O, typename... OO>
+  struct OrPack<O, OO...> : std::bool_constant<O::value || OrPack<OO...>::value> {};
 
   template<typename Q>
   struct Any {
     template<typename O> using Check = typename Traverse<Any<Q>, O>::Beta;
     template<typename O> using Apply = typename Q::template Apply<O>;
-    template<typename... OO> using ApplyPack = std::bool_constant<(bool(OO::value) || ...)>;
+    template<typename... OO> using ApplyPack = OrPack<OO...>;
   };
 
   // ── Filter ─────────────────────────────────────────────────────────────────────--
