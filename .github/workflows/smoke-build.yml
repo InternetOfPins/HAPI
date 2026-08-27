@@ -93,3 +93,94 @@ jobs:
             fi
           done
           exit $status
+
+  # MSVC (cl.exe) coverage, trialed on HAPI alone first (zero-dependency
+  # case) before promotion here. Dependency resolution and test discovery
+  # are reimplemented natively in PowerShell rather than reusing the
+  # bash/python3 steps above -- windows-latest's default per-step shell is
+  # pwsh, and python3 (vs. plain python) isn't guaranteed reachable there.
+  msvc-smoke-build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout ${{ inputs.repo }}
+        uses: actions/checkout@v4
+        with:
+          path: ${{ inputs.repo }}
+
+      - name: Set up MSVC dev environment
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Resolve sibling dependencies
+        run: |
+          $org = "https://github.com/InternetOfPins"
+          $root = "${{ inputs.repo }}"
+          $seen = [System.Collections.Generic.HashSet[string]]::new()
+          [void]$seen.Add($root)
+          $queue = [System.Collections.Generic.Queue[string]]::new()
+          $queue.Enqueue($root)
+
+          function Get-Deps($name) {
+            $path = Join-Path $name "library.json"
+            if (-not (Test-Path $path)) { return @() }
+            $data = Get-Content $path -Raw | ConvertFrom-Json
+            if ($data.dependencies) { return @($data.dependencies.PSObject.Properties.Name) }
+            return @()
+          }
+
+          while ($queue.Count -gt 0) {
+            $name = $queue.Dequeue()
+            foreach ($dep in (Get-Deps $name)) {
+              if ($seen.Contains($dep)) { continue }
+              [void]$seen.Add($dep)
+              git clone --depth 1 "$org/$dep.git" $dep
+              if ($LASTEXITCODE -ne 0) { exit 1 }
+              $queue.Enqueue($dep)
+            }
+          }
+
+          $incDirs = @()
+          foreach ($name in ($seen | Sort-Object)) {
+            $inc = Join-Path $name "include"
+            if (Test-Path $inc) { $incDirs += $inc }
+          }
+          $incDirs | Set-Content include_dirs.txt
+
+      # Mirrors the Linux job's OneHLS special-case above: real Siemens/
+      # Xilinx vendor headers, not InternetOfPins repos.
+      - name: Fetch ac_types/ap_types
+        if: inputs.repo == 'OneHLS'
+        run: |
+          git clone --depth 1 https://github.com/hlslibs/ac_types.git ac_types
+          git clone --depth 1 https://github.com/Xilinx/HLS_arbitrary_Precision_Types.git ap_types
+          Add-Content include_dirs.txt "ac_types/include"
+          Add-Content include_dirs.txt "ap_types/include"
+
+      - name: Compile and run tests (cl.exe)
+        run: |
+          $status = 0
+          $incArgs = @()
+          if (Test-Path include_dirs.txt) {
+            $incArgs = Get-Content include_dirs.txt | Where-Object { $_.Trim() -ne "" } | ForEach-Object { "/I$_" }
+          }
+
+          $repo = "${{ inputs.repo }}"
+          $files = @(Get-ChildItem -Path "$repo/test","$repo/tests" -Filter *.cpp -File -ErrorAction SilentlyContinue)
+          if ($files.Count -eq 0) {
+            Write-Host "no test files found under $repo/test or $repo/tests"
+            exit 0
+          }
+          foreach ($f in $files) {
+            Write-Host "=== $($f.FullName) ==="
+            cl /std:c++17 /W4 /EHsc /nologo @incArgs $f.FullName /Fe:smoke.exe
+            if ($LASTEXITCODE -ne 0) {
+              Write-Host "FAILED (compile): $($f.Name)"
+              $status = 1
+              continue
+            }
+            .\smoke.exe
+            if ($LASTEXITCODE -ne 0) {
+              Write-Host "FAILED (runtime): $($f.Name)"
+              $status = 1
+            }
+          }
+          exit $status

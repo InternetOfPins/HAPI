@@ -9,35 +9,3 @@ jobs:
     uses: InternetOfPins/HAPI/.github/workflows/smoke-build.yml@main
     with:
       repo: HAPI
-
-  # HAPI-only MSVC trial run — not yet promoted into the shared
-  # smoke-build.yml (which every InternetOfPins repo's CI calls into),
-  # so this stays scoped to this repo until proven out.
-  msvc-smoke-build:
-    runs-on: windows-latest
-    steps:
-      - name: Checkout HAPI
-        uses: actions/checkout@v4
-
-      - name: Set up MSVC dev environment
-        uses: ilammy/msvc-dev-cmd@v1
-
-      - name: Compile and run tests (cl.exe)
-        shell: pwsh
-        run: |
-          $status = 0
-          Get-ChildItem tests/*.cpp | ForEach-Object {
-            Write-Host "=== $($_.Name) ==="
-            cl /std:c++17 /W4 /EHsc /nologo /Iinclude $_.FullName /Fe:smoke.exe
-            if ($LASTEXITCODE -ne 0) {
-              Write-Host "FAILED (compile): $($_.Name)"
-              $status = 1
-              return
-            }
-            .\smoke.exe
-            if ($LASTEXITCODE -ne 0) {
-              Write-Host "FAILED (runtime): $($_.Name)"
-              $status = 1
-            }
-          }
-          exit $status
