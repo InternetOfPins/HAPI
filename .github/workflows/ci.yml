@@ -23,15 +23,21 @@ jobs:
         uses: ilammy/msvc-dev-cmd@v1
 
       - name: Compile and run tests (cl.exe)
-        shell: bash
+        shell: pwsh
         run: |
-          status=0
-          for f in tests/*.cpp; do
-            echo "=== $f ==="
-            if cl /std:c++17 /W4 /EHsc /nologo /I include "$f" /Fe:smoke.exe; then
-              ./smoke.exe || { echo "FAILED (runtime): $f"; status=1; }
-            else
-              echo "FAILED (compile): $f"; status=1
-            fi
-          done
+          $status = 0
+          Get-ChildItem tests/*.cpp | ForEach-Object {
+            Write-Host "=== $($_.Name) ==="
+            cl /std:c++17 /W4 /EHsc /nologo /Iinclude $_.FullName /Fe:smoke.exe
+            if ($LASTEXITCODE -ne 0) {
+              Write-Host "FAILED (compile): $($_.Name)"
+              $status = 1
+              return
+            }
+            .\smoke.exe
+            if ($LASTEXITCODE -ne 0) {
+              Write-Host "FAILED (runtime): $($_.Name)"
+              $status = 1
+            }
+          }
           exit $status
