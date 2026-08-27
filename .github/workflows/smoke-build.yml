@@ -160,7 +160,11 @@ jobs:
           $status = 0
           $incArgs = @()
           if (Test-Path include_dirs.txt) {
-            $incArgs = Get-Content include_dirs.txt | Where-Object { $_.Trim() -ne "" } | ForEach-Object { "/I$_" }
+            # @(...) wrap is load-bearing: a single-match pipeline result
+            # collapses to a scalar on assignment, which then splats onto
+            # cl.exe as nothing -- only visible when there's exactly one
+            # include dir (e.g. a repo with zero sibling dependencies).
+            $incArgs = @(Get-Content include_dirs.txt | Where-Object { $_.Trim() -ne "" } | ForEach-Object { "/I$_" })
           }
 
           $repo = "${{ inputs.repo }}"
