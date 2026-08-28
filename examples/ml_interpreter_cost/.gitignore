@@ -1,0 +1,5 @@
+.pio
+.venv
+lib/
+check/obj
+check/correctness

@@ -235,7 +235,7 @@ Available processor time is dedicated entirely to signal-processing work. In res
 
 ### Edge AI & TinyML
 
-**Status: Demonstrated.** A Dense→ReLU→Dense inference pipeline and its surrounding sensor/calibration/feature-extraction stages are verified on real AVR hardware.
+**Status: Demonstrated.** A Dense→ReLU→Dense inference pipeline and its surrounding sensor/calibration/feature-extraction stages are verified on real AVR hardware; a small fully-connected network composed as a `Chain<>` is measured against TFLite-Micro on real STM32 and ESP32 hardware in [`examples/ml_interpreter_cost`](../examples/ml_interpreter_cost).
 
 Running inference on microcontrollers is a resource-allocation problem. HAPI applies to the deterministic management pipelines surrounding inference:
 
@@ -243,9 +243,9 @@ Running inference on microcontrollers is a resource-allocation problem. HAPI app
 Sensor → Calibration → Filtering → Feature Extraction → Quantisation → Inference Input
 ```
 
-These stages compose and validate at compile time with no framework-level runtime overhead. HAPI does not accelerate neural-network kernels or execution engines. Its contribution is structural — organising the pipelines feeding into and processing data from inference models.
+These stages compose and validate at compile time with no framework-level runtime overhead. HAPI does not accelerate neural-network kernels or execution engines — the arithmetic is unchanged. What its `Chain<>` composition removes is the interpreter: `examples/ml_interpreter_cost` runs one trained fully-connected network both as a `Chain<>` and through TFLite-Micro's `MicroInterpreter`, computing the identical function. On an STM32F103 the `Chain<>` build is 2.9 KB flash / 40 B RAM with zero indirect calls; TFLite-Micro runs the same network for 38.8 KB flash / 5.3 KB RAM — a fixed tensor arena plus ~35 KB of interpreter, allocator and op-resolver code that reads a serialized graph at runtime and dispatches every operator through a function pointer. HAPI's contribution here is structural: the network's topology is the type, resolved at compile time, so there is no graph to interpret.
 
-**Applicable to:** sensor fusion for edge devices, smart sensor data chains, on-device preprocessing.
+**Applicable to:** sensor fusion for edge devices, smart sensor data chains, on-device preprocessing, replacing a runtime inference interpreter with a compiled network where the model is fixed at build time.
 
 ---
 
@@ -304,7 +304,7 @@ loaders.
 | Hardware Pipeline Synthesis | Compile-time collapse to hardware-equivalent instruction sequences | Demonstrated |
 | FPGA / CPLD | Compile-time address embedding, zero-overhead register abstraction, verified Bambu HLS synthesis | Demonstrated |
 | DSP / Audio | No framework overhead in cycle budget | Partial (Fir/Biquad demonstrated) |
-| Edge AI / TinyML | Zero-overhead preprocessing pipelines | Demonstrated |
+| Edge AI / TinyML | Zero-overhead preprocessing pipelines; compiled network replaces a runtime interpreter (13× smaller flash, no arena, no per-op dispatch vs TFLite-Micro on STM32F103) | Demonstrated |
 | ATE / Instrumentation | Type-safe pipeline configuration, compile-time topology validation | Potential |
 | Education / OSS | Accessible composability, explicit dependencies | Demonstrated |
 
