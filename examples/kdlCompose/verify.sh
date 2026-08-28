@@ -35,17 +35,17 @@ for v in "pinv:" "wdls:-DWDLS"; do
 done
 
 echo "### objdump -- CartToJnt loop body, call instructions + relocations only"
-echo "###   Ref  = KDL's loop, ChainFkSolverPos& / ChainIkSolverVel&  (== shipped shape)"
-echo "###   Hapi = same loop, sub-solvers are compile-time hapi::Chain<> stages"
+echo "###   _Ref = KDL's loop, sub-solvers held as ChainFkSolverPos& / ChainIkSolverVel&"
+echo "###   _T   = same loop, sub-solvers are concrete template parameters"
 slice() {
   objdump -dCr "$O/$1" | \
     awk -v s="$2" 'index($0,s"(")&&/>:$/{f=1} f&&/^$/{exit} f' | \
     grep -E 'call[[:space:]]|R_X86_64_(PLT32|PC32)' || true
 }
-for sym in "kdlCompose::IkSolverPos_NR_Ref::CartToJnt" \
-           "kdlCompose::IkSolverPos_NR_Hapi<(kdlCompose::VelMethod)0>::CartToJnt" \
-           "kdlCompose::IkSolverPos_NR_JL_Ref::CartToJnt" \
-           "kdlCompose::IkSolverPos_NR_JL_Hapi<(kdlCompose::VelMethod)0>::CartToJnt"; do
+for sym in "kdlCompose::ChainIkSolverPos_NR_Ref::CartToJnt" \
+           "kdlCompose::ChainIkSolverPos_NR_T<KDL::ChainFkSolverPos_recursive, KDL::ChainIkSolverVel_pinv>::CartToJnt" \
+           "kdlCompose::ChainIkSolverPos_NR_JL_Ref::CartToJnt" \
+           "kdlCompose::ChainIkSolverPos_NR_JL_T<KDL::ChainFkSolverPos_recursive, KDL::ChainIkSolverVel_pinv>::CartToJnt"; do
   echo "--- ${sym#kdlCompose::} ---"
   body=$(slice kc_pinv.o "$sym")
   printf '%s\n' "$body"
@@ -53,5 +53,8 @@ for sym in "kdlCompose::IkSolverPos_NR_Ref::CartToJnt" \
   echo "    indirect (vtable) calls in loop body: $n"
 done
 echo
-echo "expected: each Ref has 2 indirect  'call   *0xNN(%rax)'  (fk / ik vtable);"
-echo "          each Hapi has 0 -- both became direct 'call <KDL::...JntToCart / ...CartToJnt>'."
+echo "expected: each _Ref has 2 indirect  'call   *0xNN(%rax)'  (fk / vel vtable);"
+echo "          each _T   has 0 -- both became direct 'call <KDL::...JntToCart / ...CartToJnt>'."
+echo "          Fixing the sub-solver types at compile time removes the dispatch;"
+echo "          this is what any C++ template does. hapi::Chain<>/FindFirst<> would"
+echo "          give byte-identical code for this closed 2-solver seam."
