@@ -16,10 +16,14 @@
 //               hapi::Chain<DiffLayer, AdvLayer>::Part<LinOpTerminal> --
 //               each layer contributes its own gko::array as a real
 //               Chain<>::Part subobject. One fused single-pass apply_impl,
-//               no per-operator virtual, no cache vectors. Still drop-in:
-//               same gko::LinOp, same create()/apply().
+//               no per-operator virtual, no cache vectors. Still drop-in.
+//               For two terms, two plain data members do the same thing
+//               with the same codegen; the Chain form is shown because it
+//               takes N independently-defined terms without editing any
+//               of them. Same trade-off as -DPREFOLD vs Combination:
+//               operand types are now fixed at compile time.
 //
-// See ../README.md for the three-way numbers and the fairness note.
+// See ../README.md for the three-way numbers and the caveats.
 
 #include <chrono>
 #include <cstdio>

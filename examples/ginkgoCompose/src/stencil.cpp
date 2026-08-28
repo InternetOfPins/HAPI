@@ -1,43 +1,48 @@
 // SPDX-License-Identifier: BSD-3-Clause
 //
-// Round 2: Ginkgo's own examples/custom-matrix-format/ (StencilMatrix,
-// the TOMS-2022 paper's Listing 7), with the composition layer rewritten
-// so the executor and kernel-variant choice are compile-time -- while the
-// class stays a drop-in gko::LinOp.
+// Ginkgo's own examples/custom-matrix-format/ (StencilMatrix, TOMS-2022
+// Listing 7), reference-executor trim, plus a variant that fixes the
+// executor as a template parameter so the executor / kernel-variant
+// dispatch (the paper's forks 2 and 3, section 7.2) resolves at compile
+// time. Both stay drop-in gko::LinOp: same create(), same apply().
 //
-//   default   : StencilMatrix -- verbatim from Ginkgo's example, trimmed
-//               to the reference executor. apply() traverses all 3
-//               polymorphism forks (format / executor / kernel variant,
-//               paper section 7.2).
-//   -DHAPI    : StencilMatrixHapi -- gko::Operation's per-executor run()
-//               overload set becomes hapi::Chain<RefStencil,OmpStencil>,
-//               selected by hapi::FindFirst<ServesExec<Exec>> at compile
-//               time; apply_impl calls the chosen kernel directly. Still
-//               : public gko::LinOp, still create(), still drops into
-//               cg::build()...->generate(...)->apply(...).
+//   default        : StencilMatrix -- Ginkgo's example. apply() ->
+//                    apply_impl -> get_executor()->run(Operation) --
+//                    virtual Executor::run, then a second virtual into
+//                    Operation::run. This is what buys runtime executor
+//                    selection (./program cuda).
+//   -DFIXED_EXEC   : StencilMatrixCT<VT, Exec> -- Exec is a template
+//                    parameter; Kernel = StencilKernel<Exec> is a plain
+//                    template specialization. apply_impl calls it
+//                    directly. No metaprogramming library involved -- a
+//                    one-line specialization is all it takes, and the
+//                    codegen is byte-identical to a Chain<>+FindFirst<>
+//                    version (that's why there isn't one here anymore).
+//                    Trade-off: the executor is no longer a runtime knob.
 //
-// Prints: the 1-D Poisson solve error (correctness) and a bare-apply()
-// timing loop (paper section 7.2 methodology, size-11 matrix).
-//
-// See ../README.md for the objdump comparison -- the load-bearing result.
+// Prints the 1-D Poisson solve error (correctness) and a bare-apply()
+// timing loop (paper section 7.2 method, size-11 matrix).
+// ../README.md has the objdump comparison and the caveats.
 
 #include <chrono>
 #include <cstdio>
 
 #include <ginkgo/ginkgo.hpp>
-#ifdef HAPI
-#include "hapi/hapi.h"
-#endif
 
 using ValueType = double;
 using vec = gko::matrix::Dense<ValueType>;
 
 
-#ifdef HAPI
+#ifdef FIXED_EXEC
 
-// --- backend kernel set: declared once, same role as gko::Operation ---
-struct RefStencil {
-    using exec_type = gko::ReferenceExecutor;
+// per-executor kernel, plain template specialization -- the same shape
+// Ginkgo's own internal kernels already have; here just not hidden behind
+// the Operation dispatch.
+template <typename Exec>
+struct StencilKernel;
+
+template <>
+struct StencilKernel<gko::ReferenceExecutor> {
     template <typename V>
     static void run(std::size_t n, const V* c, const V* b, V* x)
     {
@@ -49,8 +54,9 @@ struct RefStencil {
         }
     }
 };
-struct OmpStencil {
-    using exec_type = gko::OmpExecutor;
+
+template <>
+struct StencilKernel<gko::OmpExecutor> {
     template <typename V>
     static void run(std::size_t n, const V* c, const V* b, V* x)
     {
@@ -64,34 +70,21 @@ struct OmpStencil {
     }
 };
 
-// predicate over a Chain, same protocol as hapi::SameAs / hapi::TagIs
-template <typename E>
-struct ServesExec {
-    template <typename O>
-    using Check = typename hapi::Traverse<ServesExec<E>, O>::Beta;
-    template <typename O>
-    using Apply = std::is_same<E, typename O::exec_type>;
-    template <typename... OO>
-    using ApplyPack = hapi::Chain<OO...>;
-};
-
-template <typename VT, typename Exec,
-          typename Kernels = hapi::Chain<RefStencil, OmpStencil>>
-class StencilMatrixHapi
+template <typename VT, typename Exec>
+class StencilMatrixCT
     : public gko::LinOp,
-      public gko::EnableCreateMethod<StencilMatrixHapi<VT, Exec, Kernels>> {
+      public gko::EnableCreateMethod<StencilMatrixCT<VT, Exec>> {
 public:
-    StencilMatrixHapi(std::shared_ptr<const gko::Executor> exec,
-                      gko::size_type size = 0, VT left = -1.0, VT center = 2.0,
-                      VT right = -1.0)
+    StencilMatrixCT(std::shared_ptr<const gko::Executor> exec,
+                    gko::size_type size = 0, VT left = -1.0, VT center = 2.0,
+                    VT right = -1.0)
         : gko::LinOp(exec, gko::dim<2>{size}),
           coefficients(exec, {left, center, right})
     {}
 
 protected:
     using coef_type = gko::array<VT>;
-    using Kernel =
-        typename hapi::FindFirst<ServesExec<Exec>>::template Check<Kernels>;
+    using Kernel = StencilKernel<Exec>;
 
     void apply_impl(const gko::LinOp* b, gko::LinOp* x) const override
     {
@@ -114,8 +107,8 @@ private:
     coef_type coefficients;
 };
 
-using Stencil = StencilMatrixHapi<ValueType, gko::ReferenceExecutor>;
-static const char* kTag = "hapi    ";
+using Stencil = StencilMatrixCT<ValueType, gko::ReferenceExecutor>;
+static const char* kTag = "fixed-exec";
 
 #else  // baseline: Ginkgo's own example (reference-executor trim)
 
@@ -175,7 +168,7 @@ private:
 };
 
 using Stencil = StencilMatrix<ValueType>;
-static const char* kTag = "baseline";
+static const char* kTag = "baseline  ";
 
 #endif
 

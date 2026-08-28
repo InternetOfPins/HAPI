@@ -20,32 +20,31 @@ trap 'rm -rf "$O"' EXIT
 build() { g++ $STD $INC ${3:-} src/$1.cpp -o "$O/$2" $LIB; }
 obj()   { g++ $STD $INC ${3:-} -c src/$1.cpp -o "$O/$2.o"; }
 
-echo "### Round 2 -- StencilMatrix (custom-matrix-format)"
-build stencil sten_base
-build stencil sten_hapi -DHAPI
-obj   stencil sten_base
-obj   stencil sten_hapi -DHAPI
-
-for pair in "sten_base:StencilMatrix<double>" \
-            "sten_hapi:StencilMatrixHapi<double, gko::ReferenceExecutor"; do
-  o=${pair%%:*}; sym=${pair#*:}
-  echo "--- $o :: apply_impl(const LinOp*, LinOp*) -- calls only ---"
-  objdump -dCr "$O/$o.o" | \
-    awk -v s="$sym" 'index($0,s) && /apply_impl\(gko::LinOp const\*, gko::LinOp\*\) const>:$/{f=1}
-                     f&&/^$/{exit} f' | \
+calls() {  # $1=object  $2=demangled-symbol-substring
+  objdump -dCr "$O/$1.o" | \
+    awk -v s="$2" 'index($0,s) && /apply_impl\(gko::LinOp const\*, gko::LinOp\*\) const>:$/{f=1}
+                   f&&/^$/{exit} f' | \
     grep -E '\tcall|R_X86_64_(PLT32|PC32)' || true
-done
+}
 
-echo; echo "### Round 3 -- advection-diffusion vs gko::Combination"
+echo "### stencil -- custom-matrix-format"
+build stencil sten_base
+build stencil sten_fixed -DFIXED_EXEC
+obj   stencil sten_base
+obj   stencil sten_fixed -DFIXED_EXEC
+echo "--- baseline :: apply_impl(const LinOp*, LinOp*) -- calls only ---"
+calls sten_base  "StencilMatrix<double>"
+echo "--- fixed-exec :: apply_impl(const LinOp*, LinOp*) -- calls only ---"
+calls sten_fixed "StencilMatrixCT<double, gko::ReferenceExecutor"
+
+echo; echo "### advdiff -- advection-diffusion vs gko::Combination"
 build advdiff ad_comb
 build advdiff ad_pre  -DPREFOLD
 build advdiff ad_hapi -DHAPI
 obj   advdiff ad_hapi -DHAPI
 echo "--- ad_hapi :: apply_impl(const LinOp*, LinOp*) -- calls only ---"
-objdump -dCr "$O/ad_hapi.o" | \
-  awk '/AdvDiffHapi<double>::apply_impl\(gko::LinOp const\*, gko::LinOp\*\) const>:$/{f=1}
-       f&&/^$/{exit} f' | grep -E '\tcall|R_X86_64_PLT32' || true
+calls ad_hapi "AdvDiffHapi<double>"
 
 echo; echo "### run"
 PIN=${PIN:-taskset -c 2}
-for p in sten_base sten_hapi ad_comb ad_pre ad_hapi; do $PIN "$O/$p"; done
+for p in sten_base sten_fixed ad_comb ad_pre ad_hapi; do $PIN "$O/$p"; done
