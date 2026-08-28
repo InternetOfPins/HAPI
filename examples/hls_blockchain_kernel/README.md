@@ -184,3 +184,13 @@ numbers matter less than the fact that they *differ* purely as a function
 of which `Hash` type was named in the `Chain<>`, confirmed twice over by
 two vendors' independent cost models -- not just plausible, and not a
 single-tool artifact.
+
+**Extended to a real CUDA target**: [`../cuda_blockchain_spec`](../cuda_blockchain_spec)
+takes this `Transaction`/`Hash` swap and grows it into a genuine
+five-block specification (`Validation`/`State`/`Consensus` added,
+`Consensus` genuinely using all four other blocks in one call), then
+checks the same "swap one block, everything else stays untouched" claim
+against a real CUDA device instead of an HLS backend -- confirmed there
+too, host and device paths agreeing exactly, PTX showing the whole
+specification (both `Hash` variants) folding to constant stores, zero
+calls.

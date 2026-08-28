@@ -488,8 +488,22 @@ NVIDIA's own repo, plain SIMT, not Tensor-Core) also runs correctly on
 the same card, verified against an independently-computed reference
 kernel, not just "didn't crash."
 
+[`examples/cuda_blockchain_spec`](examples/cuda_blockchain_spec) asks a
+sharper question of the same GPU: not "does a bare `Chain<>` compile
+under `nvcc`," but does `hls_blockchain_kernel`'s actual point — a
+protocol **specification** composed from independently swappable blocks
+(`Transaction`/`Hash`/`Validation`/`State`/`Consensus`), not raw hashing
+throughput — survive a real CUDA target the way it already survived
+Bambu and Vitis HLS. It does: host and device paths agree exactly for
+both `Hash` variants (`MurmurHash`/`XorFoldHash`, swapped with nothing
+else touched), and the PTX shows the entire five-block specification —
+real hash-mixing multiply included — folding to seven constant stores,
+zero calls. A stronger zero-overhead result than `cuda_device_chain`'s
+own toy, over a genuinely meaningful multi-block composition instead of
+one increment.
+
 [`examples/rust_stm32_bridge`](examples/rust_stm32_bridge) is the
-opposite move from the three examples above: a real **embedded**
+opposite move from the four examples above: a real **embedded**
 consumer, not another generality proof. Real Rust firmware
 (`cortex-m-rt`/`stm32f1xx-hal`) calls into unmodified `hapi::APIOf<>`
 compiled by the same real `arm-none-eabi-g++` toolchain
@@ -505,7 +519,7 @@ real, non-inlined call at the language boundary.
 
 HAPI is written for C++17 and is intended for systems where static composition is useful.
 
-The repository includes examples for different environments, including embedded and HLS-oriented experiments. The examples directory currently contains `crtp`, `free`, `godbolt`, `rules`, `std`, `virt`, several HLS examples, three non-embedded cross-library demonstrators (`config_loader`, `cutlass_layout`, `cuda_device_chain`), and a real embedded Rust-to-C++ bridge (`rust_stm32_bridge`).
+The repository includes examples for different environments, including embedded and HLS-oriented experiments. The examples directory currently contains `crtp`, `free`, `godbolt`, `rules`, `std`, `virt`, several HLS examples, four non-embedded cross-library demonstrators (`config_loader`, `cutlass_layout`, `cuda_device_chain`, `cuda_blockchain_spec`), and a real embedded Rust-to-C++ bridge (`rust_stm32_bridge`).
 
 The composition model can be used for applications such as:
 

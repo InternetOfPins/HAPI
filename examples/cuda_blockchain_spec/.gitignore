@@ -1,0 +1,4 @@
+cuda_blockchain_spec
+*.ptx
+*.o
+.*
