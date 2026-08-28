@@ -478,9 +478,15 @@ real `nvcc` device-side compilation, a new toolchain axis alongside HLS.
 HAPI's unmodified `Chain<>`/`APIOf<>` composes a `__host__ __device__`-
 annotated component and runs inside a real `__global__` kernel — the
 generated PTX shows the entire composed object folding to a single
-constant store, zero calls. Compiles clean; the kernel launch itself
-fails on this machine's specific GPU (below CUDA's real support floor) —
-a documented hardware boundary, not a HAPI or compile-time one.
+constant store, zero calls. Compiles clean, **and now runs for real**: a
+real CUDA-capable GPU (GeForce GTX 1070, Pascal) replaced the machine's
+original one (a GT 710, Kepler, below CUDA's real support floor), and the
+same unmodified kernel launches and executes correctly —
+`host: Ticker after 2x inc() = 4`, `device: Ticker after 3x inc() = 6`,
+both as expected. A real CUTLASS SGEMM (`examples/00_basic_gemm` from
+NVIDIA's own repo, plain SIMT, not Tensor-Core) also runs correctly on
+the same card, verified against an independently-computed reference
+kernel, not just "didn't crash."
 
 [`examples/rust_stm32_bridge`](examples/rust_stm32_bridge) is the
 opposite move from the three examples above: a real **embedded**

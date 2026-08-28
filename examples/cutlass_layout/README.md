@@ -82,13 +82,17 @@ license) — see each package's bundled `License.txt`.
   missing GPU, `nvcc` itself. A real, checked asymmetry: CuTe's layout
   algebra is genuinely host-portable; CUTLASS's own machinery is not,
   whatever its own docs claim about "host-side code."
-- **Real device kernels** — this machine's GPU (GeForce GT 710, Kepler,
-  compute capability 3.5) predates CUTLASS's own stated minimum by a full
-  architecture generation in every version checked: current `main`'s
-  README states minimum Volta (compute capability 7.0); the real
-  historical `v1.0.1` tag's README lists Maxwell/Pascal/Volta as the
-  supported range and never mentions Kepler. Not a toolchain-install gap
-  closeable later — the hardware itself is the dead end.
+- **Real device kernels** — still deliberately out of scope for *this*
+  example (it stays host-only by design, see above), but no longer a
+  hardware dead end: this machine's original GPU (GeForce GT 710, Kepler,
+  compute capability 3.5) predated CUTLASS's own stated minimum by a full
+  architecture generation in every version checked (current `main`'s
+  README states minimum Volta, compute capability 7.0). It's since been
+  replaced with a real CUDA-capable card (GeForce GTX 1070, Pascal,
+  compute capability 6.1) — see
+  [`../cuda_device_chain/README.md`](../cuda_device_chain/README.md) for
+  real device-kernel execution (HAPI's own composed kernel, plus a real
+  CUTLASS SGEMM from NVIDIA's own repo), both now confirmed working.
 
 ## Two real bugs caught while building this
 

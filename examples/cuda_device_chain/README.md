@@ -54,39 +54,57 @@ eliminated it entirely. The same zero-overhead property already verified
 on AVR/ESP32/ARM disassembly throughout this project, now confirmed on an
 NVIDIA PTX target for the first time.
 
-## Real, honest boundary: compiles clean, does not run on this machine
+## Real execution, not just a clean compile
 
-Running the built binary:
+Originally documented here as a real, honest boundary: this machine's
+original GPU (GeForce GT 710, Kepler, compute capability 3.5) wasn't even
+enumerated as CUDA-capable under the CUDA 12.0 toolkit installed here —
+the kernel compiled clean and the PTX above was verified correct, but the
+launch itself failed at runtime with "no CUDA-capable device is
+detected." That boundary is closed now: the machine has a real
+CUDA-capable GPU (GeForce GTX 1070, Pascal, compute capability 6.1), and
+the exact same, unmodified `src/main.cu` — compiled against the real
+architecture this time —
+
+```sh
+nvcc -std=c++17 -arch=sm_61 -I../../include src/main.cu -o cuda_device_chain
+```
+
+launches and runs correctly:
 
 ```
 host: Ticker after 2x inc() = 4 (expect 4)
-kernel launch error: no CUDA-capable device is detected
+device: Ticker after 3x inc() = 6 (expect 6)
 ```
 
-The host-side call path (same composed `Ticker` type, no `nvcc`-specific
-code) runs correctly. The device-side kernel launch fails at *runtime*,
-not compile time — this machine's GPU (GeForce GT 710, Kepler, compute
-capability 3.5) isn't even enumerated as CUDA-capable under the CUDA 12.0
-toolkit/470.256.02-driver combination installed here. This reinforces,
-now at the plain CUDA-runtime level rather than just CUTLASS's own stated
-minimum, the same real hardware dead-end already found and documented in
-`../cutlass_layout/README.md` (Kepler predates CUTLASS's stated minimum —
-Volta — by a full architecture generation).
+Both call paths correct, real device memory (`cudaMalloc`/`cudaMemcpy`),
+real kernel launch, exit 0. "Does `nvcc` accept HAPI's pattern" and "can
+a HAPI-composed device kernel actually run" are now both yes, not just
+the former.
 
-**Don't conflate the two questions.** "Does `nvcc` accept HAPI's pattern"
-— yes, definitively, compile succeeded and the PTX is correct. "Can this
-machine run a HAPI-composed device kernel" — no, and that's a hardware
-limitation of this specific GPU, unrelated to HAPI, CUDA, or `nvcc`
-themselves. `-arch=sm_70` (Volta) was a deliberate virtual-architecture
-choice for the compile test — not tied to, and not expected to run on,
-this machine's real hardware.
+**Related, same hardware**: a real CUTLASS SGEMM
+(`cutlass/examples/00_basic_gemm`, NVIDIA's own repo, plain SIMT, not
+Tensor-Core) also compiles and runs correctly on this GPU when invoked
+directly with `nvcc -arch=sm_61` (bypassing CUTLASS's own CMake, whose
+`CUTLASS_NVCC_ARCHS_SUPPORTED` list doesn't include Pascal at all) —
+output `Passed.`, checked against an independently-computed reference
+kernel. That's a support-*policy* gap in CUTLASS's build system, not a
+hard technical wall for every kernel — it won't extend to CUTLASS's
+Tensor-Core examples (`07_volta_tensorop_gemm` and later), since Pascal
+has no Tensor Core hardware at all, a real gap unrelated to build policy.
+See `../cutlass_layout/README.md` for the host-only CuTe `Layout` work
+this builds on.
 
 ## Requirements
 
 - `nvcc` (part of `nvidia-cuda-toolkit`, `sudo apt install
   nvidia-cuda-toolkit` on Debian/Ubuntu — confirmed real, ~170MB
   installed, no GPU driver required just to compile for a virtual
-  architecture).
+  architecture like `-arch=sm_70`).
+- To actually *run* it (not just compile): a real CUDA-capable GPU and
+  its proprietary driver, and `-arch` set to that GPU's real compute
+  capability (`sm_61` for the Pascal card this was last verified against
+  — check `nvidia-smi`/`ubuntu-drivers devices` for yours).
 - No PlatformIO integration here, deliberately — unlike `config_loader`/
   `cutlass_layout`'s `env:native`, `nvcc` isn't a PlatformIO-native
   toolchain the way a host g++/clang target is, and this example needs a
