@@ -93,6 +93,58 @@ The value genuinely crossed the FFI boundary correctly and drove real
 hardware state — not "the firmware didn't crash," a direct register-level
 confirmation of the actual computed result.
 
+## Device #2 — a real I2C LCD through the same bridge
+
+`cpp/lcd_shim.cpp` bridges to a real 16×2 HD44780 LCD over a PCF8574 I2C
+backpack (I2C1, PB6/PB7) using the **unmodified** `oneIO::display::I2cLcd`
+→ `Hd44780` → `oneBus::I2cGpio` → `hw::stm32::Stm32I2cCore` stack — a
+deeper composition than the `Counter`/`DoubleStep` shim, and one that
+actually touches a peripheral. Two flat `extern "C"` entry points
+(`hapi_lcd_init`, `hapi_lcd_print`); `main.rs` calls them once after the
+ticker check and parks in `loop {}`. The glass reads `Rust -> HAPI` /
+`on STM32!` — the full stack, driven from Rust, confirmed visually and by
+register readback.
+
+Clock: `stm32f1xx-hal`'s `rcc::Config::hsi().sysclk(72.MHz())` does not
+error on an unreachable target — HSI/2 = 4 MHz caps the PLL at ×16, so it
+silently clamps to **64 MHz** (`PLLSRC=0`, `PLLMUL=×16`, register-confirmed).
+`hse(8.MHz())` for a literal 72 MHz was tried and reverted: the HAL's
+HSE-ready wait is an un-timeout'd busy-loop with no fallback, run before
+any LED/LCD code — a dead crystal hangs the whole firmware. 64 MHz is safe
+for `hd44780.h`'s delay calibration (a slower clock only over-delays). The
+shim pins `f1::Twi<100000, 32000000>` so `Stm32I2cCore` computes
+`CCR`/`TRISE` from the real 32 MHz APB1, not the 36 MHz default.
+
+**OpenOCD readback, post-flash (64 MHz):**
+```
+0x20000008 (g_ticker.value):   0x00000006   <- ticker still correct
+0x4001100c (GPIOC.ODR):        0x00000000   <- PC13 low, value crossed the FFI boundary
+0x40021004 (RCC_CFGR):         SWS=PLL, PLLSRC=HSI/2, PLLMUL=×16, PPRE1=/2
+0x40005404 (I2C1_CR2 FREQ):    32
+0x4000541c (I2C1_CCR):         160          <- 32MHz/(2·100kHz)
+0x40005420 (I2C1_TRISE):       33
+fault_count:                   0            <- no I2C wedge (see below)
+```
+Breakpointing `I2cGpio::flush()` and dumping the shadow byte on each hit
+shows the exact HD44780 4-bit power-on sequence (0x3/0x3/0x3 wake, 0x2
+switch, function-set, …) clocking out to the PCF8574 — byte-identical to
+`OneIO/examples/i2cLcd`'s own C++ build.
+
+**Bug fixed to get here** (`OneChip/chips/stm32/stm32Twi.h`, not the Rust
+side): the STM32F1 I2C block locks up with `BUSY` stuck after sustained
+back-to-back transfers, and every SR poll was an un-bounded `while`.
+`end_write()` now waits for `BUSY` to clear after `STOP` (so the next
+transfer starts on an idle bus — this alone stops the lockup); all polls
+are bounded; a stall or `BERR`/`ARLO`/`AF` triggers `recover()` (SWRST +
+re-init) and bumps a public `fault_count`. Compiled into this firmware
+too; `fault_count` stays 0.
+
+Bench note: the Blue Pill's `5V` pin is only ~3.2 V when the board runs
+off the ST-Link's 3.3 V — enough for the PCF8574 to ACK but not for the
+HD44780 panel to develop contrast (blank glass, working I2C). Power the
+Blue Pill over USB (5 V pin then ~5 V, LCD readable); keep the ST-Link for
+SWD, grounds common.
+
 ## Build & flash
 
 ```sh

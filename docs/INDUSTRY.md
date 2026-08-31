@@ -99,6 +99,8 @@ AVR, ESP8266, ESP32, STM32, RP2040, ARM Cortex-M — platforms where every byte 
 
 HAPI allows firmware teams to build layered drivers, middleware, communication stacks, and interfaces without runtime composition overhead. Features are added by composition rather than modification. Compile-time validation ensures declared dependencies are checked before a binary is produced.
 
+A composed driver stack is also consumable unmodified from a non-C++ firmware over the C ABI: `examples/rust_stm32_bridge` drives a real I2C character-LCD stack (`oneIO::display::I2cLcd` → `Hd44780` → `oneBus::I2cGpio` → `hw::stm32::Stm32I2cCore`) from Rust firmware on a real STM32F103, hardware-verified. The FFI call itself is a real, non-inlined boundary — zero-overhead holds inside the C++ composition, not across the language edge.
+
 **Applicable to:** device drivers, hardware abstraction layers, sensor pipelines, communication stacks, display systems, embedded UI, middleware frameworks.
 
 ---

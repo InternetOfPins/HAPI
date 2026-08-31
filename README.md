@@ -511,7 +511,11 @@ compiled by the same real `arm-none-eabi-g++` toolchain
 STM32F103C8 (Blue Pill) board — flashed and confirmed via real OpenOCD
 register readback, not just "it compiled." Documents the honest
 FFI-boundary cost plainly: zero-overhead holds inside the C++ side, a
-real, non-inlined call at the language boundary.
+real, non-inlined call at the language boundary. A second entry point
+drives a real HD44780 I2C LCD through the unmodified `oneIO::display::I2cLcd`
+→ `Hd44780` → `oneBus::I2cGpio` → `hw::stm32::Stm32I2cCore` stack —
+composition over an actual peripheral, not a toy counter — with the glass
+confirmed by eye.
 
 ---
 
