@@ -20,14 +20,12 @@
 //! preserved as separate source here).
 //!
 //! Device #2: `cpp/lcd_shim.cpp` bridges the same way to a real 16x2
-//! character LCD over I2C1 (PB6/PB7) via a PCF8574 backpack -- zero new
-//! OneIO/OneBus driver code needed (both were already platform-agnostic),
-//! one real gap found+fixed in OneChip (a missing single-byte
-//! `TwiMaster::send(addr,byte)` overload `oneBus::I2cGpio` needs). Also
-//! switches the clock to real 72MHz PLL, not just raw 8MHz HSI --
-//! `hd44780.h`'s portable delay loop is calibrated assuming ~72MHz, and
-//! running it at only 8MHz would make every LCD init delay ~9x too
-//! short. See README.md for the full story.
+//! character LCD over I2C1 (PB6/PB7) via a PCF8574 backpack, using the
+//! unmodified oneIO::display::I2cLcd -> Hd44780 -> oneBus::I2cGpio ->
+//! hw::stm32::Stm32I2cCore stack -- composition over a real peripheral,
+//! not a toy counter. Needs a PLL clock (hd44780.h's delay loop assumes
+//! ~72MHz; the 8MHz HSI reset default would under-delay LCD init ~9x).
+//! See README.md.
 #![no_std]
 #![no_main]
 
@@ -61,27 +59,12 @@ fn main() -> ! {
     let mut gpioc = dp.GPIOC.split(&mut dp.RCC);
 
     let mut flash = dp.FLASH.constrain();
-    // HSI-derived PLL, NOT HSE -- real, sequenced findings, both caught
-    // by register readback rather than assumed:
-    // (1) rcc::Config::hsi().sysclk(72.MHz()) does not error on an
-    //     unreachable target -- HSI/2=4MHz's max PLL multiplier is x16
-    //     (hardware limit), so it silently clamps to 64MHz instead of
-    //     the requested 72MHz (confirmed: PLLSRC=0, PLLMUL=x16).
-    // (2) Tried rcc::Config::hse(8.MHz()).sysclk(72.MHz()) to reach the
-    //     literal 72MHz via the Blue Pill's onboard crystal -- REVERTED:
-    //     the driver's real HSE-ready wait is an unconditional busy-loop
-    //     (`while hserdy is clear {}`) with no timeout, executed BEFORE
-    //     any PLL/LED/LCD code. If this specific board's HSE crystal
-    //     isn't populated or isn't starting, that hangs forever and
-    //     NOTHING after it (including the LCD output below) ever runs.
-    //     A second register readback after that attempt was consistent
-    //     with exactly this (state frozen before the PLL step), not
-    //     confirmed as a working 72MHz clock.
-    // 64MHz (not 72MHz) is safe for hd44780.h's delay calibration: a
-    // slower-than-assumed clock makes the busy-loop delays LONGER than
-    // the nominal microsecond value, not shorter -- HD44780 tolerates
-    // longer-than-minimum delays fine, only under-delaying breaks it
-    // (the real problem the original 8MHz-only config had).
+    // sysclk(72.MHz()) on HSI silently clamps to 64 MHz -- HSI/2 = 4 MHz
+    // caps the PLL at x16 (PLLSRC=0, PLLMUL=x16, register-confirmed). The
+    // HSE path for a literal 72 MHz is avoided: the HAL's HSE-ready wait
+    // is an un-timeout'd busy-loop, so a dead crystal hangs the firmware.
+    // 64 MHz is fine for hd44780.h -- a slower clock only over-delays.
+    // lcd_shim.cpp pins the I2C core to the matching 32 MHz APB1.
     let _rcc = dp.RCC.freeze(rcc::Config::hsi().sysclk(72.MHz()), &mut flash.acr);
 
     let mut led = gpioc.pc13.into_push_pull_output(&mut gpioc.crh);

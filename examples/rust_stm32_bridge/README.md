@@ -171,11 +171,10 @@ elsewhere.
 
 ## What this doesn't prove, and why that's honest
 
-This tests the mechanism on a trivial component, not `focCompose`'s real
-SPI sensor/PWM driver composition — swapping in a real slice of that
-work is a natural next step, but deliberately sequenced after the
-mechanism itself was proven on something small (the same "trivial but
-real" discipline `cuda_device_chain` used before this). And per the FFI
+Device #1 is a trivial counter; device #2 is a real I2C peripheral stack
+but still only called at startup. Neither exercises `focCompose`'s real
+SPI-sensor / PWM-driver composition or a control loop — a natural next
+step, deliberately sequenced after the mechanism itself. And per the FFI
 finding above: don't expect this pattern to preserve zero-overhead across
 a *hot, high-frequency* Rust↔C++ boundary (e.g. calling into a composed
 FOC control loop every PWM cycle) without measuring the real call
