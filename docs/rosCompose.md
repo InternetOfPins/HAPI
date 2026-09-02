@@ -54,12 +54,16 @@ type would be a shared name over two different data structures. Each was
 built and confirmed against a real non-ROS consumer before being called
 general.
 
-**These two are not yet promoted.** They live, genericity-confirmed, in
-`HAPI/.RnD/rosCompose/` (`elasticBuffers.h`). They land in whichever
-library first needs them for real — `sensorFusion` (OneHLS) is the
-likely near-term home for `TimeBuffer` if timestamp alignment across a
-non-I2C second sensor is wanted; a real reliable-transport leg pulls
-`ReorderBuffer`. No new library is being spun up for them speculatively.
+**Home: OneHLS.** Both synthesize to clean RTL under Bambu (from-source
+`dev/panda`, `xc7z020`, 10 ns): BRAM-backed, **0 DSPs**, `& (N-1)` ring
+mask lowers without a modulo, ~100 MHz. `TimeBuffer`'s raw `(num,den)`
+`lookup` overload keeps it division-free in hardware (the `double`
+convenience form pulls a 64-bit divide). That places them with
+[`OneHLS/examples/hls_streaming_buffers`](https://github.com/InternetOfPins/OneHLS)'s
+`Fifo` / skid-buffer family — bounded reorder and time-indexed history
+are streaming-datapath primitives of the same kind. Until promoted they
+live, genericity- and synthesis-confirmed, in `HAPI/.RnD/rosCompose/`
+(`elasticBuffers.h`, `hls/`).
 
 ## Per-surface reduction
 
@@ -75,6 +79,30 @@ non-I2C second sensor is wanted; a real reliable-transport leg pulls
 | Node | `Chain` / `StaticList` of compile-time-known endpoints | `rclcpp::Node` is 11 fixed sub-managers; the open runtime collection lives in `CallbackGroup`, which the executor iterates — **desktop-only, see scope boundary** |
 | Parameters (typed) | `oneData::Data<T>` + a veto-fold validator | the real `on_set` callback chain is first-reject-wins; the runtime `map<string, variant>` is component-internal desktop-ROS |
 | TF (frame graph) | `TimeBuffer` (new) per frame pair; the graph traversal on top is chained lookups | not built — its own exercise |
+
+## The same composition, as an FPGA datapath
+
+HAPI's cost is paid at compile time, so the same composition that becomes
+dispatch-free firmware also synthesizes to hardware. Under Bambu HLS
+(from-source `dev/panda`, `xc7z020`, 10 ns clock):
+
+| top | states | area | DSP | ~MHz |
+|---|---|---|---|---|
+| the `/cmd_vel` fan-out fold | 2 | 3850 | 0 | 161 |
+| the action `transition()` state machine | 5 | 184 | 0 | 148 |
+| `ReorderBuffer<int32,8>::offer` | 15 | 5538 | 0 | 100 |
+| `TimeBuffer<int32,8,uint32>::lookup` (raw pair) | 27 | 2808 | 0 | 101 |
+
+The compile-time composition collapses to near-combinational logic; the
+two buffers map to BRAM with no DSPs. The one part that does **not**
+synthesize is the virtual `Cap<Msg>` transport seam — and it should not:
+on an FPGA that boundary is an AXI-Stream port, which is exactly what
+`OneHLS/examples/hls_streaming_buffers/src/axis.h` already provides. The
+causal-boundary primitive spans all three target classes — the seam is a
+vtable on an MCU, an AXI port on an FPGA, a kernel-launch boundary on a
+GPU — the same shape as HAPI's ML composition work
+([`docs/INDUSTRY.md`](INDUSTRY.md), "MCU function / FPGA datapath / CUDA
+kernel").
 
 ## Scope boundary
 
