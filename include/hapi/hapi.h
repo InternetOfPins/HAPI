@@ -29,6 +29,13 @@ namespace hapi {
     static_assert(BuildRules<Chain<>,Chain<API,OO...>>::rules(), "HAPI: validation failed");
   };
 
+  /// @brief an APIOf holds its API first, then its components: exactly Types, and
+  /// exactly what the two splices below already walk. Only `validates` is on: today
+  /// BuildRules/NoCollision splice a nested APIOf, while Traverse-based queries,
+  /// Filter/Map, and FindFirst treat it as a leaf (whole element).
+  template<typename API, typename... OO>
+  struct Expand<APIOf<API,OO...>> : Expansion<Chain<API,OO...>,false,false,true,false> {};
+
   /// @brief a nested APIOf used as one component is spliced into the walk in
   /// place via its own Types, exactly like rules.h's nested-bare-Chain splice —
   /// otherwise a closed composition placed as the API/fallback of an outer

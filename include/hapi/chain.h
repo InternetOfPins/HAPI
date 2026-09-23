@@ -73,6 +73,41 @@ namespace hapi {
     };
   };
 
+  // ── Expand<O>: what a container holds, taught once per container ───────────────
+  // The structural fact behind every walk that needs to open a container: an
+  // ordered Chain<...> of children. Primary = leaf (no Children). Opt-in per
+  // EXACT type, deliberately never keyed on ::Types: ::Types is a convention on
+  // many unrelated types, and a generic ::Types splice was tried and reverted
+  // (see hapi.h, commit 7c5e779) for breaking whole-object Filter<FromTypes<..>>.
+  // A derived type (e.g. an ItemDef deriving from APIOf) needs its own entry,
+  // one line forwarding to its base's: `struct Expand<D<OO...>> : Expand<B<OO...>> {};`
+  //
+  // The four policy bits say WHICH walks descend, because today they genuinely
+  // differ and unifying the structure must not silently unify the policy:
+  //   queried    Any/Exists/query/Requires/Excludes look inside
+  //   selected   Filter/Map/Partition look inside (false = the element is taken whole)
+  //   validates  BuildRules/NoCollision splice it into the rule walk
+  //   searched   FindFirst opens it (after testing the node itself)
+  // Every bit defaults to false so an entry lists only what it enables.
+  template<typename Kids, bool Queried=false, bool Selected=false, bool Validates=false, bool Searched=false>
+  struct Expansion {
+    using Children = Kids;
+    static constexpr bool queried   = Queried;
+    static constexpr bool selected  = Selected;
+    static constexpr bool validates = Validates;
+    static constexpr bool searched  = Searched;
+  };
+
+  template<typename O> struct Expand {};   // leaf
+
+  // a plain Chain is transparent: every walk goes through it
+  template<typename... OO>
+  struct Expand<Chain<OO...>> : Expansion<Chain<OO...>,true,true,true,true> {};
+
+  template<typename O, typename = void> struct IsContainer : std::false_type {};
+  template<typename O>
+  struct IsContainer<O, std::void_t<typename Expand<O>::Children>> : std::true_type {};
+
   /// @brief provide circular reference to the whole chain if needed
   template<typename O>
   struct CRTP {
