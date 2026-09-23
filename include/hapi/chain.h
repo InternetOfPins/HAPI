@@ -19,6 +19,20 @@ namespace hapi {
 
   template<typename... OO> struct Chain;
 
+  // ── Drop<n>: the chain suffix after skipping its first n elements ──────────
+  // Haskell's `drop n xs`; Nth is then just Drop<n>::Head. Kept total: dropping
+  // past the end gives Chain<> rather than an error (an out-of-range Head
+  // access still fails naturally, since Chain<> has no Head). Recursion is by
+  // partial specialization, not std::conditional_t<n==0,...,...>: conditional_t
+  // requires both branches to already be valid types, so it would eagerly
+  // instantiate the n-1 branch even at n==0, underflowing the unsigned SizeT
+  // and never terminating. Checked with static_asserts on host g++ and on
+  // avr-gcc 7.3 (no STL).
+  template<SizeT n,typename L> struct DropOf {using Type=typename DropOf<n-1,typename L::Tail>::Type;};
+  template<typename L>         struct DropOf<0,L>       {using Type=L;};
+  template<SizeT n>            struct DropOf<n,Chain<>> {using Type=Chain<>;};
+  template<>                   struct DropOf<0,Chain<>> {using Type=Chain<>;};  // disambiguates the two specializations above at n=0,L=Chain<>
+
   /// Empty chain
   template<>
   struct Chain<> {
@@ -30,6 +44,7 @@ namespace hapi {
     template<typename... XX> using App = Chain<XX...>;
     template<typename... XX> using Ins = Chain<XX...>;
     template<template<typename> class M> using Map = Chain<>;
+    template<SizeT n> using Drop = Chain<>;
   };
 
   // list of types
@@ -43,6 +58,7 @@ namespace hapi {
     template<typename... XX> using App = Chain<XX..., O, OO...>;
     template<typename... XX> using Ins = Chain<O, OO..., XX...>;
     template<template<typename> class M> using Map = Chain<M<O>, M<OO>...>;
+    template<SizeT n> using Drop = typename DropOf<n,Chain<O,OO...>>::Type;
 
     // A bare Chain<> used directly (no APIOf) has no validation hook of its
     // own -- name collisions between siblings (same method, different
