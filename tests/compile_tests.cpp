@@ -205,6 +205,27 @@ static_assert(std::is_same_v<At<0,AtNoBase>::Type, AtNoBase>, "At<0,O>: must not
 static_assert(std::is_same_v<At<0,const AtL0>::Type, const AtL0>, "At<0,const O>: stays const");
 static_assert(std::is_same_v<At<1,const AtL0>::Type, const AtL1>, "At<1,const O>: const survives the walk");
 
+// -- Chain::Drop<n> --
+// Deliberately built by partial specialization from the start (never went
+// through a conditional_t phase like At<> once did): DropOf<0,L> and
+// DropOf<n,Chain<>> are their own specializations, so n==0 never forces
+// instantiation of the n-1 branch. Regression guard: a
+// conditional_t<n==0,L,typename DropOf<n-1,typename L::Tail>::Type> rewrite
+// of this eagerly instantiates the else-branch even at n==0, underflows the
+// unsigned n to SIZE_MAX, and fails once the recursion reaches Chain<>::Tail
+// (confirmed by hand while adding this: that rewrite recurses down to
+// DropOf<18446744073709551615,Chain<B,C>> and dies on "no type named 'Tail'
+// in struct hapi::Chain<>" -- not a hang, but not this file's failure mode
+// either, which is why the guard below is a plain static_assert instead).
+struct DropA{}; struct DropB{}; struct DropC{};
+using DropL = Chain<DropA,DropB,DropC>;
+static_assert(std::is_same_v<DropL::Drop<0>::Head, DropA>, "Drop<0>: head is the first element");
+static_assert(std::is_same_v<DropL::Drop<1>::Head, DropB>, "Drop<1>: head is the second element");
+static_assert(std::is_same_v<DropL::Drop<2>::Head, DropC>, "Drop<2>: head is the last element");
+static_assert(std::is_same_v<DropL::Drop<3>, Chain<>>, "Drop<n>: exactly at the end gives Chain<>, not an error");
+static_assert(std::is_same_v<DropL::Drop<9>, Chain<>>, "Drop<n>: total -- well past the end still gives Chain<>");
+static_assert(std::is_same_v<Chain<>::Drop<0>, Chain<>>, "Chain<>::Drop<0>: dropping from empty gives Chain<>");
+
 // at<idx>(obj): three overloads (&, *, &&) instead of the old auto-NTTP form
 // (template<auto ref>), which needed a class-type object bound BY VALUE as a
 // non-type template parameter -- C++20-only (P1907), so it could never be
