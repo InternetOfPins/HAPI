@@ -1,0 +1,297 @@
+{
+ "task": "UCI Banknote, 4 features quantized to 8 bits, 5-fold CV (bn2.c, seed 42)",
+ "emlearn": "0.23.2",
+ "models": {
+  "wave4": {
+   "test_acc_per_fold": [
+    98.18,
+    100.0,
+    100.0,
+    98.91,
+    99.27
+   ],
+   "test_acc_mean": 99.27,
+   "test_acc_fold1": 100.0,
+   "note": "masked wave, seeded from frequency-only (bn2.c); fold 1 is ../models/banknote/wave_params.h"
+  },
+  "lin4": {
+   "test_acc_per_fold": [
+    98.91,
+    99.64,
+    99.27,
+    98.54,
+    99.27
+   ],
+   "test_acc_mean": 99.13,
+   "test_acc_fold1": 99.64,
+   "weights_fold1": [
+    -112,
+    -113,
+    -127,
+    -1
+   ],
+   "bias_fold1": 39294,
+   "note": "float perceptron of bn2.c quantized: int8 weights, int32 accumulator"
+  },
+  "table4": {
+   "test_acc_per_fold": [
+    98.91,
+    99.64,
+    99.27,
+    98.54,
+    99.27
+   ],
+   "test_acc_mean": 99.13,
+   "test_acc_fold1": 99.64,
+   "note": "same weights as lin4, a loop over a PROGMEM table: same answers by construction"
+  },
+  "eml_tree_d2_f32": {
+   "test_acc_per_fold": [
+    89.45,
+    92.7,
+    89.82,
+    90.51,
+    92.34
+   ],
+   "test_acc_mean": 90.96,
+   "test_acc_fold1": 92.7,
+   "nodes": 7,
+   "depth": 2,
+   "features": "float"
+  },
+  "eml_tree_d2_u8": {
+   "test_acc_per_fold": [
+    89.09,
+    92.7,
+    89.82,
+    90.15,
+    91.61
+   ],
+   "test_acc_mean": 90.67,
+   "test_acc_fold1": 92.7,
+   "nodes": 7,
+   "depth": 2,
+   "features": "uint8_t"
+  },
+  "eml_tree_d3_f32": {
+   "test_acc_per_fold": [
+    92.36,
+    94.89,
+    92.0,
+    92.34,
+    95.62
+   ],
+   "test_acc_mean": 93.44,
+   "test_acc_fold1": 94.89,
+   "nodes": 15,
+   "depth": 3,
+   "features": "float"
+  },
+  "eml_tree_d3_u8": {
+   "test_acc_per_fold": [
+    92.0,
+    94.89,
+    92.0,
+    91.97,
+    94.89
+   ],
+   "test_acc_mean": 93.15,
+   "test_acc_fold1": 94.89,
+   "nodes": 15,
+   "depth": 3,
+   "features": "uint8_t"
+  },
+  "eml_tree_d4_f32": {
+   "test_acc_per_fold": [
+    93.09,
+    95.62,
+    92.36,
+    94.89,
+    97.08
+   ],
+   "test_acc_mean": 94.61,
+   "test_acc_fold1": 95.62,
+   "nodes": 23,
+   "depth": 4,
+   "features": "float"
+  },
+  "eml_tree_d4_u8": {
+   "test_acc_per_fold": [
+    92.36,
+    95.99,
+    93.82,
+    94.89,
+    96.72
+   ],
+   "test_acc_mean": 94.75,
+   "test_acc_fold1": 95.99,
+   "nodes": 23,
+   "depth": 4,
+   "features": "uint8_t"
+  },
+  "eml_tree_d5_f32": {
+   "test_acc_per_fold": [
+    96.73,
+    95.99,
+    97.45,
+    98.18,
+    97.45
+   ],
+   "test_acc_mean": 97.16,
+   "test_acc_fold1": 95.99,
+   "nodes": 35,
+   "depth": 5,
+   "features": "float"
+  },
+  "eml_tree_d5_u8": {
+   "test_acc_per_fold": [
+    96.73,
+    95.99,
+    97.45,
+    97.45,
+    97.08
+   ],
+   "test_acc_mean": 96.94,
+   "test_acc_fold1": 95.99,
+   "nodes": 35,
+   "depth": 5,
+   "features": "uint8_t"
+  },
+  "eml_tree_d6_f32": {
+   "test_acc_per_fold": [
+    97.09,
+    96.35,
+    98.18,
+    98.18,
+    98.91
+   ],
+   "test_acc_mean": 97.74,
+   "test_acc_fold1": 96.35,
+   "nodes": 45,
+   "depth": 6,
+   "features": "float"
+  },
+  "eml_tree_d6_u8": {
+   "test_acc_per_fold": [
+    97.09,
+    97.08,
+    97.82,
+    97.45,
+    98.91
+   ],
+   "test_acc_mean": 97.67,
+   "test_acc_fold1": 97.08,
+   "nodes": 45,
+   "depth": 6,
+   "features": "uint8_t"
+  },
+  "eml_tree_d8_f32": {
+   "test_acc_per_fold": [
+    98.55,
+    98.54,
+    98.55,
+    98.54,
+    99.27
+   ],
+   "test_acc_mean": 98.69,
+   "test_acc_fold1": 98.54,
+   "nodes": 57,
+   "depth": 8,
+   "features": "float"
+  },
+  "eml_tree_d8_u8": {
+   "test_acc_per_fold": [
+    98.18,
+    99.27,
+    98.18,
+    97.81,
+    99.27
+   ],
+   "test_acc_mean": 98.54,
+   "test_acc_fold1": 99.27,
+   "nodes": 57,
+   "depth": 8,
+   "features": "uint8_t"
+  },
+  "eml_tree_d10_f32": {
+   "test_acc_per_fold": [
+    98.55,
+    98.54,
+    98.55,
+    98.54,
+    99.27
+   ],
+   "test_acc_mean": 98.69,
+   "test_acc_fold1": 98.54,
+   "nodes": 57,
+   "depth": 10,
+   "features": "float"
+  },
+  "eml_tree_d10_u8": {
+   "test_acc_per_fold": [
+    98.18,
+    99.27,
+    98.18,
+    97.81,
+    99.27
+   ],
+   "test_acc_mean": 98.54,
+   "test_acc_fold1": 99.27,
+   "nodes": 57,
+   "depth": 10,
+   "features": "uint8_t"
+  },
+  "eml_mlp_h2": {
+   "test_acc_per_fold": [
+    97.45,
+    98.54,
+    97.45,
+    98.91,
+    97.08
+   ],
+   "test_acc_mean": 97.89,
+   "test_acc_fold1": 98.54,
+   "hidden": 2,
+   "parameters": 13
+  },
+  "eml_mlp_h4": {
+   "test_acc_per_fold": [
+    99.27,
+    99.64,
+    99.27,
+    100.0,
+    99.27
+   ],
+   "test_acc_mean": 99.49,
+   "test_acc_fold1": 99.64,
+   "hidden": 4,
+   "parameters": 25
+  },
+  "eml_mlp_h8": {
+   "test_acc_per_fold": [
+    99.64,
+    99.64,
+    99.64,
+    100.0,
+    98.18
+   ],
+   "test_acc_mean": 99.42,
+   "test_acc_fold1": 99.64,
+   "hidden": 8,
+   "parameters": 49
+  },
+  "eml_mlp_h16": {
+   "test_acc_per_fold": [
+    100.0,
+    99.64,
+    99.64,
+    100.0,
+    99.27
+   ],
+   "test_acc_mean": 99.71,
+   "test_acc_fold1": 99.64,
+   "hidden": 16,
+   "parameters": 97
+  }
+ }
+}

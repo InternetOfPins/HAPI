@@ -1,0 +1,17 @@
+rows=1372
+fold 0 | freq-only  train 98.91 test 97.82 | masked wave train 99.54 test 98.18 | float perceptron train 99.36 test 98.91
+   masked params K=45: [n0 s-2 p0 m3e] [n0 s-2 p0 m3c] [n0 s-2 p0 m3e] [n0 s-3 p0 m04]
+   freq params   K=43: [n0 s-2] [n0 s-2] [n0 s-2] [n0 s-7]
+fold 1 | freq-only  train 98.63 test 99.27 | masked wave train 99.64 test 100.00 | float perceptron train 99.36 test 99.64
+   masked params K=175: [n0 s-2 p110 mba] [n0 s-2 p80 mbf] [n0 s-2 p0 m3f] [n0 s-7 p0 m01]
+   freq params   K=41: [n0 s-2] [n0 s-2] [n0 s-2] [n0 s-6]
+fold 2 | freq-only  train 98.91 test 98.55 | masked wave train 100.00 test 100.00 | float perceptron train 99.36 test 99.27
+   masked params K=20: [n1 s-2 p80 mb8] [n1 s-2 p109 mbf] [n1 s-2 p72 mbd] [n0 s-4 p0 m04]
+   freq params   K=42: [n1 s-1] [n1 s-1] [n1 s-1] [n0 s-6]
+fold 3 | freq-only  train 99.00 test 97.81 | masked wave train 99.64 test 98.91 | float perceptron train 99.54 test 98.54
+   masked params K=51: [n1 s-1 p0 m76] [n1 s-1 p0 m7a] [n1 s-1 p0 m7f] [n0 s-3 p0 m08]
+   freq params   K=40: [n1 s-1] [n1 s-1] [n1 s-1] [n1 s-7]
+fold 4 | freq-only  train 98.72 test 98.18 | masked wave train 99.64 test 99.27 | float perceptron train 99.36 test 99.27
+   masked params K=41: [n0 s-2 p0 m3e] [n0 s-2 p0 m3f] [n0 s-2 p0 m3f] [n0 s-3 p0 m05]
+   freq params   K=44: [n0 s-2] [n0 s-2] [n0 s-2] [n1 s-6]
+MEAN | freq-only train 98.83 test 98.32 | masked train 99.69 test 99.27 | perceptron train 99.40 test 99.13

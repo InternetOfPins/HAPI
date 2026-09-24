@@ -1,0 +1,6 @@
+// the cell of sugar_roll_avr.cpp unrolled by hand, no sugar: what sugar::cell gives with -DSUGAR_ROLL_AT=1000
+#include "waveCell.h"
+#include "linCell.h"
+using Net = snet::Net<lin::Cell<-2000,lin::Sign,lin::In<0,-93>,lin::In<1,18>,lin::In<2,89>,lin::In<3,78>,lin::In<4,68>,lin::In<5,-111>,lin::In<6,-62>,lin::In<7,-97>,lin::In<8,-1>,lin::In<9,67>,lin::In<10,-12>,lin::In<11,-7>,lin::In<12,39>,lin::In<13,-30>,lin::In<14,74>,lin::In<15,-74>,lin::In<16,-103>,lin::In<17,-3>,lin::In<18,-120>,lin::In<19,101>,lin::In<20,86>,lin::In<21,-28>,lin::In<22,-17>,lin::In<23,28>,lin::In<24,68>,lin::In<25,69>,lin::In<26,-127>,lin::In<27,51>,lin::In<28,-13>,lin::In<29,-59>,lin::In<30,57>,lin::In<31,78>,lin::In<32,-69>,lin::In<33,24>,lin::In<34,114>,lin::In<35,-101>,lin::In<36,103>,lin::In<37,-46>,lin::In<38,-120>,lin::In<39,-122>,lin::In<40,-121>,lin::In<41,39>,lin::In<42,11>,lin::In<43,-125>,lin::In<44,113>,lin::In<45,98>,lin::In<46,-30>,lin::In<47,48>,lin::In<48,-72>,lin::In<49,121>,lin::In<50,-19>,lin::In<51,58>,lin::In<52,-120>,lin::In<53,8>,lin::In<54,-71>,lin::In<55,68>,lin::In<56,-15>,lin::In<57,113>,lin::In<58,-1>,lin::In<59,14>>>;
+volatile uint8_t in_[60]; volatile int16_t out_;
+int main(){ for(;;){ wave::Features<60> f; for(int i=0;i<60;i++) f.v[i]=in_[i]; out_=Net::proc<0>(f);} }

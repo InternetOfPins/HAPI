@@ -8,6 +8,8 @@
   container is taught once instead of once per walk. `Chain` (all four bits) and `APIOf` (`validates` only) are built in. See the README
   section "Teaching HAPI your own container" and `docs/REFERENCE.md`.
 - `Chain<OO...>::Drop<n>`: the chain without its first `n` elements.
+- Example `examples/static_net`: static networks (a typelist of parts wired by index, id or query, no runtime data), tinyML on an 8-bit AVR as the running example, with checks, timing
+  (simavr, confirmed on a real chip), and a comparison against a table loop and against emlearn. Uses `Expand` and `Drop<n>`; GCC/Clang only, not built by CI.
 - Tests: `tests/expand_tests.cpp`, `tests/expand_walks.cpp` (one container per policy bit), `tests/descent_characterization.cpp` (pins how every
   walk treats every kind of container), and `tests/negative/` (expect-to-fail cases: `tests/negative/run.sh`, `CXX=clang++` to switch
   compiler; not part of CI's `tests/*.cpp` glob).

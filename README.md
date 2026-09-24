@@ -560,6 +560,14 @@ drives a real HD44780 I2C LCD through the unmodified `oneIO::display::I2cLcd`
 composition over an actual peripheral, not a toy counter — with the glass
 confirmed by eye.
 
+[`examples/static_net`](examples/static_net) is a different kind of composition: **static networks**,
+dry, typed, zero-runtime descriptions of dataflow nets (a typelist of parts, wired by index, id or query;
+no runtime data but the input view), with tinyML as the running example: a 4-input classifier in 44 B and
+25 cycles on an 8-bit ATmega328p. It is measured against a table loop and against emlearn on the same
+folds, in one build setup; the cycle counts come from simavr and were confirmed on a real Arduino Nano
+(100 numbers, no difference), and the realization of a cell (unrolled or as a table and a loop) is a
+compile-time choice with a measured size/speed trade. Its README says what was measured and what was not.
+
 ---
 
 ## C++17 and embedded systems
