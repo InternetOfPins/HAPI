@@ -24,6 +24,62 @@ namespace hapi {
   template<typename T> struct Succ;
   template<int V> struct Succ<Tag<V>> { using Type = Tag<V+1>; };
 
+  // ── Expand<O>: what a container holds, taught once per container ───────────────
+  // The structural fact behind every walk that needs to open a container: an
+  // ordered Chain<...> of children. Primary = leaf (no Children). Opt-in per
+  // EXACT type, deliberately never keyed on ::Types: ::Types is a convention on
+  // many unrelated types, and a generic ::Types splice was tried and reverted
+  // (HAPI commit 7c5e779) for breaking whole-object Filter<FromTypes<..>> in
+  // OneMenu. A derived type (e.g. an ItemDef deriving from APIOf) needs its own
+  // entry, one line forwarding to its base's:
+  //   template<typename... OO> struct Expand<D<OO...>> : Expand<B<OO...>> {};
+  // and, like any specialization, it must be declared before Expand is first
+  // used on that type.
+  //
+  // The four policy bits say WHICH walks descend, because they genuinely differ
+  // and unifying the structure must not silently unify the policy:
+  //   queried    Any/Exists/query/Requires/Excludes look inside (ops with is_query)
+  //   selected   every other Traverse op (Filter/Map/Partition/...) looks inside;
+  //              false = the element is taken whole
+  //   validates  BuildRules/NoCollision splice it into the rule walk
+  //   searched   FindFirst opens it, after testing the node itself
+  // Every bit defaults to false so an entry lists only what it enables.
+  template<typename Kids, bool Queried=false, bool Selected=false, bool Validates=false, bool Searched=false>
+  struct Expansion {
+    using Children = Kids;
+    static constexpr bool queried   = Queried;
+    static constexpr bool selected  = Selected;
+    static constexpr bool validates = Validates;
+    static constexpr bool searched  = Searched;
+  };
+
+  template<typename O> struct Expand {};   // leaf
+
+  // a plain Chain is transparent: every walk goes through it
+  template<typename... OO>
+  struct Expand<Chain<OO...>> : Expansion<Chain<OO...>,true,true,true,true> {};
+
+  template<typename O, typename = void> struct IsContainer : std::false_type {};
+  template<typename O>
+  struct IsContainer<O, std::void_t<typename Expand<O>::Children>> : std::true_type {};
+
+  // per-walk lookups: false for a leaf, else the container's own bit
+  template<typename O, bool = IsContainer<O>::value> struct Validates : std::false_type {};
+  template<typename O> struct Validates<O,true> : std::bool_constant<Expand<O>::validates> {};
+  template<typename O, bool = IsContainer<O>::value> struct Searches : std::false_type {};
+  template<typename O> struct Searches<O,true> : std::bool_constant<Expand<O>::searched> {};
+
+  // is the first element of a list one the rule walks splice in place? (false for an empty list)
+  template<typename L> struct HeadValidates : std::false_type {};
+  template<typename H, typename... TT> struct HeadValidates<Chain<H,TT...>> : Validates<H> {};
+
+  // Traverse ops: a query op (is_query, i.e. Any) uses `queried`, every other op uses `selected`
+  template<typename Op, typename = void> struct IsQueryOp : std::false_type {};
+  template<typename Op> struct IsQueryOp<Op, std::void_t<decltype(Op::is_query)>> : std::bool_constant<Op::is_query> {};
+  template<typename Op, typename O, bool = IsContainer<O>::value> struct Opens : std::false_type {};
+  template<typename Op, typename O>
+  struct Opens<Op,O,true> : std::bool_constant<IsQueryOp<Op>::value ? Expand<O>::queried : Expand<O>::selected> {};
+
   // ── Traverse: the ONLY container extension point ───────────────────────────────--
 
   template<typename Op, typename Input> struct Traverse;
@@ -31,15 +87,22 @@ namespace hapi {
   template<typename Op, typename Input>
   using Eval = typename Traverse<Op, Input>::Beta;
 
-  template<typename Op, typename Input>
-  struct Traverse {
-    using Beta = typename Op::template Apply<Input>;
-  };
+  // a leaf, or a container this Op opens (Expand<Input>::queried/selected): apply Op per child, then combine
+  template<typename Op, typename Input, bool Open>
+  struct TraverseVia { using Beta = typename Op::template Apply<Input>; };
 
+  template<typename Op, typename Kids> struct TraverseKids;
   template<typename Op, typename... OO>
-  struct Traverse<Op, Chain<OO...>> {
+  struct TraverseKids<Op, Chain<OO...>> {
     using Beta = typename Op::template ApplyPack<typename Traverse<Op, OO>::Beta...>;
   };
+  template<typename Op, typename Input>
+  struct TraverseVia<Op, Input, true> : TraverseKids<Op, typename Expand<Input>::Children> {};
+
+  // the extension point is unchanged: a type may still specialize Traverse<Op,X<...>> by hand,
+  // and that specialization wins over this primary.
+  template<typename Op, typename Input>
+  struct Traverse : TraverseVia<Op, Input, Opens<Op,Input>::value> {};
 
   // ── Predicates ───────────────────────────────────────────────────────────────--
 
@@ -125,6 +188,7 @@ namespace hapi {
 
   template<typename Q>
   struct Any {
+    static constexpr bool is_query = true;   // opens containers by their `queried` bit
     template<typename O> using Check = typename Traverse<Any<Q>, O>::Beta;
     template<typename O> using Apply = typename Q::template Apply<O>;
     template<typename... OO> using ApplyPack = OrPack<OO...>;
@@ -166,8 +230,21 @@ namespace hapi {
   template<typename Q, typename Input>
   struct FindFirstLeaf<Q,Input,true> { using Result = Input; };
 
+  // A container that opts in (Expand<Input>::searched) is tested as a whole FIRST and only then opened:
+  // Q may want the container itself (agnosticism's refid matches a whole APIOf cell through FromTypes).
+  // Chain is not handled here, it is the walk itself (specializations below) and is never matched as an element.
+  template<typename Q, typename Input, bool Hit>
+  struct FindFirstOpen : FindFirst_<Q, typename Expand<Input>::Children> {};   // miss: open it
   template<typename Q, typename Input>
-  struct FindFirst_ : FindFirstLeaf<Q,Input> {};
+  struct FindFirstOpen<Q,Input,true> : FindFirstLeaf<Q,Input> {};              // hit: the node itself
+
+  template<typename Q, typename Input, bool = Searches<Input>::value>
+  struct FindFirstNode : FindFirstLeaf<Q,Input> {};                            // leaf, or a container that is not searched
+  template<typename Q, typename Input>
+  struct FindFirstNode<Q,Input,true> : FindFirstOpen<Q,Input,HasResult<FindFirstLeaf<Q,Input>>::value> {};
+
+  template<typename Q, typename Input>
+  struct FindFirst_ : FindFirstNode<Q,Input> {};
 
   // chain: dispatch on whether Head's search already has a Result; each branch
   // only names the chain element it actually needs, so the miss-branch's lone

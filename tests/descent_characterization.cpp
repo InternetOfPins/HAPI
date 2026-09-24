@@ -69,6 +69,10 @@ namespace descent_char {
   struct InitInt  {static int  init() {return 1;}};   // collides with InitVoid
   static_assert(NoCollision<HapiMember_init,Chain<InitVoid,W<InitInt>>>,
     "[D2] a collision hidden inside a Traverse-visible wrapper is not detected");
+  static_assert(NoCollision<HapiMember_init,Chain<InitVoid,APIOf<InitInt>>>,
+    "[gap] pre-existing, not a policy flip: the collision splice is head-only, so an earlier sibling is never "
+    "compared against a later container's spliced children (here an APIOf's API). In head position it IS found: "
+    "tests/negative/nocollision_nested_apiof.cpp");
 
   // ── 3. Traverse-based ops over an exact APIOf ─────────────────────────────────
   // (an APIOf, unlike Chain, has no Traverse specialization: it is a leaf)

@@ -54,9 +54,14 @@ namespace hapi {
   };
 
   /// @brief starts the rules folding process, walking the list of types to provide
-  /// correct before/after elements to each target element in the chain.
+  /// correct before/after elements to each target element in the chain. A head that
+  /// is a container with `validates` (Chain, APIOf, ...) is first replaced by its
+  /// children in place, so ITS elements' rules see the right Before/After context.
+  template<typename Before, typename After, bool = HeadValidates<After>::value>
+  struct BuildRules;
+
   template<typename Before, typename After>
-  struct BuildRules:
+  struct BuildRules<Before, After, false>:
     RuleLayer<typename After::Head,Before,typename After::Tail>::template Part<
       hapi::BuildRules<typename Before::template App<typename After::Head>, typename After::Tail>
     >
@@ -64,19 +69,14 @@ namespace hapi {
 
   //rules fold termination
   template<typename Before>
-  struct BuildRules<Before,Chain<>> {
+  struct BuildRules<Before,Chain<>,false> {
     [[nodiscard]] static constexpr bool rules() {return true;}
   };
 
-  /// @brief a nested Chain used as one component (mono_block) is spliced
-  /// into the walk in place, so its own elements' rules see correct
-  /// Before/After context — mirrors Chain<>::Part<T>'s own transparent
-  /// handling of a nested Chain as a component. Sibling specialization
-  /// for nested APIOf is in hapi.h (kept separate, not a generic
-  /// ::Types-keyed splice — see that file for why).
-  template<typename Before, typename... PP, typename... Rest>
-  struct BuildRules<Before, Chain<Chain<PP...>, Rest...>>
-    : BuildRules<Before, Chain<PP..., Rest...>> {};
+  template<typename Before, typename After>
+  struct BuildRules<Before, After, true>
+    : BuildRules<Before, typename ConcatChains<typename Expand<typename After::Head>::Children,
+                                               typename After::Tail>::Type> {};
 
   // ====================== MEMBER COLLISION DETECTION ======================--
   // Ordinary C++ name lookup silently hides one same-named method behind
@@ -155,20 +155,22 @@ namespace hapi {
     static constexpr bool value = ok && NoCollisionWith_<Detector, Elem, Chain<OO...>>::value;
   };
 
-  template<typename Detector, typename Input> struct NoCollision_;
+  // same in-place splice as BuildRules: a head that is a container with `validates` (nested
+  // Chain, nested APIOf, ...) is replaced by its children before the walk continues.
+  template<typename Detector, typename Input, bool = HeadValidates<Input>::value>
+  struct NoCollision_;
   template<typename Detector>
-  struct NoCollision_<Detector, Chain<>> : std::true_type {};
+  struct NoCollision_<Detector, Chain<>, false> : std::true_type {};
   template<typename Detector, typename O, typename... OO>
-  struct NoCollision_<Detector, Chain<O,OO...>> {
+  struct NoCollision_<Detector, Chain<O,OO...>, false> {
     static constexpr bool value =
       NoCollisionWith_<Detector, O, Chain<OO...>>::value &&
       NoCollision_<Detector, Chain<OO...>>::value;
   };
-  // mirrors BuildRules's own nested-bare-Chain splice above (mono_block):
-  // a Chain used as one component is spliced into the walk in place.
-  template<typename Detector, typename... PP, typename... Rest>
-  struct NoCollision_<Detector, Chain<Chain<PP...>, Rest...>>
-    : NoCollision_<Detector, Chain<PP..., Rest...>> {};
+  template<typename Detector, typename Input>
+  struct NoCollision_<Detector, Input, true>
+    : NoCollision_<Detector, typename ConcatChains<typename Expand<typename Input::Head>::Children,
+                                                   typename Input::Tail>::Type> {};
 
   /// @brief public entry point, same calling convention as Requires/
   /// Excludes above (direct bool, no ::value) -- usable standalone in a
@@ -176,8 +178,6 @@ namespace hapi {
   /// or from inside a component's own rules<Before,After>() for APIOf-
   /// based compositions that want it folded in automatically (reconstruct
   /// the full list first via ConcatChains<Before,Chain<Self>,After>).
-  /// Sibling splice specialization for nested APIOf is in hapi.h, same
-  /// reason BuildRules's own APIOf splice lives there and not here.
   template<typename Detector, typename Input>
   inline constexpr bool NoCollision = NoCollision_<Detector, Input>::value;
 
