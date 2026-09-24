@@ -27,12 +27,18 @@ namespace walk_test {
   template<typename... II> struct S {template<typename O> struct Part : O {using O::O;};};   // selected only
   template<typename... II> struct V {template<typename O> struct Part : O {using O::O;};};   // validates only
   template<typename... II> struct F {template<typename O> struct Part : O {using O::O;};};   // searched only
+  // validates, AND carries a rule of its own: no A anywhere after it (what ItemPrinter's "Cursor below" rule is like)
+  template<typename... II> struct VO {
+    template<typename Bf,typename Af> static constexpr bool rules() {return !Requires<SameAs<A>,Af>;}
+    template<typename O> struct Part : O {using O::O;};
+  };
 }
 namespace hapi {
   template<typename... II> struct Expand<walk_test::Q<II...>> : Expansion<Chain<II...>,true, false,false,false> {};
   template<typename... II> struct Expand<walk_test::S<II...>> : Expansion<Chain<II...>,false,true, false,false> {};
   template<typename... II> struct Expand<walk_test::V<II...>> : Expansion<Chain<II...>,false,false,true, false> {};
   template<typename... II> struct Expand<walk_test::F<II...>> : Expansion<Chain<II...>,false,false,false,true > {};
+  template<typename... II> struct Expand<walk_test::VO<II...>> : Expansion<Chain<II...>,false,false,true, false> {};
 }
 
 namespace walk_test {
@@ -63,6 +69,12 @@ namespace walk_test {
   static_assert(!Found<SameAs<A>,Chain<V<A>>>::value,                                 "validates: FindFirst does not open it");
   static_assert(NoCollision<HapiMember_init,Chain<InitVoid,S<InitInt>>>,
     "a colliding member inside a non-validating container is not seen (a validating one is: tests/negative)");
+
+  // ── validates + a rules() of its own: splicing its children must not drop the container's own rule ──
+  static_assert( BuildRules<Chain<>,Chain<API,VO<>,B>>::rules(),                      "own rule runs, and passes when it should");
+  static_assert(!BuildRules<Chain<>,Chain<API,VO<>,A>>::rules(),                      "own rule runs: it sees its later siblings (as if placed directly)");
+  static_assert( BuildRules<Chain<>,Chain<API,VO<A>>>::rules(),                       "...but not its own children (same view as a directly placed component)");
+  static_assert(!BuildRules<Chain<>,Chain<API,VO<BadRule>>>::rules(),                 "and its children's rules run too");
 
   // ── searched: FindFirst opens it, node first; everything else does not ─────────────
   static_assert(std::is_same<typename FindFirst<SameAs<A>>::template Check<Chain<F<A>>>,A>::value,

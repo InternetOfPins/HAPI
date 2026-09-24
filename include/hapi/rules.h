@@ -73,10 +73,22 @@ namespace hapi {
     [[nodiscard]] static constexpr bool rules() {return true;}
   };
 
+  /// @brief does a container that is spliced into the rule walk carry a rules() of its own? Chain and APIOf never do,
+  /// and must not be probed: HasRules needs a complete type, and for a nested APIOf that would instantiate the whole
+  /// composed class (and fire its own validation as a hard error instead of letting the walk report false). Any other
+  /// container is asked (e.g. a printer wrapper that has a rule of its own).
+  template<typename O> struct HasOwnRules : HasRules<O> {};
+  template<typename... OO> struct HasOwnRules<Chain<OO...>> : std::false_type {};
+
+  // The container's OWN rules() (if it has any) still runs, with the same Before/After it would see if placed directly
+  // (its later siblings, not its own children): only then is it replaced by its children. Dropping it would silently
+  // switch off a rule that is live when the same component is placed directly.
   template<typename Before, typename After>
   struct BuildRules<Before, After, true>
-    : BuildRules<Before, typename ConcatChains<typename Expand<typename After::Head>::Children,
-                                               typename After::Tail>::Type> {};
+    : RuleLayer<typename After::Head, Before, typename After::Tail, HasOwnRules<typename After::Head>::value>::template Part<
+        BuildRules<Before, typename ConcatChains<typename Expand<typename After::Head>::Children,
+                                                 typename After::Tail>::Type>
+      > {};
 
   // ====================== MEMBER COLLISION DETECTION ======================--
   // Ordinary C++ name lookup silently hides one same-named method behind

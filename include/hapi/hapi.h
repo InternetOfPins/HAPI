@@ -36,4 +36,9 @@ namespace hapi {
   template<typename API, typename... OO>
   struct Expand<APIOf<API,OO...>> : Expansion<Chain<API,OO...>,false,false,true,false> {};
 
+  /// @brief an APIOf has no rules() of its own (its components' rules are what BuildRules walks), so the splice must not
+  /// probe it: that would instantiate the whole composed class. See HasOwnRules in rules.h.
+  template<typename API, typename... OO>
+  struct HasOwnRules<APIOf<API,OO...>> : std::false_type {};
+
 }; // namespace hapi
