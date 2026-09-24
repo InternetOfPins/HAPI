@@ -14,7 +14,7 @@ Two principles govern all modules in the HAPI/OneData ecosystem:
 
 **No runtime recursion.** Function call recursion consumes stack deterministically but unboundedly. All recursion in HAPI is *template recursion* — resolved entirely at compile time, consuming zero stack at runtime. Runtime loops and branching belong only in high-level orchestration layers, not in data pipeline components.
 
-> **Distinction:** template recursion (`Chain::Part`, `BuildRules`) is compile-time and costs nothing at runtime. Function call recursion (`f()` calling `f()`) consumes stack and is banned in core components.
+> **Distinction:** template recursion (`Chain::Part`, `BuildRules`, `Traverse`, `Expand`) is compile-time and costs nothing at runtime. Function call recursion (`f()` calling `f()`) consumes stack and is banned in core components.
 
 ---
 

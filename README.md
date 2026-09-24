@@ -190,7 +190,7 @@ using Output = Map<Identity>::Check<Input>;
 static_assert(std::is_same_v<Output,Chain<A,B>>);
 ```
 
-`Map` rebuilds a `Chain` from the transformed elements. Nested `Chain`s are traversed by the common `Traverse` mechanism.
+`Map` rebuilds a `Chain` from the transformed elements. Nested `Chain`s are traversed by the common `Traverse` mechanism; which other containers it opens is declared per container with [`Expand`](#teaching-hapi-your-own-container-expand).
 
 A filter can select elements while producing another `Chain`:
 
@@ -295,6 +295,47 @@ This lets compile-time queries distinguish between the object/type being inspect
 
 ---
 
+## Teaching HAPI your own container: `Expand`
+
+Queries, transforms, `FindFirst` and the rule checks all need to know one thing about a type: *does it hold other components, and which?* `Chain<OO...>` does, and HAPI knows. A wrapper of your own does not, until you say so, once, with an `Expand` entry:
+
+```cpp
+template<typename... II>
+struct Box {                                   // a component that wraps others
+  template<typename O> struct Part : Chain<II...>::template Part<O> {};
+};
+
+namespace hapi {
+  template<typename... II>
+  struct Expand<Box<II...>> : Expansion<Chain<II...>, /*queried*/true, /*selected*/true> {};
+}
+
+static_assert(query<SameAs<A>, Chain<Box<A>>>);   // a query now sees A inside the Box
+```
+
+Without an entry a type is a **leaf**: every walk treats it as one whole element. `Expansion<Children, Queried, Selected, Validates, Searched>` names the children and, for each family of walks, whether it opens the container (all default to `false`, so an entry lists only what it enables):
+
+| bit | walks that open the container when it is set |
+|---|---|
+| `queried` | `Any`, `Exists`, `query`, `Requires`, `Excludes` |
+| `selected` | every other `Traverse` operation: `Filter`, `Map`/`Transform`, `Partition`, … (`false` = the element is taken whole) |
+| `validates` | `BuildRules` / `NoCollision`: the children are spliced in place, so their `rules()` run with the enclosing chain as context. The container's own `rules()`, if it has any, still runs too |
+| `searched` | `FindFirst`: the container is tested as a whole first, then opened |
+
+The bits are separate because the walks genuinely differ. `Chain` sets all four. `APIOf<API,OO...>` sets only `validates` (its children are `Chain<API,OO...>`, i.e. `APIOf::Types`): a nested `APIOf` is validated in place, but queries and `Filter` still see it as one element. A container can also want some walks and not others: for instance a component type whose *contents* queries should see, while `Filter` must select it whole.
+
+Rules of the road:
+
+* **Per exact type, never inferred.** Having a `Types` member does not make a type a container (a generic `::Types` splice was tried and reverted: it broke whole-object matching with `FromTypes`).
+* **A derived type needs its own entry**, one line forwarding to its base: `template<typename... OO> struct Expand<D<OO...>> : Expand<B<OO...>> {};`
+* **Declare it before first use**, like any specialization (g++ rejects a specialization after the type has been queried; clang does not).
+* A hand-written `Traverse<Op,X<...>>` specialization still works and wins over the default, but an `Expand` entry is preferred: it also covers `FindFirst` and the rule walks, and it lets each family opt in separately.
+* `IsContainer<O>` tells whether a type has an entry.
+
+Detecting a leaf costs one class template instantiation per element visited (measured with `clang++ -ftime-trace`); `Chain::Map` and friends that do not go through `Traverse` are unaffected.
+
+---
+
 ## Runtime resolution
 
 HAPI also provides `find<Q>(object)`.
@@ -377,6 +418,8 @@ An invalid composition can therefore fail during compilation:
 ```
 
 `APIOf` invokes `BuildRules` when the composition is closed, causing the rules to be evaluated as part of the type construction.
+
+A nested `Chain` or `APIOf` is validated in place: its components' `rules()` see the enclosing chain as `Before`/`After`. Any other container is validated the same way only if its [`Expand`](#teaching-hapi-your-own-container-expand) entry sets `validates`; otherwise the `rules()` of what it holds are not run. Turning it on changes what compiles (a violation hidden inside the container is now reported), so it is opt-in per container. It is meant for wrappers that hold *the same item's* components; a container that holds *other items* would mix their components into each other's `Before`/`After` and trip rules that only make sense within one item.
 
 ---
 

@@ -190,11 +190,11 @@ The `print` call chain follows the type list order: `A::Part::print` → `B::Par
 HAPI uses a two-tier metaprogramming system to manage component discovery and structural manipulation:
 
 - **Predicates** — define capabilities or search criteria. Structured as types with `Apply`/`Check`/`ApplyPack` members, used with `query<>` to introspect the stack.
-- **Transformations** — define how the type list is processed or manipulated. `Traverse`-based templates that walk the chain to map, filter, or extract type-level information.
+- **Transformations** — define how the type list is processed or manipulated. `Traverse`-based templates that walk the chain (and any container that declares itself with `Expand`) to map, filter, or extract type-level information.
 
 #### Predicate Anatomy
 
-A predicate has three members, so `Traverse` can plug it in generically — `Apply<O>` is the actual leaf-level test; `Check<O>` is the whole-tree walk built on top of it via `Traverse`; `ApplyPack<OO...>` tells `Traverse` how to fold results back together over a `Chain`:
+A predicate has three members, so `Traverse` can plug it in generically — `Apply<O>` is the actual leaf-level test; `Check<O>` is the whole-tree walk built on top of it via `Traverse`; `ApplyPack<OO...>` tells `Traverse` how to fold results back together over a `Chain` (or over the children of any other container it opens):
 
 ```cpp
 template<typename Q>
@@ -219,7 +219,7 @@ Predicates are always used as bare types — `SameAs<Q>`, never `SameAs<Q>{}` �
 
 #### Transformation Anatomy
 
-Transformations plug into the same `Traverse<Op,Input>` recursion point predicates use — `Traverse` calls `Op::Apply<Input>` on a leaf, or folds `Op::ApplyPack<...>` over a `Chain<OO...>`'s already-transformed elements, recursing structurally into any nested `Chain`:
+Transformations plug into the same `Traverse<Op,Input>` recursion point predicates use — `Traverse` calls `Op::Apply<Input>` on a leaf, or folds `Op::ApplyPack<...>` over a container's already-transformed children, recursing structurally into any nested `Chain` (and into any wrapper with an `Expand` entry that sets `selected`):
 
 ```cpp
 // hapi::Map<F> — F is a template-template parameter (must expose ::Type), not an object
@@ -253,6 +253,8 @@ A `Chain<OO...>` can be used directly as a component inside another chain — it
 using Inner = Chain<Data, Store>;
 using Outer = APIOf<API, Inner, Other>;   // Inner is expanded inline
 ```
+
+A wrapper struct of your own is a *leaf* to queries, `Filter`, `FindFirst` and the rule checks until you add an `Expand` entry for it (see the README's "Teaching HAPI your own container"): that says what it holds and which of those walks may look inside. Rules (`validates`) are the one to think about before enabling: it makes the `rules()` of the wrapped components run, so it suits wrappers around *one item's* components and not containers of other items.
 
 To create a restricted view (hide or delete methods from a sub-chain), write an explicit wrapper struct. Hiding a method has two shapes — pick per use case, not by default:
 

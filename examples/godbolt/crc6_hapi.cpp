@@ -2,6 +2,10 @@
 // HAPI core (chain.h + meta.h + rules.h + APIOf from hapi.h), inlined so this
 // compiles standalone with no #include of external HAPI headers -- just
 // -std=c++17, no libraries needed. Source: github.com/InternetOfPins/HAPI
+//
+// NOTE: this is a hand-inlined COPY of the core as it was before HAPI 0.7.0 (BuildRules with its own
+// Chain/APIOf splices, no Expand). It does not follow later changes to include/hapi/*.h; it is
+// enough for this demo but is not a reference for the current core. Re-inline it if it matters.
 
 #ifdef __AVR__
   #include <stdint.h>
