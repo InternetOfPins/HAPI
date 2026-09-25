@@ -1,0 +1,9 @@
+  ok    fetched https://raw.githubusercontent.com/InternetOfPins/HAPI/3b0c466ca5a6870a0747abc8133fd64743c333b7/single/hapi.h
+  ok    wave4_od.cpp compiles (avr-g++ 7.3.0 -std=c++17 -Os -mmcu=atmega328p)
+        wave4(): 56 B of code
+  ok    wave4_apiof.cpp compiles (avr-g++ 7.3.0 -std=c++17 -Os -mmcu=atmega328p)
+        wave4(): 56 B of code
+  ok    wave4_od.cpp and wave4_apiof.cpp: identical wave4() (28 instructions)
+  ok    wave4() == static_net's bnc_predict (compare_emlearn, include/ headers)
+
+5 ok, 0 FAIL
