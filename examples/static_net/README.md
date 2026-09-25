@@ -1,11 +1,14 @@
 # static_net
 
-Static networks: dry, typed, zero-runtime descriptions of dataflow nets. The running example is tinyML on an 8-bit AVR: a 4-input classifier in 44 B and 25 cycles.
+Static networks: dry, typed descriptions of dataflow nets.
 
-A **net** here is a static typelist of parts. It is wired by index, by id or by a query; it carries no data of its own; the only runtime state is the input view it is evaluated on.
+A **net** is a typelist of parts, wired by index, by id or by a query. It carries no data of its own; the only runtime state is the input view it is evaluated on.
+Because the whole structure is a type, the compiler resolves it at compile time: the forms below compile to the same disassembly as the hand-written equivalents (*What the composition costs*).
+The running example is a 4-input classifier on an 8-bit AVR: 44 B and 25 cycles on an ATmega328p.
+
 Parts agree on a small **contract** (a static, pure `proc(in)`, optionally `update(in)`); they do not inherit from a framework, and HAPI's `Chain<>` / `APIOf<>` / `Expand<>` do the
-composing. Neural-net cells are the running example, not the point: any static dataflow of pure stages fits (a filter chain, a control loop, a sensor fusion). Two inference engines
-are provided as parts, `wave` (no multiplies: shifts, masks and adds) and `lin` (plain integer linear, multiplies by design), and they mix freely in one net.
+composing. Neural-net cells are the running example, not the point: any static dataflow of pure stages fits (a filter chain, a control loop, a sensor fusion), and other contracts can sit
+beside `proc(in)`. Two inference engines are provided as parts, `wave` (no multiplies: shifts, masks and adds) and `lin` (plain integer linear, multiplies by design), and they mix freely in one net.
 
 ```cpp
 // models/banknote/net.h -- the trained classifier is a TYPE. Its parameters are template arguments: no table, no state, no interpreter.
@@ -17,15 +20,15 @@ using BanknoteNet = wave::Cell<WAVE_K,
 bool y = BanknoteNet::proc(features);        // a few shifts, masks and adds; 44 B of flash, 25 cycles on an ATmega328p
 ```
 
-It complements [`ml_interpreter_cost`](../ml_interpreter_cost): that example removes the *interpreter* from a layered net on ARM (against TFLite-Micro); this one is about nets *composed from
-parts* on an 8-bit chip, and what the composition costs (nothing it can measure) and buys (a choice of realization at compile time), against a table loop and against emlearn.
+Not the same result as [`ml_interpreter_cost`](../ml_interpreter_cost): that example is *dispatch removal* (a layered net on ARM without TFLite-Micro's interpreter), which a plain template network
+also achieves. This one is *composition*: independent parts, wiring derived from an index, an id or a query, and the realization of a cell (folded or rolled) chosen at compile time. It is measured on an 8-bit chip against a table loop and against emlearn.
 
 ## Run it
 
 ```sh
 pio run -e native && .pio/build/native/program      # static_net banknote: agree 274/274, correct 274/274
 pio run -e uno -t upload && pio device monitor       # the same program on an Arduino Uno / Nano (ATmega328p), report over Serial
-check/build.sh                                       # the checks: composition, what must not build, sizes, sugar and by-id cost nothing, simulated row-by-row
+check/build.sh                                       # the checks: composition, what must not build, sizes, identical disassembly (sugar, by-id), simulated row-by-row
 ```
 
 `agree` compares the net with the C reference model that trained it, row by row, on the 274 held-out rows of the fold; `correct` compares it with the labels.
@@ -51,6 +54,7 @@ using ById = snet::Net<
 ```
 
 - **A cycle is a compile error**, not a runtime surprise: `snet::Ref<j>: in-place reference must point to a lower net index; a cycle needs a register (Slot<i> + Store<i>)`.
+  The check is a `static_assert` in the net's own library code (`include/staticNet.h`), not something a user of the net writes or can forget: a net with a combinational cycle cannot be evaluated, `proc` does not compile (`check/cycle_reject_*.cpp` name the net and call `proc`).
   A reference to a cell that is not in the net says so in words (`no cell in the net matches Q`, `no cell of that type in the net`) (`check/`: `cycle_reject_*`, `refid_missing`, `sugar_missing`).
 - **The realization is a compile-time choice.** `cell<bias>(sign, terms...)` returns the unrolled `lin::Cell` (one inline multiply-add per term) or, from `SUGAR_ROLL_AT` = 6 terms, the same
   terms as a table and a loop (`snet::Roll`); the result is identical, the code is not (see *Realizations* below). `SUGAR_ROLL_AT` is a **size policy**, not a fact: set it huge to never roll.
@@ -121,8 +125,17 @@ out first; a speed-first build never rolls. Only AVR was measured (the break-eve
 
 ### What the composition costs
 
-Nothing measurable: the net written with `sugar.h` and the same net written by hand are the same program (274 B, identical disassembly); a net wired by id and the same net wired by index likewise (304 B);
-`sugar::cell` picks exactly the form a person would write (322 B rolled, 1006 B unrolled, both identical to the hand-written cell). `check/build.sh` asserts each of these.
+Checked by identical disassembly, not proved. `check/build.sh` builds each pair as a whole program (avr-gcc 7.3, `-Os`, ATmega328p) and compares an md5 of the `avr-objdump -d` output (`same()`); all pass:
+
+| pair | size | identical disassembly |
+|---|---|---|
+| net written with `sugar.h` / the same net by hand | 274 B | yes |
+| net wired by id / the same net wired by index | 304 B | yes |
+| `sugar::cell`, rolled / the rolled cell by hand | 322 B | yes |
+| `sugar::cell` with `SUGAR_ROLL_AT` huge / the unrolled cell by hand | 1006 B | yes |
+
+Scope: one toolchain, one target, these nets. The `[temp.alias]` argument that `Chain<>::Part` adds nothing does not cover `Drop<>`, `RefId` / `RefQ`, `sugar` or the cycle check; those are what this table measures.
+The result also depends on `SNET_INLINE` (`[[gnu::always_inline]]`): avr-gcc 7.3 `-Os` declines to inline the multiply-called `proc` chains without it. Another compiler or target needs the same check, and `build.sh` runs it unchanged.
 
 ## Layout
 
