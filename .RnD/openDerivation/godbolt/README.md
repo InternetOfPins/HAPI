@@ -34,8 +34,10 @@ To compare the two, open one source pane per file, each with its own compiler pa
 - **The same as static_net's build:** that `wave4()` is instruction for instruction the `bnc_predict` static_net builds from `include/` for `compare_emlearn`.
 - **The 44 B figure:** it is exactly this function minus the null model's `bnc_predict` (12 B, a single compare), the floor `compare_emlearn/run.sh` subtracts. 56 − 12 = 44.
 
-These sources were not run on Compiler Explorer itself: `godbolt.org` was unreachable from the environment that produced them, so the compiler
-list could not be checked either. The pinned URL was fetched and matches `single/hapi.h` at that commit byte for byte.
+On Compiler Explorer: <https://godbolt.org/z/TvM334frd>. AVR gcc 7.3.0, -std=c++17 -Os -mmcu=atmega328p.
+Source #1 = hand-written hapi::APIOf cell, source #2 = Open Derivation, translated. Diff view empty: wave4() is 28 instructions in both.
+
+The pinned URL was fetched and matches `single/hapi.h` at that commit byte for byte.
 
 ## Regenerate
 
