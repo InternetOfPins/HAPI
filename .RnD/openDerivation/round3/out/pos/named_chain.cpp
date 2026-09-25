@@ -4,15 +4,15 @@
 struct C  {int v=1; int get() const {return v;}};
 struct B  {template<typename O> struct Part:O {
  using Base=O; using Base::Base; int get() const {return 2*Base::get();}};};
-struct A  : hapi::APIOf<C,B> {using Base=hapi::APIOf<C,B>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<B,C>>, "duplicate layer in A");int get() const {return 1+Base::get();}}; using A_APIOf=hapi::APIOf<C,B>;  namespace hapi { template<> struct Expand<A> : Expand<A_APIOf> {}; template<> struct HasOwnRules<A> : HasOwnRules<A_APIOf> {}; }
+struct A  : hapi::APIOf<C,B> {using Base=hapi::APIOf<C,B>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<B,C>>, "duplicate layer in A");int get() const {return 1+Base::get();}}; using A_APIOf=hapi::APIOf<C,B>;  namespace hapi { template<> struct Expand< ::A> : Expand< ::A_APIOf> {}; template<> struct HasOwnRules< ::A> : HasOwnRules< ::A_APIOf> {}; }
 
 struct C2 {int v=1; int get() const {return v;}};         // the same, in plain C++
 struct B2 : C2 {int get() const {return 2*C2::get();}};
 struct A2 : B2 {int get() const {return 1+B2::get();}};
 
-template<typename T> struct W : hapi::APIOf<T,B> {using Base=hapi::APIOf<T,B>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<B,T>>, "duplicate layer in W");int get() const {return 100+Base::get();}}; template<typename T> using W_APIOf=hapi::APIOf<T,B>;  namespace hapi { template<typename T> struct Expand<W<T>> : Expand<W_APIOf<T>> {}; template<typename T> struct HasOwnRules<W<T>> : HasOwnRules<W_APIOf<T>> {}; }   // dependent base
+template<typename T> struct W : hapi::APIOf<T,B> {using Base=hapi::APIOf<T,B>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<B,T>>, "duplicate layer in W");int get() const {return 100+Base::get();}}; template<typename T> using W_APIOf=hapi::APIOf<T,B>;  namespace hapi { template<typename T> struct Expand< ::W<T>> : Expand< ::W_APIOf<T>> {}; template<typename T> struct HasOwnRules< ::W<T>> : HasOwnRules< ::W_APIOf<T>> {}; }   // dependent base
 struct K  {int v; K(int x):v(x) {} int get() const {return v;}};
-struct AK : hapi::APIOf<K,B> {using Base=hapi::APIOf<K,B>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<B,K>>, "duplicate layer in AK");int get() const {return 1+Base::get();}}; using AK_APIOf=hapi::APIOf<K,B>;  namespace hapi { template<> struct Expand<AK> : Expand<AK_APIOf> {}; template<> struct HasOwnRules<AK> : HasOwnRules<AK_APIOf> {}; }                          // K(int) reaches AK
+struct AK : hapi::APIOf<K,B> {using Base=hapi::APIOf<K,B>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<B,K>>, "duplicate layer in AK");int get() const {return 1+Base::get();}}; using AK_APIOf=hapi::APIOf<K,B>;  namespace hapi { template<> struct Expand< ::AK> : Expand< ::AK_APIOf> {}; template<> struct HasOwnRules< ::AK> : HasOwnRules< ::AK_APIOf> {}; }                          // K(int) reaches AK
 
 int main() {
   A a; A2 a2;

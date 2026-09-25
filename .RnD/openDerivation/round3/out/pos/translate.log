@@ -54,6 +54,25 @@ src/pos/def_expand.cpp:8: part  C  (1 super, rules() kept on the holder)
 src/pos/def_expand.cpp:15: base  C:final T  ->  hapi::APIOf<T,C>
 src/pos/def_expand.cpp:15: def   Z  (hapi::Expand / HasOwnRules forward to its APIOf)
 src/pos/def_expand.cpp:15: named Z  (closed by APIOf, Base + ctors, 0 super)
+src/pos/def_namespaces.cpp:12: warning: 'In' is nested in a class or block: no hapi::Expand entry (HAPI's walks treat it as a leaf)
+src/pos/def_namespaces.cpp:6: part  A  (1 super)
+src/pos/def_namespaces.cpp:7: base  A:final T  ->  hapi::APIOf<T,A>
+src/pos/def_namespaces.cpp:7: def   Nil  (hapi::Expand / HasOwnRules forward to its APIOf)
+src/pos/def_namespaces.cpp:7: named Nil  (closed by APIOf, Base + ctors, 0 super)
+src/pos/def_namespaces.cpp:8: base  A:final T  ->  hapi::APIOf<T,A>
+src/pos/def_namespaces.cpp:8: def   X  (hapi::Expand / HasOwnRules forward to its APIOf)
+src/pos/def_namespaces.cpp:8: named X  (closed by APIOf, Base + ctors, 0 super)
+src/pos/def_namespaces.cpp:9: base  A:final T  ->  hapi::APIOf<T,A>
+src/pos/def_namespaces.cpp:9: def   Y  (hapi::Expand / HasOwnRules forward to its APIOf)
+src/pos/def_namespaces.cpp:9: named Y  (closed by APIOf, Base + ctors, 0 super)
+src/pos/def_namespaces.cpp:10: base  A:final T  ->  hapi::APIOf<T,A>
+src/pos/def_namespaces.cpp:10: def   Z  (hapi::Expand / HasOwnRules forward to its APIOf)
+src/pos/def_namespaces.cpp:10: named Z  (closed by APIOf, Base + ctors, 0 super)
+src/pos/def_namespaces.cpp:11: base  A:final T  ->  hapi::APIOf<T,A>
+src/pos/def_namespaces.cpp:11: def   U  (hapi::Expand / HasOwnRules forward to its APIOf)
+src/pos/def_namespaces.cpp:11: named U  (closed by APIOf, Base + ctors, 0 super)
+src/pos/def_namespaces.cpp:12: base  A:final T  ->  hapi::APIOf<T,A>
+src/pos/def_namespaces.cpp:12: named In  (closed by APIOf, Base + ctors, 0 super)
 src/pos/dependent.cpp:4: part  Uses  (2 super)
 src/pos/dependent.cpp:8: base  Uses:final Only  ->  hapi::APIOf<Only,Uses>
 src/pos/dependent.cpp:8: def   U  (hapi::Expand / HasOwnRules forward to its APIOf)
@@ -69,6 +88,32 @@ src/pos/family.cpp:6: named AB  (closed by APIOf, Base + ctors, 0 super)
 src/pos/family.cpp:7: base  A:final C  ->  hapi::APIOf<C,A>
 src/pos/family.cpp:7: def   AC  (hapi::Expand / HasOwnRules forward to its APIOf)
 src/pos/family.cpp:7: named AC  (closed by APIOf, Base + ctors, 0 super)
+src/pos/final_layer.cpp:5: part  A  (1 super)
+src/pos/final_layer.cpp:6: part  final  (1 super)
+src/pos/final_layer.cpp:7: base  A:final:final T  ->  hapi::APIOf<T,A,final>
+src/pos/final_layer.cpp:7: def   Z  (hapi::Expand / HasOwnRules forward to its APIOf)
+src/pos/final_layer.cpp:7: named Z  (closed by APIOf, Base + ctors, 0 super)
+src/pos/final_layer.cpp:8: base  A:final  ->  hapi::Chain<A,final>
+src/pos/final_layer.cpp:8: named W  (component)
+src/pos/final_layer.cpp:9: base  W:final T  ->  hapi::APIOf<T,W>
+src/pos/final_layer.cpp:9: def   Y  (hapi::Expand / HasOwnRules forward to its APIOf)
+src/pos/final_layer.cpp:9: named Y  (closed by APIOf, Base + ctors, 0 super)
+src/pos/final_type.cpp:7: part  A  (1 super)
+src/pos/final_type.cpp:8: part  B  (1 super)
+src/pos/final_type.cpp:9: base  A:B  ->  hapi::Chain<A,B>
+src/pos/final_type.cpp:9: named W  (component)
+src/pos/final_type.cpp:10: base  A:final final  ->  hapi::APIOf<final,A>
+src/pos/final_type.cpp:10: def   Z1  (hapi::Expand / HasOwnRules forward to its APIOf)
+src/pos/final_type.cpp:10: named Z1  (closed by APIOf, Base + ctors, 0 super)
+src/pos/final_type.cpp:11: base  final final  ->  hapi::APIOf<final>
+src/pos/final_type.cpp:11: def   Z2  (hapi::Expand / HasOwnRules forward to its APIOf)
+src/pos/final_type.cpp:11: named Z2  (closed by APIOf, Base + ctors, 0 super)
+src/pos/final_type.cpp:12: base  W:final final  ->  hapi::APIOf<final,W>
+src/pos/final_type.cpp:12: def   Z3  (hapi::Expand / HasOwnRules forward to its APIOf)
+src/pos/final_type.cpp:12: named Z3  (closed by APIOf, Base + ctors, 0 super)
+src/pos/final_type.cpp:13: base  (OO : ... : B : final final)  ->  hapi::APIOf<final,OO...,B>
+src/pos/final_type.cpp:13: def   Z4  (hapi::Expand / HasOwnRules forward to its APIOf)
+src/pos/final_type.cpp:13: named Z4  (closed by APIOf, Base + ctors, 0 super)
 src/pos/identity.cpp:4: base  A:(B:final C)  ->  hapi::APIOf<C,A,B>
 src/pos/identity.cpp:4: def   G  (hapi::Expand / HasOwnRules forward to its APIOf)
 src/pos/identity.cpp:4: named G  (closed by APIOf, Base + ctors, 0 super)

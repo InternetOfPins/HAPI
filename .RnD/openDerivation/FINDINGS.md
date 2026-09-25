@@ -77,7 +77,7 @@ Nothing that `APIOf` gives is lost: the XXXDef entries (§3) forward `Expand` / 
 - **The restricted grammar is enough for static_net.** It needs open classes (the seven parts of the two engines) plus one closed struct over a pack fold per engine. *(built)*
 - **A small Python script is enough, with no Clang LibTooling.** Edits are spliced onto the original text, so comments and whitespace survive. *(built)*
 - **Round 1, 5/5:** `struct My : Twice:final Id {};` runs on g++ and clang++. Bare use of `Twice` is rejected, and `using My = Twice:final Id;` is refused. *(host, built)*
-- **Round 3, 76/76:** 14 programs on g++ and clang++, 16 translator refusals, and 16 compiler rejections on both compilers. *(host, built)*
+- **Round 3, 84/84:** 17 programs on g++ and clang++, the nested-class warning, 17 translator refusals, and 16 compiler rejections on both compilers. *(host, built)*
   - **Components (`component.cpp`):**
     - A component (`W : A:B`), a component of a component (`W2 : C:W`), and a component fold (`(PP : ... : B)`) all work.
     - Each is closed where it is used, on the user's own `Nil` or on another terminal: the same `W` is closed twice, as `W:final Nil` and as `W:final T`.
@@ -93,8 +93,21 @@ Nothing that `APIOf` gives is lost: the XXXDef entries (§3) forward `Expand` / 
 
 ## 3. Semantics as implemented
 
-- **Closing (`final T`).** `final` is a contextual keyword, and today it is only valid right after a class name (`struct X final : ...`), never
-  inside a base-specifier. So `A:B:final T` does not clash with valid C++.
+- **Closing (`final T`).**
+  - **What `final` means here, next to its existing meaning:** in `struct X final : B`, `final` says nothing may derive from `X`. It closes
+    the hierarchy *upward*, above `X`. In `(OO : ... : final API)`, it marks the end of the chain *downward*: nothing goes below `API`, and the
+    composition's terminal is fixed. Both are "the hierarchy stops here", on opposite sides.
+  - **Why it is needed, not just a closed rightmost operand:**
+    - Without it, whether the last operand closes the composition or is a component's open end would have to be inferred from that class's body. That is only possible for classes defined in the same file.
+    - With it, the syntax says so, a component can end on an open class, and closing is explicit.
+  - **Parsing.** `final` is only a contextual keyword, so a type named `final` is legal C++ (`struct final {};`). In an operand, `final` is the
+    keyword only when a type follows it in that operand. `final` alone, `final::X` and `final<...>` name the type called `final`.
+    - `: final API` stays unambiguous: in a base clause a type name directly followed by another type name has no other parse. And `final`
+      is only valid right after a class name today, never inside a base-specifier.
+    - **Round 3** (`final_type.cpp`, `final_layer.cpp`, `neg_translate/final_type_open_end.cpp`), g++ and clang++ *(host, built)*:
+      - `A:final final` closes on a type named `final` (`APIOf<final,A>`), and so do `final final` (`APIOf<final>`), `W:final final` and a fold.
+      - An *open* class named `final` works as a layer (`A:final:final T` is `APIOf<T,A,final>`) and as a component's open end (`A:final` is `Chain<A,final>`).
+      - A *closed* type named `final` as a component's open end is refused, with the hint to write `final final`.
   - `[od-final]` refusals:
     - `final` not on the last operand
     - a closed class used as the open end of a component: "close the composition on it with `final K`"
@@ -116,8 +129,17 @@ Nothing that `APIOf` gives is lost: the XXXDef entries (§3) forward `Expand` / 
   ```
   - **Why the `<Name>_APIOf` alias:** it names the base where the operands' names resolve (inside `wave`). Forwarding through `Cell<...>::Base`
     would instantiate the whole composed class whenever a walk probes it, which `rules.h` avoids on purpose for `APIOf`.
-  - **Non-type parameters become `auto`:** their types may be names local to the struct's namespace (`u8`). The enclosing namespaces are closed and reopened around the entry.
-  - **Where it cannot be emitted:** a closed struct nested in a class or a block gets no entry, with a warning, and stays a leaf for HAPI's walks.
+  - **Non-type parameters become `auto`:** their types may be names local to the struct's namespace (`u8`).
+  - **Namespaces:** the enclosing namespaces are closed and reopened around the entry. Each namespace brace is recorded with its own opener
+    text, closed with one `}`, and reopened with the same opener. The Def is named from the root (`::a::b::X`), so no name in `namespace hapi` captures it.
+    - **Tested** (`def_namespaces.cpp`, g++ and clang++; each Def expands as its `APIOf`) *(host, built)*:
+      - **global namespace:** nothing to close. The Def here is named `Nil`, which `hapi::Nil` would capture without the root qualification.
+      - **`namespace a::b`:** the nested definition has one brace, closed with one `}` and reopened as `namespace a::b {`.
+      - **inline namespace (`namespace v { inline namespace v1 {`):** reopened with `inline`, and the Def is a class template.
+      - **anonymous namespace, at the top and inside a named one:** reopening `namespace {` in the same translation unit reopens the same unnamed
+        namespace. The Def gets no qualifier from it and is found through its implicit using-directive.
+  - **Where it cannot be emitted:** a closed struct nested in a class or a block gets no entry. It stays a leaf for HAPI's walks, and the translator prints a warning,
+    which `round3/run.sh` checks (`warning: 'In' is nested in a class or block: no hapi::Expand entry`).
   - **Round 3 (`def_expand.cpp`, `neg_compile/def_nested_rules.cpp`)** *(host, built)*:
     - `Z : C:final T` expands as `APIOf<T,C>` does: it validates, and its children are `T,C`.
     - Nested in an outer rule walk (`BuildRules<Chain<>,Chain<Z,D>>`), `C`'s rule "no D after C" fires.
@@ -141,7 +163,8 @@ Nothing that `APIOf` gives is lost: the XXXDef entries (§3) forward `Expand` / 
 - **Rule 7 (open vs closed class)** is decided at the definition, by whether the body names `super`.
   - A closed class as a layer is refused. It can only be the terminal, `final K`.
   - A data-only mixin must write `using super::super;` to be a layer.
-- **Duplicate layers: left to the compiler.**
+- **Duplicate layers: left to the compiler. Status: done.** `hapi::Distinct` is in HAPI core (`include/hapi/rules.h`, commit `2d3be50`), and every composed struct emits its
+  `static_assert`. The translator's spelling-based check was removed in `22347aa`: the compiler rejects everything it caught, and also what it missed.
   - Natively, a duplicate layer is the same kind of error as a duplicate direct base (`struct X : Nil, Nil {}`: g++ `duplicate base type 'Nil' invalid`).
     In the Part lowering it is not one: `A:A:T` is `A::Part<A::Part<T>>`, two different types, which would compile silently.
   - So every composed struct gets `static_assert(hapi::Distinct<hapi::Chain<layers...,T>>, "duplicate layer in Z")`, the prototype's stand-in for that native error. How it works is in §6.

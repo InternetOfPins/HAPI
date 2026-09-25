@@ -11,9 +11,9 @@ struct Offset {template<typename O> struct Part:O {
 struct Explicit {template<typename O> struct Part:O {
  using Base=O; using Base::Base;   int get() const {return Base::v;}};};   // writing rule 6 out is allowed, and redundant
 
-struct X : hapi::APIOf<Term,Pass,Pass2> {using Base=hapi::APIOf<Term,Pass,Pass2>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<Pass,Pass2,Term>>, "duplicate layer in X");}; using X_APIOf=hapi::APIOf<Term,Pass,Pass2>;  namespace hapi { template<> struct Expand<X> : Expand<X_APIOf> {}; template<> struct HasOwnRules<X> : HasOwnRules<X_APIOf> {}; }
-struct Y : hapi::APIOf<Term,Offset,Pass2> {using Base=hapi::APIOf<Term,Offset,Pass2>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<Offset,Pass2,Term>>, "duplicate layer in Y");}; using Y_APIOf=hapi::APIOf<Term,Offset,Pass2>;  namespace hapi { template<> struct Expand<Y> : Expand<Y_APIOf> {}; template<> struct HasOwnRules<Y> : HasOwnRules<Y_APIOf> {}; }
-struct E : hapi::APIOf<Term,Explicit> {using Base=hapi::APIOf<Term,Explicit>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<Explicit,Term>>, "duplicate layer in E");}; using E_APIOf=hapi::APIOf<Term,Explicit>;  namespace hapi { template<> struct Expand<E> : Expand<E_APIOf> {}; template<> struct HasOwnRules<E> : HasOwnRules<E_APIOf> {}; }
+struct X : hapi::APIOf<Term,Pass,Pass2> {using Base=hapi::APIOf<Term,Pass,Pass2>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<Pass,Pass2,Term>>, "duplicate layer in X");}; using X_APIOf=hapi::APIOf<Term,Pass,Pass2>;  namespace hapi { template<> struct Expand< ::X> : Expand< ::X_APIOf> {}; template<> struct HasOwnRules< ::X> : HasOwnRules< ::X_APIOf> {}; }
+struct Y : hapi::APIOf<Term,Offset,Pass2> {using Base=hapi::APIOf<Term,Offset,Pass2>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<Offset,Pass2,Term>>, "duplicate layer in Y");}; using Y_APIOf=hapi::APIOf<Term,Offset,Pass2>;  namespace hapi { template<> struct Expand< ::Y> : Expand< ::Y_APIOf> {}; template<> struct HasOwnRules< ::Y> : HasOwnRules< ::Y_APIOf> {}; }
+struct E : hapi::APIOf<Term,Explicit> {using Base=hapi::APIOf<Term,Explicit>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<Explicit,Term>>, "duplicate layer in E");}; using E_APIOf=hapi::APIOf<Term,Explicit>;  namespace hapi { template<> struct Expand< ::E> : Expand< ::E_APIOf> {}; template<> struct HasOwnRules< ::E> : HasOwnRules< ::E_APIOf> {}; }
 
 int main() {
   X a(5), b(3,4);     CHECK(a.get()==5 && a.twice()==10 && b.get()==12);

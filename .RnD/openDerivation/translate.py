@@ -130,6 +130,7 @@ class Translator:
         self.span = {}         # first token index -> (last token index, replacement text)
         self.packs = set()     # parameter packs in scope at the site being lowered
         self._last_operand = None
+        self._closing = False
         self.gap_override = {} # token index -> replacement for the whitespace/comments that follow it
         self.post = {}         # token index -> text inserted right after the token
         self.log = []
@@ -609,9 +610,9 @@ class Translator:
         """returns ('ops', [items], terminal) or None when [a,b) is not a ':' expression.
         items are strings (a pack element is rendered 'P...'); dependent flag is computed by the caller."""
         cols = self.split_colons(a, b)
-        if not cols and top and self.txt(a) == "final":
-            self._last_operand = (a + 1, b)
-            return [], self.render(a, b)        # struct X : final T {}: closed on T, no layers
+        if not cols and top and self.is_final_kw(a, b):
+            self._last_operand, self._closing = (a + 1, b), True
+            return [], self.render(a + 1, b)    # struct X : final T {}: closed on T, no layers
         if not cols:
             if self.is_paren_group(a, b):
                 inner = self.parse_chain(a + 1, b - 1, top=False)
@@ -654,9 +655,10 @@ class Translator:
                 terminal = sub[1]
                 return items, terminal
             if last:
-                self._last_operand = (s + 1, e) if self.txt(s) == "final" else (s, e)
-                return items, self.render(s, e)
-            if self.txt(s) == "final":
+                self._closing = self.is_final_kw(s, e)
+                self._last_operand = (s + 1, e) if self._closing else (s, e)
+                return items, self.render(*self._last_operand)
+            if self.is_final_kw(s, e):
                 raise self.err(s, "[od-final] `final` marks the terminal: only the last operand of ':' can be `final T`")
             items.append(self.render(s, e))
             self.check_left_operand(s, e)
@@ -709,9 +711,8 @@ class Translator:
         # the syntax says it: `final T` as the last operand closes the composition on the terminal API T, and APIOf starts
         # the Part collapse there (hapi::APIOf<T,layers...>); without `final` the chain stays open: a component
         # (hapi::Chain<layers...>), reusable as a layer and closed later by whoever uses it
-        closed = terminal.startswith("final ")
+        closed = self._closing
         if closed:
-            terminal = terminal[len("final "):].strip()
             text = f"hapi::APIOf<{terminal}{''.join(',' + x for x in items)}>"
             operands = items + [terminal]
         else:
@@ -727,9 +728,14 @@ class Translator:
     def _norm(x):
         return re.sub(r"\s+", "", x)
 
+    def is_final_kw(self, s, e):
+        """is tokens[s] the contextual keyword `final` of an operand `final T` (a type follows it in the operand)?
+        `final` alone, `final::X` and `final<...>` name a type called final, which is legal C++ (struct final {};)."""
+        return self.txt(s) == "final" and e - s > 1 and self.txt(s + 1) not in ("::", "<")
+
     def is_chain(self, s, e):
         """does the base-specifier [s,e) use ':' (a chain, or a parenthesized chain / fold)?"""
-        if self.split_colons(s, e) or self.txt(s) == "final":
+        if self.split_colons(s, e) or self.is_final_kw(s, e):
             return True
         return self.is_paren_group(s, e) and bool(self.split_colons(s + 1, e - 1))
 
@@ -796,8 +802,9 @@ class Translator:
         semi = c["close"] + 1
         if semi >= len(t) or self.txt(semi) != ";":
             return
-        qual = "::".join(q for _, q in c["ns_path"] if q)
-        qual = (qual + "::" if qual else "") + name
+        # qualified from the root, so no name in namespace hapi (e.g. hapi::Nil) can capture it; an anonymous namespace
+        # contributes no qualifier (its members are found through its implicit using-directive)
+        qual = " ::" + "".join(q + "::" for _, q in c["ns_path"] if q) + name
         if c["head"]:
             lt, gt = c["head"][1], c["head"][2]
             params, args = [], []

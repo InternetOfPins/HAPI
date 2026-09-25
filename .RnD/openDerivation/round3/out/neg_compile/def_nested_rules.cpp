@@ -12,6 +12,6 @@ struct C {template<typename O> struct Part:O {                                  
     static_assert(!hapi::query<hapi::SameAs<D>,After>,"no D after C");
     return true;
   }};
-struct Z : hapi::APIOf<T,C> {using Base=hapi::APIOf<T,C>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<C,T>>, "duplicate layer in Z");}; using Z_APIOf=hapi::APIOf<T,C>;  namespace hapi { template<> struct Expand<Z> : Expand<Z_APIOf> {}; template<> struct HasOwnRules<Z> : HasOwnRules<Z_APIOf> {}; }                          // an XXXDef: derived from APIOf<T,C>, with its hapi::Expand entry
+struct Z : hapi::APIOf<T,C> {using Base=hapi::APIOf<T,C>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<C,T>>, "duplicate layer in Z");}; using Z_APIOf=hapi::APIOf<T,C>;  namespace hapi { template<> struct Expand< ::Z> : Expand< ::Z_APIOf> {}; template<> struct HasOwnRules< ::Z> : HasOwnRules< ::Z_APIOf> {}; }                          // an XXXDef: derived from APIOf<T,C>, with its hapi::Expand entry
 static_assert(hapi::BuildRules<hapi::Chain<>,hapi::Chain<Z,D>>::rules(), "outer walk");
 int main() {}

@@ -15,8 +15,10 @@ cxxs() { for c in g++ clang++; do command -v $c >/dev/null && echo $c; done; }
 echo "== positive"
 o=out/pos; rm -rf out/chain out/nested "$o"; mkdir -p "$o"
 python3 ../translate.py --report --outdir "$o" src/pos/* 2> "$o/translate.log" || bad "translate" "$(cat "$o/translate.log")"
+grep -q "def_namespaces.cpp:.*warning: 'In' is nested in a class or block: no hapi::Expand entry" "$o/translate.log" \
+  && ok "def_namespaces: nested-class Def warned: $(grep -o "warning: 'In'.*" "$o/translate.log")" || bad "def_namespaces" "no warning for the nested-class Def"
 for c in $(cxxs); do
-  for f in base_chain named_chain component def_expand distinct_args rules_ok ctors self family identity user_super dependent label_hazard; do
+  for f in base_chain named_chain component def_expand def_namespaces final_type final_layer distinct_args rules_ok ctors self family identity user_super dependent label_hazard; do
     if $c -std=c++17 -Wall -Wno-unused-label -I"$H" -I"$o" "$o/$f.cpp" -o "$W/x" 2>"$W/err"; then
       r=$("$W/x"); [ $? -eq 0 ] && ok "$f [$c]: $r" || bad "$f [$c]" "$r"
     else bad "$f [$c]" "$(grep -m1 -E 'error|static assert' "$W/err")"; fi

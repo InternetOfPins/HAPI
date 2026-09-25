@@ -1,8 +1,12 @@
 == positive
+  ok    def_namespaces: nested-class Def warned: warning: 'In' is nested in a class or block: no hapi::Expand entry (HAPI's walks treat it as a leaf)
   ok    base_chain [g++]: base_chain OK
   ok    named_chain [g++]: named_chain OK
   ok    component [g++]: component OK
   ok    def_expand [g++]: def_expand OK
+  ok    def_namespaces [g++]: def_namespaces OK
+  ok    final_type [g++]: final_type OK
+  ok    final_layer [g++]: final_layer OK
   ok    distinct_args [g++]: distinct_args OK
   ok    rules_ok [g++]: rules_ok OK
   ok    ctors [g++]: ctors OK
@@ -17,6 +21,9 @@
   ok    named_chain [clang++]: named_chain OK
   ok    component [clang++]: component OK
   ok    def_expand [clang++]: def_expand OK
+  ok    def_namespaces [clang++]: def_namespaces OK
+  ok    final_type [clang++]: final_type OK
+  ok    final_layer [clang++]: final_layer OK
   ok    distinct_args [clang++]: distinct_args OK
   ok    rules_ok [clang++]: rules_ok OK
   ok    ctors [clang++]: ctors OK
@@ -34,6 +41,7 @@
   ok    closed_open_end: neg_translate/closed_open_end.cpp:4:14: error: [od-final] 'K' is closed (its body never names `super`): close the composition on it with `final K`, or end the chain on an open layer (a component)
   ok    component_body: neg_translate/component_body.cpp:4:17: error: [od-component] 'W' is a component (its chain ends open): members in its body would not be part of the composed object; put them in a layer, or close it where it is used (struct X : W:final Terminal {})
   ok    final_not_last: neg_translate/final_not_last.cpp:3:14: error: [od-final] `final` marks the terminal: only the last operand of ':' can be `final T`
+  ok    final_type_open_end: neg_translate/final_type_open_end.cpp:5:14: error: [od-final] 'final' is closed (its body never names `super`): close the composition on it with `final final`, or end the chain on an open layer (a component)
   ok    fold_left: neg_translate/fold_left.cpp:3:38: error: [od-rule9] only the right fold (PP : ... : T) / (PP : ... : P : T) is supported: a left fold (T : ... : PP)
   ok    fold_unparenthesized: neg_translate/fold_unparenthesized.cpp:3:37: error: [od-rule9] a pack fold over ':' must be parenthesized: (PP : ... : T)
   ok    out_of_line_decl: neg_translate/out_of_line_decl.cpp:2:11: error: [od-scope] member 'f' of open class 'A' is declared but not defined in the class: out-of-line members (.cpp) are out of scope
@@ -78,5 +86,5 @@
   ok    super_undefined [g++]: error: 'f' is not a member of 'Twice::Part<Empty>::Base' {aka 'Empty'}
   ok    super_undefined [clang++]: error: no member named 'f' in 'Empty'
 
-76 ok, 0 FAIL
+84 ok, 0 FAIL
 exit 0
