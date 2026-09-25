@@ -71,7 +71,7 @@ watchdog if no message arrives within 20 ms — folded in by wrapping the
 Body, with **zero change** to `transport.h` or the fan-out.
 
 ```
-Flash: 550 bytes    (0 malloc, 0 soft-division)
+Flash: 526 bytes    (0 malloc, 0 soft-division)
 ```
 
 The ring wraps with a conditional subtract, not `% N` (which lowers to a
