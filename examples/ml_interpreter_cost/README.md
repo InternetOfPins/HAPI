@@ -19,6 +19,11 @@ HAPI does not make the multiply-accumulates faster — the reference kernels
 do the same FLOPs. It removes the machinery that reads a serialized graph
 at runtime and walks it.
 
+This is dispatch removal, which a plain template network also achieves. The
+composition result — independent parts, wiring derived from an index, an id
+or a query, the realization of a cell chosen at compile time — is
+[`static_net`](../static_net).
+
 ## Results — verified, not estimated
 
 Built with PlatformIO. STM32 is `bluepill_f103c8` / `framework=cmsis` /
