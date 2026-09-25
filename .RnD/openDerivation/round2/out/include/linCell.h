@@ -42,7 +42,7 @@ namespace lin {
     using Base=O; using Base::Base;
     template<typename I> SNET_INLINE static constexpr bool proc(const I& in) {return Base::proc(in)>0;}
   };};
-  template<typename Acc,Acc b,typename... OO> using CellOf=hapi::APIOf<APIOf<Acc>,OO...,BiasOf<Acc,b>>;
+  template<typename Acc,Acc b,typename... OO> struct CellOf : hapi::Chain<OO...,BiasOf<Acc,b>>::template Part<APIOf<Acc>> {using Base=typename hapi::Chain<OO...,BiasOf<Acc,b>>::template Part<APIOf<Acc>>; using Base::Base;};
 
   // int16_t-accumulator convenience aliases -- unchanged names/signatures from
   // before this was generalized, so every existing call site keeps compiling.

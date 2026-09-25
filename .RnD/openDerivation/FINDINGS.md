@@ -11,139 +11,145 @@ Base commit: `5c4bfeb`. Toolchains: g++ and clang++ (host, `-std=c++17`), avr-gc
 
 Logs are in each round's `log.txt` (round 2 also has `log/`).
 
+## 0. The form of the proposal these results are for: struct-only
+
+- `:` derivation is valid **only in a base clause**: `struct Z : A:B:C {...};`, and pack folds `struct Z : (OO : ... : T) {};`.
+- The alias form `using X = A:B;` is no longer valid, and the translator refuses it with `[od-rule4]`.
+- Every struct with a `:` base clause implicitly inherits that base's constructors. The translator injects `using Base=<chain>; using Base::Base;`, as `hapi::APIOf` does by hand.
+- Inside such a struct, `super` names that base: `struct A : B:C {..}` ⇔ `struct C {..}; struct B : C {..}; struct A : B {..};` *(host, `round3/src/pos/named_chain.cpp`)*.
+- Base-clause chains lower to the wrapping form `hapi::Chain<...>::Part<T>`.
+- `--lower=nested` is kept as experimental only (§4).
+
+This replaces an earlier round of the same prototype that also accepted the alias form. Its two identity findings are moot now; they are summarized in §5.
+
 ## 1. Results against the acceptance criteria (Round 2)
 
 | criterion | result | evidence |
 |---|---|---|
-| translated headers equivalent to the originals | **byte-identical**: `waveCell.h` and `linCell.h` (`cmp`), and so token- and comment-equal (`tokdiff.py`) | built |
+| translated headers equal to the originals, or the diff explained | Parts are **byte-identical**. The only differing line in each header is the cell, which is now a struct over the fold instead of an alias of `hapi::APIOf` (`round2/log/cell.diff`) | built |
 | `check/build.sh` unchanged | 61 ok, 0 FAIL on the translated tree, same as the original tree. The two outputs are identical line for line. This covers the host tests (g++, clang++), the 6 must-not-build programs, the AVR sizes, the 4 identical-disassembly checks, and simavr row by row (`bitexact.py`: BIT-EXACT) | host, built, simulated |
-| Banknote `wave4` | **44 B flash, 0 B RAM, 274/274, 25 cycles** (min = mean = max), net of the null program, from `compare_emlearn/run.sh` + `report.py`. `lin4` is identical to the original too (112 B, 0 B, 273/274, 62 cycles) | simulated |
-| `objdump` identical to the original build | 27/27 AVR programs have identical `avr-objdump -d`: the 15 from `build.sh`, `bnc` wave4/lin4, and all 10 of `measure/`. `measure/` cycles are identical too (`wave4:23 lin4:33`) | built, simulated |
+| Banknote `wave4` | **44 B flash, 0 B RAM, 274/274, 25 cycles** (min = mean = max), net of the null program (`compare_emlearn/run.sh` + `report.py`). `lin4` is identical to the original too (112 B, 0 B, 273/274, 62 cycles) | simulated |
+| `objdump` over all 27 AVR programs | **27/27 raw-identical** `avr-objdump -d`: the 15 from `build.sh`, `bnc` wave4/lin4, and all 10 of `measure/`. The fallback comparison with symbol names stripped was never needed: everything that touches a cell type is inlined, so no symbol mentions `wave::Cell<…>`. `measure/` cycles are identical too (`wave4:23 lin4:33`) | built, simulated |
 
-The headers came out byte-identical, so the equal disassembly is expected. It is checked anyway, and the check needs no whitespace allowance.
+The two cell lines, as translated:
+
+```c++
+template<u8 k,typename... OO> struct Cell : (OO : ... : Bias<k> : API) {};
+// ->
+template<u8 k,typename... OO> struct Cell : hapi::Chain<OO...,Bias<k>>::template Part<API> {using Base=typename hapi::Chain<OO...,Bias<k>>::template Part<API>; using Base::Base;};
+```
+
+`lin::CellOf` gets the same treatment (terminal `APIOf<Acc>`). `lin::Cell=CellOf<acc,b,OO...>` stays a plain alias, which is allowed because it has no `:`.
+
+### Checks that depend on matching `APIOf<...>` by pattern
+No check failed. These are the places that name `APIOf`, and why each one still passes:
+
+| place | what it matches | why it still passes |
+|---|---|---|
+| `include/sugar.h` `cell()` | builds the **rolled** cell as `hapi::APIOf<lin::API,R,Roll<...>,lin::Bias<b>>` and the **unrolled** one as `lin::Cell<b,R,TT...>` | `sugar.h` is not translated: the rolled cell is still an `APIOf`, and the unrolled cell is whatever `lin::Cell` now is |
+| `check/sugar_roll.cpp:17` | `is_same_v<U<decltype(six)>, hapi::APIOf<lin::API,...>>` (the rolled cell) | as above. If `sugar.h` were rewritten in struct form, this assert would have to name that struct instead: it pins the `APIOf` pattern |
+| `check/sugar_roll.cpp:16,22,25,30` | `is_same_v<..., lin::Cell<...>>` (unrolled) | both sides are `lin::Cell`, which now names the struct |
+| `check/sugar_roll_hand_avr.cpp` (and `same` in `build.sh` against `sugar_roll_avr`) | the "by hand" rolled net spelled `hapi::APIOf<...>` | the sugar side is still `APIOf`, so the disassembly is identical |
+| `models/roll60/roll_common.h` | `using C=hapi::APIOf<API32,OO...>` | not translated, and has its own terminal |
+| `refid.h` / `refid_*`, `refq_check`, `net_expand` | `FromTypes<Q>` reads a cell's `Types`; `Expand<Net>` holds the cells whole | the struct inherits `Types` from `Chain::Part`: `Chain<OO...,Bias<k>>`, **without the API**. No static_net query asks for the API, and matching tags and parts (`Tag<id>`, `lin::Sign`, `wave::Threshold`) still works *(host, built)* |
+
+`round2/cell_vs_apiof.cpp` pins the difference on both compilers *(built)*:
+- `wave::Cell<k,OO...>` is not `hapi::APIOf<API,OO...,Bias<k>>`.
+- It has the same base.
+- Its `Types` is `Chain<OO...,Bias<k>>`, where `APIOf`'s is `Chain<API,OO...,Bias<k>>`.
+
+What static_net silently no longer gets from `APIOf` on these two cells, none of which it exercises:
+- the `BuildRules` static_assert (no static_net part declares rules)
+- the `Expand<APIOf>` / `HasOwnRules<APIOf>` specializations (a cell nested inside another rule-validated container)
+- `APIOf::Part<T>`
+
+A mixed net of struct cells and `APIOf` cells (sugar's rolled cells) works *(host: `sugar_check`, `sugar_roll`)*.
 
 ## 2. What worked
 
-- **The restricted grammar is enough for static_net.** Only two constructs were needed: an open class, meaning a class that names `super`, and the pack fold. All seven parts of the two engines are open classes (`Bias`, `WaveOf`, `Threshold`, `Store`, `BiasOf`, `TermOf`, `SignOf`). No self-reference, no out-of-line members, no rebasing. *(built)*
-- **A small Python script is enough.** No Clang LibTooling was needed. The lexer and bracket matcher are about 700 lines of Python, and edits are spliced onto the original text so comments and whitespace survive. *(built)*
-- **Round 1:** `using My = Twice:Id;` runs on g++ and clang++. Bare use of `Twice` is rejected. *(host, built)*
-- **Round 3, 53/53:**
-  - Chains in base clauses work, including one with an access specifier next to an ordinary base, and folds in base clauses (empty pack included).
-  - Rule 6 constructor inheritance works through a chain, and `Offset(int)` hides the inherited `Term(int)` while `Term(int,int)` is still inherited.
-  - Rule 2 holds: family, not subtype. `A:B` converts to `B&`, is not an `A`, and `A:B`/`A:C` have separate statics.
-  - Rule 3 holds across translation units: a function taking `X&` with `X = A:B:C` links between two TUs in both modes.
-  - Rule 7 lookup precedence holds: `typedef Base0 super;` and `using super = Base0;` classes are left alone and work.
-  - Rule 7 dependence holds: a member using a `super::missing()` that no base has is fine until it is called.
-  - All of the above in both lowering modes, g++ and clang++. *(host)*
-- **Diagnostics:** 9 translator diagnostics (rules 7, 8 and 9, and scope) and 4 compiler rejections, each checked for its message. *(built)*
+- **The restricted grammar is enough for static_net.** It needs open classes (the seven parts of the two engines) plus a named struct over a pack fold for the cell. *(built)*
+- **A small Python script is enough, with no Clang LibTooling.** Edits are spliced onto the original text, so comments and whitespace survive. *(built)*
+- **Round 1, 5/5:** `struct My : Twice:Id {};` runs on g++ and clang++. Bare use of `Twice` is rejected, and `using My = Twice:Id;` is refused. *(host, built)*
+- **Round 3, 59/59:**
+  - Base-clause chains work, including an access specifier next to an ordinary base, and folds (empty pack included).
+  - Named compositions match their plain-C++ equivalents (`named_chain.cpp`), including a dependent base (`template<class T> struct W : B:T`).
+  - Constructor inheritance through a chain *and* into the named struct needs no user `using`: `Offset(int)` hides `Term(int)`, while `Term(int,int)` is still inherited.
+  - Rule 2 holds: family, not subtype, with separate statics.
+  - Rule 3 holds nominally, across TUs.
+  - Rule 7 holds: user `super` precedence, and dependence.
+  - The label hazard is pinned.
+  - All of the above on g++ and clang++. Also under experimental `--lower=nested`. *(host)*
+  - **Diagnostics:** 11 translator refusals (rules 4, 6, 7, 8 and 9, and scope) and 4 compiler rejections. *(built)*
 
-## 3. Deviations of the lowering from the semantics
+## 3. Semantics as implemented
 
-### D1. `--lower=chain` breaks rule 3 (structural identity). *(host)*
-`hapi::Chain<A,B>::Part<C>` is a *struct* deriving from `A::Part<B::Part<C>>`, not an alias. So with `X = A:B:C`:
-`Any:X` lowers to `Chain<Any>::Part<Chain<A,B>::Part<C>>`, and `Any:A:B:C` lowers to `Chain<Any,A,B>::Part<C>`.
-These are two different types, and `static_assert(!std::is_same<...>)` holds on both compilers (`round3/src/pos/identity.cpp`).
-The translator flattens *syntactic* right-grouping, so `A:(B:C)` == `A:B:C` holds. It cannot flatten through an alias or a template parameter.
+- **Rule 3 (identity) holds trivially:** a composition's identity is its name. The same struct is the same type in every TU (`identity_tu1/2` link) *(host)*.
+  - Two structs over the same chain are different types with the same base and behaviour: `struct G : A:(B:C)` and `struct X : A:B:C` have `G::Base == X::Base` *(host)*.
+- **Rule 1 (injected-class-name):** the translator rewrites the class's own name inside an open class's body to `Part`. That makes it the family-member *layer*, which is a base of the named struct, not the struct itself (`self.cpp`, asserted in both modes) *(host)*.
+  - `A<other args>` is not rebound, which is correct: it names another specialization.
+  - Macros are not seen.
+- **"super undefined": any compiler error is accepted.** For reference *(built)*:
 
-`--lower=nested` (`A::Part<B::Part<C>>`, and `od::FoldT` for packs) restores rule 3 exactly: `Any:X` == `Any:A:B:C` *(host)*.
-But see D2.
+  | situation | g++ | clang++ |
+  |---|---|---|
+  | bare use `Twice::f(21)` | `'f' is not a member of 'Twice'` | `no member named 'f' in 'Twice'` |
+  | `struct Bad : Twice:Empty {}`, used | `'f' is not a member of 'Twice::Part<Empty>::Base' {aka 'Empty'}` | `no member named 'f' in 'Empty'` |
+  | `A& r = ab;` (rule 2) | `... from expression of type 'AB'` | `... unrelated type 'AB'` |
 
-### D2. Exact identity and HAPI's introspection are in tension. *(host, built)*
-HAPI finds a cell's components through the `Types` member of the `Chain` wrapper (`FromTypes`, `RefId`/`RefQ`, `FindFirst`).
-The nested lowering has no wrapper, so it has no `Types`. With `Cell` as a nested fold, `check/build.sh` gives
-**46 ok / 15 FAIL**: every refid/`RefQ`/`net_expand` check fails ("no cell in the net matches Q")
-(`round2/variants/cell_fold/build_nested.txt`). The chain lowering passes 61/61.
-Everything that does not query components still builds on avr-gcc 7.3 at the same sizes (e.g. `sugar_avr` 274 B / 4 B, `sonar_lin_avr_size` 1842 B / 61 B).
+  Named compositions print as their own name (`AB`), where the alias form printed `hapi::Chain<A>::Part<B>`.
+- **Rule 4 is now base clause only.** The hazard stays as supporting evidence: `A:B x;` in a block is valid C++ today (label `A:` then `B x;`). It compiles and `x` is a `B` *(host, `label_hazard.cpp`)*.
+- **Rule 6** becomes "every struct with a `:` base inherits that base's constructors", lowered to `using Base=...; using Base::Base;`.
+  - A class with two `:` bases is refused: `Base` would be ambiguous.
+  - A class with *ordinary* bases next to one `:` base is fine.
+- **Rule 7 (open vs closed)** is decided at the definition, by whether the body names `super`.
+  - A closed class as a left operand is refused.
+  - A data-only mixin must write `using super::super;` to be usable as `M:X`.
+  - The proposal should state this. Rule 1's "any A" and rule 7's "only the last layer may be closed" conflict without it.
+- **Rule 8 (rebasing) is unchanged.**
+  - An open class with an ordinary base is refused.
+  - So is a named composition used as a *left* operand, and `(A:B):C`.
+  - A named composition can be the **last** operand: `struct Y : Any:X {}`.
+- **Rule 9 (fold)**:
+  - `(T : ... : PP)` and `(PP : ... : T)` have the same token shape. The translator uses the template head to find the pack, and only the right fold exists.
+  - An unparenthesized fold in a base clause is refused.
+- **`typename` / `::template`** are added in dependent contexts, both in the base clause and in the injected `using Base=typename ...;`.
 
-So an `A:B:C` that is exactly its structure cannot, today, also be asked what it is made of. The proposal puts
-"deducing X from A:X" out of scope. But HAPI needs the component list, and today it gets it from a wrapper, which costs rule 3.
+## 4. What is lost compared with the alias form
 
-### D3. Rule 1 (injected-class-name rebinding) is implemented, not a known deviation. *(host)*
-The translator rewrites the class's own name inside the body when it is unqualified and has no template arguments: `A`, `A::x`, and constructors `A(...)`.
-It becomes `Part`, the injected-class-name of `A::Part<O>`. Constructors need this anyway to compile.
-
-With `--lower=nested` the name means exactly `A:B`, so `is_same<X::Me, X>` holds. With `--lower=chain` it means the `Part` *under* the Chain wrapper,
-which is a base of `X` but not `X` (`round3/src/pos/self.cpp`, both asserted).
-
-What is left:
-- `A<other args>` inside the body is not rebound, which is correct: it names another specialization.
-- Uses of the name inside macros are not seen.
-- A local variable that shadows the class name would be rewritten.
-
-static_net parts never name themselves, so none of this touches round 2.
-
-### D4. "super undefined" is not the diagnostic you get. *(built)*
-Rule 7 promises a plain "super undefined" lookup error on bare use. The lowering gives:
-
-| situation | g++ | clang++ |
-|---|---|---|
-| bare use `Twice::f(21)` | `'f' is not a member of 'Twice'` | `no member named 'f' in 'Twice'` |
-| `Twice:Empty` formed and used | `'f' is not a member of 'Twice::Part<Empty>::Base' {aka 'Empty'}` | `no member named 'f' in 'Empty'` |
-| `A& r = ab;` (rule 2) | `... of type 'AB' {aka 'hapi::Chain<A>::Part<B>'}` | `... unrelated type 'AB' (aka 'Part<B>')` |
-
-The errors are correct and early, but they talk about the holder (bare `Twice` is an empty struct) and spell types
-in the lowered form. A real implementation would say `super` and print `A:B`. The translator cannot do better
-without either changing the holder, which would break byte-identity with the HAPI headers, or doing semantic analysis.
-
-### D5. `typename` / `::template` are needed in templates; the brief's table omits them. *(built)*
-In a dependent context C++17 requires `typename hapi::Chain<OO...,Bias<k>>::template Part<API>` in an alias RHS, and `::template` in a base clause.
-The translator adds these keywords when an operand names a template parameter that is in scope, for example
-`round2/variants/cell_fold/out/waveCell.h`, which builds with g++, clang++ and avr-gcc 7.3.
-
-### D6. Rule-7 lookup precedence is textual.
-- A class declaring its own `super` (member `typedef`/`using`) is left alone *(host)*.
-- A namespace-scope `super` switches `super` to ordinary lookup for the rest of the file. This is judged by position and ignores namespace nesting (a warning is printed).
-- `super` inside macros is invisible.
-
-Rule 8 makes the check almost local: an open class has no base of its own, so a base-class member named `super` cannot exist.
-
-## 4. What the proposal should change or state
-
-1. **Say which lowering rule 3 means, and pick the identity model.** If `A:(B:C)`, `A:B:C` and `Any:X` (X = A:B:C) must all be one type (D1), then:
-   - A chain can't be a wrapper type.
-   - Introspection needs another source (D2).
-
-   Options:
-   - (a) The language gives `A:B` a component list that can be queried, which partly un-scopes "deducing X from A:X".
-   - (b) Each layer describes itself (a HAPI change, §5).
-   - (c) Rule 3 is weakened to "same operand sequence, same type", which is what `--lower=chain` gives.
-2. **Reconcile rule 1 with rule 7 on closed classes.** Rule 1 says *any* class `A` has an `A:B`. Rule 7 says only the last layer may be closed.
-   The prototype follows rule 7:
-   - Whether a class is open is decided at its definition, by whether it names `super`.
-   - A closed class as a left operand is an error (`[od-rule7] 'K' is closed`).
-   - A data-only mixin must write `using super::super;` to be usable as `M:X`.
-
-   Either state that openness is a property of the definition, and name its marker (`super`, or an explicit one), or allow closed left operands.
-   A translator would then need the use sites to know which classes to lower, or would have to emit both forms.
-3. **State the rule-4 hazard explicitly.** `A:B x;` in a block is valid C++ today: the label `A:` followed by `B x;`.
-   It compiles and `x` is a `B` (`round3/src/pos/label_hazard.cpp`, host, both compilers). Rule 4 is not only about avoiding
-   ambiguity: outside the two allowed contexts, the syntax already has a silent, different meaning.
-4. **Define how a fold finds its pack.** `(T : ... : PP)` and `(PP : ... : T)` have the same token shape. Telling them apart needs the knowledge that
-   `PP` is a pack. That is trivial for a compiler, but the text should say that only the right fold (pack first) exists, as rule 9 implies.
-5. **Named wrappers: the requirement is weaker than stated, at least for static_net.**
-   `template<typename API, typename... OO> struct APIOf : (OO : ... : API) {};` lowers to exactly the base of `hapi::APIOf`
-   (static_asserts, host). But writing `Cell` as a *bare fold* instead of `hapi::APIOf` still passes `build.sh` 61/61, with 9/9 identical
-   disassembly and the same wave4/lin4 rows *(host, built, simulated; `round2/variants/`)*. The reason is that `Chain::Part` carries its own `Types`.
-   What the named wrapper adds, and static_net does not exercise:
-   - the API in `Types`
+1. **Every composition needs a name.** There is no anonymous `A:B` at a use site. `Twice:Id` can't be written inline in a template argument.
+2. **Two structs over the same chain are different types** (`struct Y : Any:X {}` vs `struct Y2 : Any:A:B:C {}`), with the same behaviour.
+   With aliases, identity was structural and could hold across independently written code. Now it is nominal, so shared compositions need a shared name.
+3. **A named composition cannot be a left operand** (rule 8), only the last operand. Composing compositions means ending a chain at one: `Any:X` gives `Chain<Any>::Part<X>`, not a flat `Chain<Any,A,B>::Part<C>`.
+4. **The injected-class-name inside a part means the layer, not the named struct** (§3, rule 1).
+5. **`APIOf`'s extras are not carried:**
+   - `Types` with the API first
    - `BuildRules` validation
-   - the `Expand<APIOf>` specialization
+   - `Expand` / `HasOwnRules`
+   - `Part<T>`
 
-   "Decomposition stays on named wrappers" holds only as long as the chain lowering (D1) is kept.
-6. **Constructors through a chain need nothing new.** Rule 6 lowered to `using Base::Base;` per layer, plus the one in `Chain::Part`, works transitively. It also works with hiding by a same-signature constructor that initializes `super(...)` *(host)*.
+   A struct over a fold gets only what `Chain::Part` has (`Types` without the API) and the injected `Base`. static_net needed none of the rest (§1).
+6. **Generic partial application needs a struct template** (`template<class T> struct AnyOf : Any:T {};`) instead of an alias template. Each instantiation is again its own named type.
 
-## 5. Suggested HAPI improvements (tools that are missing)
+The experimental `--lower=nested` (`A::Part<B::Part<C>>`, `od::FoldT`) has no `Chain` wrapper, so a struct over it has no `Types`.
+Through `check/build.sh` it gives **46 ok / 15 FAIL**: every refid/`RefQ`/`net_expand` check fails ("no cell in the net matches Q"). Everything that does not query components still builds on avr-gcc 7.3 at the same sizes (`round2/variants/nested/build.txt`) *(host, built)*.
+The wrapping lowering is the one HAPI's introspection needs.
 
-- **A non-wrapping fold in `chain.h`**, for example `Chain<OO...>::template Fold<T>` = `O1::Part<...On::Part<T>>` as an alias.
-  This is what `support/od_fold.h` provides for the prototype. With it, a composition can be exactly its structure when it wants to be (rule 3), without leaving HAPI.
-- **Self-describing layers**, which would resolve D2 without a wrapper.
-  - The idea: if the Part form carried its own component list, for example `using Types = typename Base::Types::template App<Holder>`, defaulting to `Chain<T>` at the terminal, then refid/`FromTypes` could read a nested composition directly.
-  - Why the prototype doesn't do it: it would add a line to every part, so the byte-identity check of round 2 would need a new baseline.
-  - **Status:** not implemented, and worth a round of its own.
-- **Name-collision checks for bare compositions.** A bare `Chain::Part` (and so a bare fold) skips `BuildRules` and `NoCollision`.
-  The bare-fold `Cell` loses validation silently. A static_net `Cell` has no rules today, so nothing broke, but the gap is real.
+## 5. Superseded: identity results of the alias form (earlier round)
 
-## 6. Translator limitations
+With `using X = A:B:C;` allowed:
+- `Any:X` and `Any:A:B:C` lowered to different types (`Chain<Any>::Part<Chain<A,B>::Part<C>>` vs `Chain<Any,A,B>::Part<C>`), with the same behaviour.
+- Making them equal (the nested lowering) cost HAPI's `Types`.
+
+The struct-only form removes the question: an alias can no longer carry a composition, and identity is nominal.
+
+## 6. Suggested HAPI improvements (tools that are missing)
+
+- **Validation for named compositions.** A struct over a bare `Chain::Part` skips `BuildRules`/`NoCollision`, which `APIOf` runs.
+  - A small HAPI helper that a named composition can opt into would restore it: `hapi::Validated<Chain<...>>`, or a `static_assert` the translator could inject next to `using Base::Base;`.
+  - A hook for this could also add the API-first `Types`, if queries on the terminal are ever needed.
+- **A non-wrapping fold in `chain.h`**, as in `support/od_fold.h`. Only needed if the nested lowering is ever wanted. It is not needed by the struct-only form.
+
+## 7. Translator limitations
 
 - Its classification is textual:
   - Openness comes from `super` tokens.
@@ -151,12 +157,7 @@ Rule 8 makes the check almost local: an open class has no base of its own, so a 
   - Class-name checks are file-local and by simple name, so a closed class defined in another file is not caught as a left operand; the compiler catches it later.
 - Macros are opaque.
 - There is no semantic lookup.
-- Refused, with messages:
-  - out-of-line members of open classes, including a declared-only member function (a heuristic that could misfire on a function-like macro at class scope)
-  - rebasing
-  - closed left operands
-  - left or unparenthesized folds
-  - `super` outside a class
-- Names the Part lowering introduces (`O`, `Base`, `Part`) are refused inside open classes and as their template parameters.
-- `--lower=nested` with packs needs `#include "od_fold.h"`. The translator does not add includes.
-- The output of `AVR` programs in round 3 was not checked. The lowered forms it uses (dependent `typename ...::template Part`, `od::FoldT`) build with avr-gcc 7.3 in round 2 and its variants *(built)*.
+- Names the lowering introduces are refused where they would be captured: `O`, `Base` and `Part` inside open classes, and `Base` inside named compositions.
+- The out-of-line check is a heuristic: a declared-only member function in an open class is refused, and that could misfire on a function-like macro at class scope.
+- The translator does not add includes (`<hapi/chain.h>`, or `od_fold.h` for experimental nested folds).
+- Round-3 programs use `<cstdio>`/`<type_traits>` and are host-only. The lowered forms they exercise (dependent `typename ...::template Part` in a base clause and in the injected `Base`) build with avr-gcc 7.3 in round 2 *(built)*.

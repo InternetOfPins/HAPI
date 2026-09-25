@@ -8,10 +8,10 @@
   FAIL  refq_check [g++]: does not compile: refq_check.cpp:22:74: error: static assertion failed: the net really has two DUP cells
   FAIL  refq_check [clang++]: does not compile: refq_check.cpp:22:15: error: static assertion failed due to requirement 'snet::Chain<>::size == 2': the net really has two DUP cells
   FAIL  refid_ids [g++]: refid_ids.cpp:14:70: error: static assertion failed: the matching cell comes back whole
-  FAIL  refid_ids [clang++]: refid_ids.cpp:14:17: error: static assertion failed due to requirement 'std::is_same<hapi::Chain<>, hapi::Chain<hapi::Tag<20>::Part<lin::SignOf<short>::Part<lin::TermOf<short, short, snet::Slot<0>, 2>::Part<lin::BiasOf<short, -1>::Part<lin::APIOf<short>>>>>>>::value': the matching cell comes back whole
+  FAIL  refid_ids [clang++]: refid_ids.cpp:14:17: error: static assertion failed due to requirement 'std::is_same<hapi::Chain<>, hapi::Chain<lin::CellOf<short, -1, hapi::Tag<20>, lin::SignOf<short>, lin::TermOf<short, short, snet::Slot<0>, 2>>>>::value': the matching cell comes back whole
   FAIL  refid_ids [avr-g++]: refid_ids.cpp:14:3: error: static assertion failed: the matching cell comes back whole
   FAIL  net_expand [g++]: net_expand.cpp:39:100: error: static assertion failed: the whole-object match refid relies on works through a Net too
-  FAIL  net_expand [clang++]: net_expand.cpp:39:17: error: static assertion failed due to requirement 'std::is_same<hapi::Chain<>, hapi::Chain<hapi::Tag<3>::Part<wave::Threshold::Part<wave::WaveOf<snet::Slot<1>, false, 6, '\x00', '\xff'>::Part<wave::Bias<'\x80'>::Part<wave::API>>>>>>::value': the whole-object match refid relies on works through a Net too
+  FAIL  net_expand [clang++]: net_expand.cpp:39:17: error: static assertion failed due to requirement 'std::is_same<hapi::Chain<>, hapi::Chain<wave::Cell<'\x80', hapi::Tag<3>, wave::Threshold, wave::WaveOf<snet::Slot<1>, false, 6, '\x00', '\xff'>>>>::value': the whole-object match refid relies on works through a Net too
   FAIL  net_expand [avr-g++]: net_expand.cpp:39:3: error: static assertion failed: the whole-object match refid relies on works through a Net too
 == what must not build
   ok    cycle_reject_self [g++]: rejected with "in-place reference must point to a lower net index"

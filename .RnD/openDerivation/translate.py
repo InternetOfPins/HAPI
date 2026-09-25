@@ -2,16 +2,17 @@
 """translate.py -- Open Derivation prototype: lower `A:B` (late derivation) into today's HAPI Part form.
 
     struct P { ...super::f()... };            ->  struct P {template<typename O> struct Part:O { using Base=O; using Base::Base; ...Base::f()... };};
-    using X = A:B:C;                          ->  using X = hapi::Chain<A,B>::Part<C>;
-    using Y = (OO : ... : P : T);             ->  using Y = typename hapi::Chain<OO...,P>::template Part<T>;   (in a template)
-    struct Z : A:B {};                        ->  struct Z : hapi::Chain<A>::Part<B> {};
+    struct Z : A:B:C {};                      ->  struct Z : hapi::Chain<A,B>::Part<C> {using Base=hapi::Chain<A,B>::Part<C>; using Base::Base;};
+    struct Z : (OO : ... : P : T) {};         ->  struct Z : hapi::Chain<OO...,P>::template Part<T> {using Base=typename ...; using Base::Base;};
+    inside such a struct, `super` names that base (-> Base)
+    using X = A:B;                            ->  error [od-rule4]: ':' is only valid in a base clause
 
 Usage:
     translate.py IN [-o OUT]                  one file (stdout when no -o)
     translate.py --outdir DIR IN...           several files, same basenames under DIR
     --lower=chain   (default) hapi::Chain<...>::Part<T>, the form HAPI headers use today
-    --lower=nested  A::Part<B::Part<C>>, and od::FoldT<T,PP...> for packs (needs support/od_fold.h);
-                    keeps rule 3 (A:(B:C) and Any:X with X=A:B:C are the same type), which --lower=chain does not
+    --lower=nested  EXPERIMENTAL: A::Part<B::Part<C>>, and od::FoldT<T,PP...> for packs (needs support/od_fold.h);
+                    no Chain wrapper, so no Types: HAPI's queries (refid/FromTypes) do not see the components
     --report        one line per lowering on stderr
 
 Errors are printed compiler-style (file:line:col: error: [rule] message) and the exit status is 1.
@@ -415,7 +416,7 @@ class Translator:
         g = self._gap(o, o + 1)
         same_line, nl, rest = g.partition("\n")   # a comment on the brace's line stays there
         if not nl:
-            same_line, rest = "", g
+            same_line, rest = "", g or " "
         self.pre[o + 1] = ("template<typename O> struct Part:O {" + same_line + "\n" + body_indent
                            + "using Base=O; using Base::Base;" + ("\n" if nl else "") + rest + self.pre[o + 1])
         self.gap_override[o] = ""   # the gap after '{' was moved after the inserted line
@@ -508,7 +509,7 @@ class Translator:
                         e += 1
                     head = self.template_head_before(i)
                     sites.append(("alias", j + 1, e, set(self.params_of(head[1], head[2])) if head else set(),
-                                  self.packs_of(head[1], head[2]) if head else set()))
+                                  self.packs_of(head[1], head[2]) if head else set(), None))
         for c in self.classes:
             if c["base_i"] is None:
                 continue
@@ -524,7 +525,7 @@ class Translator:
                     while s < j and t[s].text in ("public", "protected", "private", "virtual"):
                         s += 1
                     if s < j:
-                        sites.append(("base", s, j, set(c["params"]), set(c["packs"])))
+                        sites.append(("base", s, j, set(c["params"]), set(c["packs"]), c))
                     cur = j + 1
                 elif x in ("(", "["):
                     j = self.match[j]
@@ -637,7 +638,10 @@ class Translator:
     def lower_site(self, kind, a, b, alias_params):
         res = self.parse_chain(a, b)
         if res is None:
-            return
+            return None
+        if kind == "alias":
+            raise self.err(a, "[od-rule4] ':' is only valid in a base clause; name the composition: "
+                              "struct X : A:B {};")
         items, terminal = res
         scope = self.params_in_scope(a) | alias_params | {"Base", "super"}
         dep = any(self.t[k].kind == "id" and (self.txt(k) in scope or self.subst.get(k) == "Base")
@@ -657,17 +661,64 @@ class Translator:
                     text = f"{tn if outer else tn_inner}{x}::{tp}Part<{text}>"
         self.span[a] = (b - 1, text)
         self.log.append(f"{self.path}:{self.t[a].line}: {kind:5} {self.render(a, b)}  ->  {text}")
+        return text, dep
+
+    def is_chain(self, s, e):
+        """does the base-specifier [s,e) use ':' (a chain, or a parenthesized chain / fold)?"""
+        if self.split_colons(s, e):
+            return True
+        return self.is_paren_group(s, e) and bool(self.split_colons(s + 1, e - 1))
+
+    # ---- a class whose base clause is a ':' chain: implicit constructor inheritance, `super` = that base
+    def mark_chain_bases(self, sites):
+        for kind, s, e, _, _, c in sites:
+            if kind == "base" and self.is_chain(s, e):
+                c.setdefault("chain_bases", []).append(s)
+        for c in self.classes:
+            cb = c.get("chain_bases", [])
+            if len(cb) > 1:
+                raise self.err(cb[1], f"[od-rule6] '{c['name']}' has {len(cb)} ':' bases: the implicit `Base` "
+                                      f"(constructor inheritance, `super`) would be ambiguous")
+            if cb:
+                c["is_open"] = False   # a named composition: concrete, its `super` is the base it names
+                for i in range(c["open"] + 1, c["close"]):
+                    if self.t[i].kind == "id" and self.txt(i) == "Base" and self.unqualified(i) and self.owner[i] is c:
+                        raise self.err(i, f"'Base' inside '{c['name']}' would be captured by the implicit "
+                                          f"`using Base=...; using Base::Base;` (write `super` for the base)")
+
+    def lower_chain_based(self, c, base_text, dep):
+        t = self.t
+        for i in c["super_uses"]:
+            if (t[i - 1].text == "using" and i + 3 < len(t) and t[i + 1].text == "::"
+                    and t[i + 2].text == "super" and t[i + 3].text == ";"):
+                for k in range(i - 1, i + 4):
+                    self.drop.add(k)
+                continue
+            if i not in self.drop:
+                self.subst[i] = "Base"
+        line = f"using Base={'typename ' if dep else ''}{base_text}; using Base::Base;"
+        o = c["open"]
+        g = self._gap(o, o + 1)
+        same_line, nl, rest = g.partition("\n")
+        text = (same_line + "\n" + self._indent_after(o) + line + "\n" + rest) if nl else (line + g)
+        self.pre[o + 1] = text + self.pre.get(o + 1, "")
+        self.gap_override[o] = ""
+        self.log.append(f"{self.path}:{t[c['kw']].line}: named {c['name']}  (Base + ctors, {len(c['super_uses'])} super)")
 
     # ---- driver
     def run(self):
         self.scan_classes()
         self.classify()
+        sites = self.find_sites()
+        self.mark_chain_bases(sites)
         for c in self.classes:
             if c["is_open"]:
                 self.lower_part(c)
-        for kind, a, b, ap, pk in self.find_sites():
-            self.packs = pk | {p for c in self.classes if c["open"] < a < c["close"] for p in c["packs"]}
-            self.lower_site(kind, a, b, ap)
+        for kind, a, b, ap, pk, c in sites:
+            self.packs = pk | {p for k in self.classes if k["open"] < a < k["close"] for p in k["packs"]}
+            r = self.lower_site(kind, a, b, ap)
+            if r is not None and kind == "base":
+                self.lower_chain_based(c, *r)
         return self.emit()
 
     def emit(self):

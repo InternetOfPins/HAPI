@@ -1,5 +1,6 @@
 == positive, --lower=chain
   ok    base_chain [chain, g++]: base_chain OK
+  ok    named_chain [chain, g++]: named_chain OK
   ok    ctors [chain, g++]: ctors OK
   ok    self [chain, g++]: self OK
   ok    family [chain, g++]: family OK
@@ -9,6 +10,7 @@
   ok    label_hazard [chain, g++]: label_hazard OK
   ok    identity_tu [chain, g++]: identity_tu (A:B:C across translation units) OK
   ok    base_chain [chain, clang++]: base_chain OK
+  ok    named_chain [chain, clang++]: named_chain OK
   ok    ctors [chain, clang++]: ctors OK
   ok    self [chain, clang++]: self OK
   ok    family [chain, clang++]: family OK
@@ -17,8 +19,9 @@
   ok    dependent [chain, clang++]: dependent OK
   ok    label_hazard [chain, clang++]: label_hazard OK
   ok    identity_tu [chain, clang++]: identity_tu (A:B:C across translation units) OK
-== positive, --lower=nested
+== positive, --lower=nested (EXPERIMENTAL)
   ok    base_chain [nested, g++]: base_chain OK
+  ok    named_chain [nested, g++]: named_chain OK
   ok    ctors [nested, g++]: ctors OK
   ok    self [nested, g++]: self OK
   ok    family [nested, g++]: family OK
@@ -28,6 +31,7 @@
   ok    label_hazard [nested, g++]: label_hazard OK
   ok    identity_tu [nested, g++]: identity_tu (A:B:C across translation units) OK
   ok    base_chain [nested, clang++]: base_chain OK
+  ok    named_chain [nested, clang++]: named_chain OK
   ok    ctors [nested, clang++]: ctors OK
   ok    self [nested, clang++]: self OK
   ok    family [nested, clang++]: family OK
@@ -37,23 +41,26 @@
   ok    label_hazard [nested, clang++]: label_hazard OK
   ok    identity_tu [nested, clang++]: identity_tu (A:B:C across translation units) OK
 == the translator must refuse
-  ok    closed_left: neg_translate/closed_left.cpp:4:11: error: [od-rule7] 'K' is closed (its body never names `super`): only the last operand of ':' may be closed
-  ok    fold_left: neg_translate/fold_left.cpp:3:37: error: [od-rule9] only the right fold (PP : ... : T) / (PP : ... : P : T) is supported: a left fold (T : ... : PP)
-  ok    fold_unparenthesized: neg_translate/fold_unparenthesized.cpp:3:36: error: [od-rule9] a pack fold over ':' must be parenthesized: (PP : ... : T)
+  ok    alias_form: neg_translate/alias_form.cpp:4:11: error: [od-rule4] ':' is only valid in a base clause; name the composition: struct X : A:B {};
+  ok    closed_left: neg_translate/closed_left.cpp:4:12: error: [od-rule7] 'K' is closed (its body never names `super`): only the last operand of ':' may be closed
+  ok    fold_left: neg_translate/fold_left.cpp:3:38: error: [od-rule9] only the right fold (PP : ... : T) / (PP : ... : P : T) is supported: a left fold (T : ... : PP)
+  ok    fold_unparenthesized: neg_translate/fold_unparenthesized.cpp:3:37: error: [od-rule9] a pack fold over ':' must be parenthesized: (PP : ... : T)
   ok    out_of_line_decl: neg_translate/out_of_line_decl.cpp:2:11: error: [od-scope] member 'f' of open class 'A' is declared but not defined in the class: out-of-line members (.cpp) are out of scope
   ok    out_of_line_def: neg_translate/out_of_line_def.cpp:3:5: error: [od-scope] member of open class 'A' defined out of line: classes with out-of-line members are out of scope for this translator
-  ok    rebase_closed: neg_translate/rebase_closed.cpp:4:11: error: [od-rule8] 'K' already has a base: rebasing it (K:X) is rejected
-  ok    rebase_composed: neg_translate/rebase_composed.cpp:5:11: error: [od-rule8] a composed class as a left operand ((A:B):C) is a rebase of A:B, rejected
+  ok    rebase_closed: neg_translate/rebase_closed.cpp:4:12: error: [od-rule8] 'K' already has a base: rebasing it (K:X) is rejected
+  ok    rebase_composed: neg_translate/rebase_composed.cpp:5:12: error: [od-rule8] a composed class as a left operand ((A:B):C) is a rebase of A:B, rejected
   ok    rebase_open: neg_translate/rebase_open.cpp:3:10: error: [od-rule8] 'A' already has a base and uses `super`: rebasing a class that has a base is rejected (A:E with `class A : Y`)
   ok    super_outside: neg_translate/super_outside.cpp:2:17: error: [od-rule7] `super` used outside a class body
-== the compilers must reject (after translation)
+  ok    two_chain_bases: neg_translate/two_chain_bases.cpp:5:17: error: [od-rule6] 'Z' has 2 ':' bases: the implicit `Base` (constructor inheritance, `super`) would be ambiguous
+== the compilers must reject (after translation; any compiler error is accepted)
   ok    bare_has_no_B [g++]: error: 'struct A' has no member named 'has_B_method'
   ok    bare_has_no_B [clang++]: error: no member named 'has_B_method' in 'A'
   ok    bare_use [g++]: error: 'f' is not a member of 'Twice'
   ok    bare_use [clang++]: error: no member named 'f' in 'Twice'
-  ok    not_a_subtype2 [g++]: error: invalid initialization of reference of type 'A&' from expression of type 'AB' {aka 'hapi::Chain<A>::Part<B>'}
-  ok    not_a_subtype2 [clang++]: error: non-const lvalue reference to type 'A' cannot bind to a value of unrelated type 'AB' (aka 'Part<B>')
+  ok    not_a_subtype2 [g++]: error: invalid initialization of reference of type 'A&' from expression of type 'AB'
+  ok    not_a_subtype2 [clang++]: error: non-const lvalue reference to type 'A' cannot bind to a value of unrelated type 'AB'
   ok    super_undefined [g++]: error: 'f' is not a member of 'Twice::Part<Empty>::Base' {aka 'Empty'}
   ok    super_undefined [clang++]: error: no member named 'f' in 'Empty'
 
-53 ok, 0 FAIL
+59 ok, 0 FAIL
+exit 0

@@ -1,4 +1,4 @@
-// round 1: one open class (names `super`), one closed terminal, one alias
+// round 1: one open class (names `super`), one closed terminal, one named composition (struct-only form)
 #include <hapi/chain.h>
 #include <cstdio>
 
@@ -12,7 +12,7 @@ struct Twice {                                // open: only usable as Twice:X
   int twice_n() const {return 2*super::n;}
 };
 
-using My = Twice:Id;
+struct My : Twice:Id {};
 
 int main() {
   My m;

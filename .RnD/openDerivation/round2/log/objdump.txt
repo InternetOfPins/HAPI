@@ -1,27 +1,27 @@
-mixed_avr_size identical 8861636d4d81 304 B / 4 B
-refid_avr identical 8861636d4d81 304 B / 4 B
-sugar_avr identical 1c74cf2c264d 274 B / 4 B
-sugar_hand_avr identical 1c74cf2c264d 274 B / 4 B
-sonar_lin_avr_size identical a4484daf5eb5 1842 B / 61 B
-sonar_lin_avr_size_wide identical 511f01bdd831 1582 B / 61 B
-roll_avr_unrolled identical c867af7ba041 1784 B / 61 B
-roll_avr_rolled identical 146b9bbde7c7 332 B / 61 B
-roll_avr_sparse identical db8aa17c5066 410 B / 61 B
-sugar_roll_avr identical 53de4119de65 322 B / 62 B
-sugar_roll_hand_avr identical 53de4119de65 322 B / 62 B
-sugar_roll_avr_off identical 7be2d806a2ea 1006 B / 62 B
-sugar_unroll_hand_avr identical 7be2d806a2ea 1006 B / 62 B
-banknote_avr_check identical e7725abb35e0 2346 B / 26 B
-sonar_rows_avr identical adb590b220aa 6790 B / 98 B
-bnc_wave4 identical 20b52b83e725 2386 B / 34 B
-bnc_lin4 identical 76e584ff0c2e 2454 B / 34 B
-bn_wave identical 1a49ada5b0f1 568 B / 13 B
-bn_lin identical 60fda974cf2d 578 B / 11 B
-bn_table identical da10a50ddec5 604 B / 13 B
-u32 identical 866d129ffc6f 2048 B / 67 B
-u16 identical 52081c1075a5 2170 B / 67 B
-t60 identical 6dcb8786ea2d 710 B / 71 B
-sonar_lin identical 3511d1848146 3688 B / 79 B
-ru identical e7037803a61d 2166 B / 65 B
-rr identical 891f76bb618d 696 B / 65 B
-rs identical 752b16c9c044 778 B / 65 B
+mixed_avr_size raw-identical 304 B / 4 B
+refid_avr raw-identical 304 B / 4 B
+sugar_avr raw-identical 274 B / 4 B
+sugar_hand_avr raw-identical 274 B / 4 B
+sonar_lin_avr_size raw-identical 1842 B / 61 B
+sonar_lin_avr_size_wide raw-identical 1582 B / 61 B
+roll_avr_unrolled raw-identical 1784 B / 61 B
+roll_avr_rolled raw-identical 332 B / 61 B
+roll_avr_sparse raw-identical 410 B / 61 B
+sugar_roll_avr raw-identical 322 B / 62 B
+sugar_roll_hand_avr raw-identical 322 B / 62 B
+sugar_roll_avr_off raw-identical 1006 B / 62 B
+sugar_unroll_hand_avr raw-identical 1006 B / 62 B
+banknote_avr_check raw-identical 2346 B / 26 B
+sonar_rows_avr raw-identical 6790 B / 98 B
+bnc_wave4 raw-identical 2386 B / 34 B
+bnc_lin4 raw-identical 2454 B / 34 B
+bn_wave raw-identical 568 B / 13 B
+bn_lin raw-identical 578 B / 11 B
+bn_table raw-identical 604 B / 13 B
+u32 raw-identical 2048 B / 67 B
+u16 raw-identical 2170 B / 67 B
+t60 raw-identical 710 B / 71 B
+sonar_lin raw-identical 3688 B / 79 B
+ru raw-identical 2166 B / 65 B
+rr raw-identical 696 B / 65 B
+rs raw-identical 778 B / 65 B

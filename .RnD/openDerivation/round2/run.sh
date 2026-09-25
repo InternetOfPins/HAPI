@@ -1,10 +1,12 @@
 #!/bin/bash
 # Round 2: static_net's waveCell.h / linCell.h written in ':' syntax (src/), translated (out/include/), then
-#   1. round trip: translated == original header, modulo whitespace (tokdiff.py)
+#   1. round trip: the parts translate back byte-identical; the only lines that differ are Cell / CellOf, now a struct over
+#      the pack fold (struct-only form) instead of an alias of hapi::APIOf (log/cell.diff)
 #   2. two mirror trees of examples/static_net, identical except include/{waveCell,linCell}.h: "orig" and "od"
 #   3. check/build.sh, unchanged, in both mirrors (host g++/clang++, must-not-build, AVR sizes, identical-disassembly, simavr rows)
 #   4. compare_emlearn/run.sh wave4 lin4 in both (simavr: flash, RAM, agreement, cycles); measure/ bn_wave cycles
-#   5. avr-objdump -d of every AVR program, built the same way in both mirrors: must be identical
+#   5. avr-objdump -d of every AVR program, built the same way in both mirrors: compared raw, and with symbol names
+#      stripped (mangled names now say wave::Cell<...> where they said hapi::APIOf<...>)
 # Needs g++, clang++, avr-g++ 7.3, avr-objdump, simavr, python3. Logs go to log/.
 cd "$(dirname "$0")"
 R=$(cd ../../.. && pwd); SN=$R/examples/static_net; H=${HAPI:-$R/include}
@@ -16,12 +18,14 @@ bad() { echo "  FAIL  $1: $2"; fail=$((fail+1)); }
 
 echo "== 1. translate and round-trip"
 python3 ../translate.py --report --outdir out/include src/waveCell.h src/linCell.h 2>&1 | tee log/translate.txt
+: > log/cell.diff
 for h in waveCell linCell; do
-  r=$(python3 ../tokdiff.py out/include/$h.h "$SN/include/$h.h"); case "$r" in EQUIVALENT*) ok "$r";; *) bad "$h round trip" "$r";; esac
-  cmp -s out/include/$h.h "$SN/include/$h.h" && echo "        ($h.h is byte-identical)" || echo "        ($h.h differs in whitespace only: see log/whitespace.diff)"
+  diff "$SN/include/$h.h" out/include/$h.h >> log/cell.diff
+  other=$(diff "$SN/include/$h.h" out/include/$h.h | grep '^[<>]' | grep -vE '^< +template<[^>]*> using Cell(Of)?=hapi::APIOf<|^> +template<[^>]*> struct Cell(Of)? : hapi::Chain<' )
+  n=$(diff "$SN/include/$h.h" out/include/$h.h | grep -c '^[<>]')
+  [ -z "$other" ] && [ "$n" -eq 2 ] && ok "$h.h: byte-identical except the Cell line (alias of hapi::APIOf -> struct over the fold)" \
+    || bad "$h.h round trip" "unexpected differences: $other"
 done
-diff -u "$SN/include/waveCell.h" out/include/waveCell.h > log/whitespace.diff; diff -u "$SN/include/linCell.h" out/include/linCell.h >> log/whitespace.diff
-
 mirror() { local d=$W/$1/static_net; mkdir -p "$d"
   cp -r "$SN/check" "$SN/compare_emlearn" "$SN/measure" "$SN/include" "$d/"; ln -s "$SN/models" "$d/models"
   rm -rf "$d/compare_emlearn/out"; echo "$d"; }
@@ -84,11 +88,21 @@ while IFS='|' read -r n dir src fl; do
     ( cd "$W/$m/static_net/$dir" && eval avr-g++ -std=c++17 -Os -mmcu=atmega328p $fl -I"$H" -I. -I../include -I../models/banknote -I../models/sonar -I../models/roll60 $src -o "$W/$m.$n.elf" -lm ) 2>"$W/err" \
       || { bad "objdump $n [$m]" "build: $(grep -m1 error "$W/err")"; continue 2; }
     avr-objdump -d "$W/$m.$n.elf" | grep -v 'file format' > "$W/$m.$n.dis"
+    sed -E 's/<[^>]*>//g' "$W/$m.$n.dis" > "$W/$m.$n.ins"
   done
   sz=$(avr-size -C --mcu=atmega328p "$W/od.$n.elf" | awk '/^Program:/{p=$2}/^Data:/{d=$2}END{print p" B / "d" B"}')
   if cmp -s "$W/orig.$n.dis" "$W/od.$n.dis"; then
-    ok "objdump $n: identical ($(wc -l < "$W/od.$n.dis") lines, $sz)"; echo "$n identical $(md5sum < "$W/od.$n.dis" | cut -c1-12) $sz" >> log/objdump.txt
-  else bad "objdump $n" "disassembly differs"; diff "$W/orig.$n.dis" "$W/od.$n.dis" | head -20 >> log/objdump.txt; fi
+    ok "objdump $n: identical ($(wc -l < "$W/od.$n.dis") lines, $sz)"; echo "$n raw-identical $sz" >> log/objdump.txt
+  elif cmp -s "$W/orig.$n.ins" "$W/od.$n.ins"; then
+    ok "objdump $n: identical instructions, symbol names differ ($sz)"; echo "$n instructions-identical (symbol names differ) $sz" >> log/objdump.txt
+    diff "$W/orig.$n.dis" "$W/od.$n.dis" | grep '^[<>]' | head -4 >> log/objdump.txt
+  else bad "objdump $n" "instructions differ"; echo "$n DIFFERENT" >> log/objdump.txt; diff "$W/orig.$n.ins" "$W/od.$n.ins" | head -20 >> log/objdump.txt; fi
 done <<< "$PROGS"
+
+echo "== 6. the struct Cell next to hapi::APIOf (cell_vs_apiof.cpp)"
+for c in g++ clang++; do
+  $c -std=c++17 -I"$H" -Iout/include -I"$SN/include" cell_vs_apiof.cpp -o "$W/cv" 2>"$W/err" \
+    && ok "cell_vs_apiof [$c]: own type, same base as APIOf, Types = Chain<OO...,Bias<k>> (no API)" || bad "cell_vs_apiof [$c]" "$(grep -m1 error "$W/err")"
+done
 
 echo; echo "$pass ok, $fail FAIL"; [ $fail -eq 0 ]

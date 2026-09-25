@@ -3,7 +3,7 @@
 #include "common.h"
 struct B {int b=7;};
 struct A {template<typename O> struct Part:O {
- using Base=O; using Base::Base; };};
+ using Base=O; using Base::Base;  };};
 int main() {
   A:B x;
   static_assert(std::is_same<decltype(x),B>::value, "`A:B x;` in a block is the label A: followed by `B x;`");

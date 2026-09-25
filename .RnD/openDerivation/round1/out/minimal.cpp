@@ -1,4 +1,4 @@
-// round 1: one open class (names `super`), one closed terminal, one alias
+// round 1: one open class (names `super`), one closed terminal, one named composition (struct-only form)
 #include <hapi/chain.h>
 #include <cstdio>
 
@@ -13,7 +13,7 @@ struct Twice {template<typename O> struct Part:O {                              
   int twice_n() const {return 2*Base::n;}
 };};
 
-using My = hapi::Chain<Twice>::Part<Id>;
+struct My : hapi::Chain<Twice>::Part<Id> {using Base=hapi::Chain<Twice>::Part<Id>; using Base::Base;};
 
 int main() {
   My m;

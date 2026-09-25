@@ -3,9 +3,9 @@
 struct B {int b=0; void has_B_method() {b=1;}};
 struct C {};
 struct A {template<typename O> struct Part:O {
- using Base=O; using Base::Base;static inline int n=0; void touch() {++n; Base::has_B_method();}};};
-using AB = A::Part<B>;
-using AC = A::Part<C>;
+ using Base=O; using Base::Base; static inline int n=0; void touch() {++n; Base::has_B_method();}};};
+struct AB : A::Part<B> {using Base=A::Part<B>; using Base::Base;};
+struct AC : A::Part<C> {using Base=A::Part<C>; using Base::Base;};
 int main() {
   AB ab; ab.has_B_method(); ab.touch();
   CHECK(ab.b==1 && AB::n==1 && AC::n==0);

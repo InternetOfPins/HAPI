@@ -5,5 +5,5 @@ struct Uses {
   int f() const {return 1+super::f();}
   int g() const {return super::missing();}   // no base has missing(): fine until g() is used
 };
-using U = Uses:Only;
+struct U : Uses:Only {};
 int main() { U u; CHECK(u.f()==2); DONE("dependent"); }

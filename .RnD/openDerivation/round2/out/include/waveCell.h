@@ -48,7 +48,7 @@ namespace wave {
     }
   };};
 
-  template<u8 k,typename... OO> using Cell=hapi::APIOf<API,OO...,Bias<k>>;
+  template<u8 k,typename... OO> struct Cell : hapi::Chain<OO...,Bias<k>>::template Part<API> {using Base=typename hapi::Chain<OO...,Bias<k>>::template Part<API>; using Base::Base;};
 
   // input state passed by value/reference, no global reads (CSE-eligible)
   template<size_t N> struct Features {

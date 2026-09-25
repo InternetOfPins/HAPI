@@ -3,14 +3,14 @@
 struct Term  {int v=1; int get() const {return v;}};
 struct Other {int o=100;};
 struct Inc   {template<typename O> struct Part:O {
- using Base=O; using Base::Base;int get() const {return 1+Base::get();}};};
+ using Base=O; using Base::Base; int get() const {return 1+Base::get();}};};
 struct Dbl   {template<typename O> struct Part:O {
- using Base=O; using Base::Base;int get() const {return 2*Base::get();}};};
+ using Base=O; using Base::Base; int get() const {return 2*Base::get();}};};
 
-struct Z  : Inc::Part<Dbl::Part<Term>> {};
-struct Z2 : public Inc::Part<Term>, Other {};
-template<typename... PP> struct ZF : od::FoldT<Term,PP...> {};
-template<typename... PP> struct ZG : od::FoldT<Term,PP...,Dbl> {};
+struct Z  : Inc::Part<Dbl::Part<Term>> {using Base=Inc::Part<Dbl::Part<Term>>; using Base::Base;};
+struct Z2 : public Inc::Part<Term>, Other {using Base=Inc::Part<Term>; using Base::Base;};
+template<typename... PP> struct ZF : od::FoldT<Term,PP...> {using Base=typename od::FoldT<Term,PP...>; using Base::Base;};
+template<typename... PP> struct ZG : od::FoldT<Term,PP...,Dbl> {using Base=typename od::FoldT<Term,PP...,Dbl>; using Base::Base;};
 
 int main() {
   Z z; Z2 z2; ZF<Inc,Dbl,Inc> zf; ZF<> ze; ZG<Inc> zg;

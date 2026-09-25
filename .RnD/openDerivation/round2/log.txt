@@ -3,13 +3,15 @@ src/waveCell.h:18: part  Bias  (1 super)
 src/waveCell.h:24: part  WaveOf  (1 super)
 src/waveCell.h:34: part  Threshold  (1 super)
 src/waveCell.h:40: part  Store  (2 super)
+src/waveCell.h:47: base  (OO : ... : Bias<k> : API)  ->  hapi::Chain<OO...,Bias<k>>::template Part<API>
+src/waveCell.h:47: named Cell  (Base + ctors, 0 super)
 src/linCell.h:18: part  BiasOf  (1 super)
 src/linCell.h:32: part  TermOf  (1 super)
 src/linCell.h:39: part  SignOf  (1 super)
-  ok    EQUIVALENT: out/include/waveCell.h == /home/user/HAPI/examples/static_net/include/waveCell.h (578 tokens, 11 comments/directives; whitespace ignored)
-        (waveCell.h is byte-identical)
-  ok    EQUIVALENT: out/include/linCell.h == /home/user/HAPI/examples/static_net/include/linCell.h (500 tokens, 23 comments/directives; whitespace ignored)
-        (linCell.h is byte-identical)
+src/linCell.h:42: base  (OO : ... : BiasOf<Acc,b> : APIOf<Acc>)  ->  hapi::Chain<OO...,BiasOf<Acc,b>>::template Part<APIOf<Acc>>
+src/linCell.h:42: named CellOf  (Base + ctors, 0 super)
+  ok    waveCell.h: byte-identical except the Cell line (alias of hapi::APIOf -> struct over the fold)
+  ok    linCell.h: byte-identical except the Cell line (alias of hapi::APIOf -> struct over the fold)
 == 2/3. check/build.sh (unchanged) in both mirrors
   ok    build.sh [orig]: 61 ok, 0 FAIL, 0 note(s)
   ok    build.sh [od]: 61 ok, 0 FAIL, 0 note(s)
@@ -46,5 +48,9 @@ src/linCell.h:39: part  SignOf  (1 super)
   ok    objdump ru: identical (1059 lines, 2166 B / 65 B)
   ok    objdump rr: identical (326 lines, 696 B / 65 B)
   ok    objdump rs: identical (343 lines, 778 B / 65 B)
+== 6. the struct Cell next to hapi::APIOf (cell_vs_apiof.cpp)
+  ok    cell_vs_apiof [g++]: own type, same base as APIOf, Types = Chain<OO...,Bias<k>> (no API)
+  ok    cell_vs_apiof [clang++]: own type, same base as APIOf, Types = Chain<OO...,Bias<k>> (no API)
 
-35 ok, 0 FAIL
+37 ok, 0 FAIL
+exit 0

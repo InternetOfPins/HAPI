@@ -1,0 +1,8 @@
+51c51
+<   template<u8 k,typename... OO> using Cell=hapi::APIOf<API,OO...,Bias<k>>;
+---
+>   template<u8 k,typename... OO> struct Cell : hapi::Chain<OO...,Bias<k>>::template Part<API> {using Base=typename hapi::Chain<OO...,Bias<k>>::template Part<API>; using Base::Base;};
+45c45
+<   template<typename Acc,Acc b,typename... OO> using CellOf=hapi::APIOf<APIOf<Acc>,OO...,BiasOf<Acc,b>>;
+---
+>   template<typename Acc,Acc b,typename... OO> struct CellOf : hapi::Chain<OO...,BiasOf<Acc,b>>::template Part<APIOf<Acc>> {using Base=typename hapi::Chain<OO...,BiasOf<Acc,b>>::template Part<APIOf<Acc>>; using Base::Base;};

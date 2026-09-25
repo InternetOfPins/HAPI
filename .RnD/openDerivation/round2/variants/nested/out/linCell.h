@@ -1,6 +1,7 @@
 #pragma once
 // linCell.h — plain integer linear cell (second engine for snet::Net, uses multiply by design)
 #include "staticNet.h"
+#include "od_fold.h"
 #include <stdint.h>
 
 namespace lin {
@@ -42,7 +43,7 @@ namespace lin {
     using Base=O; using Base::Base;
     template<typename I> SNET_INLINE static constexpr bool proc(const I& in) {return Base::proc(in)>0;}
   };};
-  template<typename Acc,Acc b,typename... OO> using CellOf=typename hapi::Chain<OO...,BiasOf<Acc,b>>::template Part<APIOf<Acc>>;
+  template<typename Acc,Acc b,typename... OO> struct CellOf : od::FoldT<APIOf<Acc>,OO...,BiasOf<Acc,b>> {using Base=typename od::FoldT<APIOf<Acc>,OO...,BiasOf<Acc,b>>; using Base::Base;};
 
   // int16_t-accumulator convenience aliases -- unchanged names/signatures from
   // before this was generalized, so every existing call site keeps compiling.
