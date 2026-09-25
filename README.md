@@ -576,6 +576,13 @@ HAPI is written for C++17 and is intended for systems where static composition i
 
 The repository includes examples for different environments, including embedded and HLS-oriented experiments. The examples directory currently contains `crtp`, `free`, `godbolt`, `rules`, `std`, `virt`, several HLS examples, four non-embedded cross-library demonstrators (`config_loader`, `cutlass_layout`, `cuda_device_chain`, `cuda_blockchain_spec`), and a real embedded Rust-to-C++ bridge (`rust_stm32_bridge`).
 
+### Single header
+
+`single/hapi.h` is the whole library in one file (`include/hapi/*.h` inlined, MIT header kept), for places that take one
+file or one URL, such as Compiler Explorer: `#include <https://raw.githubusercontent.com/InternetOfPins/HAPI/main/single/hapi.h>`.
+It is generated, not edited: `python3 scripts/amalgamate.py` rewrites it, and `tests/single_header/run.sh` checks that it
+is current and that programs built against it are identical, instruction for instruction, to the same programs built against `include/`.
+
 The composition model can be used for applications such as:
 
 * hardware interfaces
