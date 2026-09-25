@@ -2,6 +2,7 @@
 // shared by the round-3 programs; written in ':' syntax and translated like them
 #include <hapi/chain.h>
 #include "od_fold.h"
+#include "od_nil.h"
 #include <cstdio>
 #include <type_traits>
 static int fails=0;

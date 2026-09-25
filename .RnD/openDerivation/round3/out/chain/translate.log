@@ -21,6 +21,9 @@ src/pos/ctors.cpp:12: named E  (Base + ctors, 0 super)
 src/pos/dependent.cpp:4: part  Uses  (2 super)
 src/pos/dependent.cpp:8: base  Uses:Only  ->  hapi::Chain<Uses>::Part<Only>
 src/pos/dependent.cpp:8: named U  (Base + ctors, 0 super)
+src/pos/distinct_args.cpp:4: part  Add  (1 super)
+src/pos/distinct_args.cpp:5: base  Add<1>:Add<2>:Term  ->  hapi::Chain<Add<1>,Add<2>>::Part<Term>
+src/pos/distinct_args.cpp:5: named Z  (Base + ctors, 0 super)
 src/pos/family.cpp:5: part  A  (1 super)
 src/pos/family.cpp:6: base  A:B  ->  hapi::Chain<A>::Part<B>
 src/pos/family.cpp:6: named AB  (Base + ctors, 0 super)
@@ -47,8 +50,12 @@ src/pos/named_chain.cpp:12: base  B:T  ->  hapi::Chain<B>::template Part<T>
 src/pos/named_chain.cpp:12: named W  (Base + ctors, 1 super)
 src/pos/named_chain.cpp:14: base  B:K  ->  hapi::Chain<B>::Part<K>
 src/pos/named_chain.cpp:14: named AK  (Base + ctors, 1 super)
+src/pos/open_terminal.cpp:4: part  B  (1 super)
+src/pos/open_terminal.cpp:5: part  A  (1 super)
+src/pos/open_terminal.cpp:6: base  A:B  ->  hapi::Chain<A,B>::Part<od::Nil>
+src/pos/open_terminal.cpp:6: named Z  (Base + ctors, 0 super)
+src/pos/open_terminal.cpp:7: base  (PP : ... : B)  ->  hapi::Chain<PP...,B>::template Part<od::Nil>
+src/pos/open_terminal.cpp:7: named ZF  (Base + ctors, 0 super)
 src/pos/self.cpp:5: part  Self  (2 super)
 src/pos/self.cpp:12: base  Self:Term  ->  hapi::Chain<Self>::Part<Term>
 src/pos/self.cpp:12: named X  (Base + ctors, 0 super)
-src/pos/self.cpp:13: base  Self:Self:Term  ->  hapi::Chain<Self,Self>::Part<Term>
-src/pos/self.cpp:13: named Y  (Base + ctors, 0 super)

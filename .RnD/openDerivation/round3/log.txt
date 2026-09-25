@@ -1,6 +1,8 @@
 == positive, --lower=chain
   ok    base_chain [chain, g++]: base_chain OK
   ok    named_chain [chain, g++]: named_chain OK
+  ok    open_terminal [chain, g++]: open_terminal OK
+  ok    distinct_args [chain, g++]: distinct_args OK
   ok    ctors [chain, g++]: ctors OK
   ok    self [chain, g++]: self OK
   ok    family [chain, g++]: family OK
@@ -11,6 +13,8 @@
   ok    identity_tu [chain, g++]: identity_tu (A:B:C across translation units) OK
   ok    base_chain [chain, clang++]: base_chain OK
   ok    named_chain [chain, clang++]: named_chain OK
+  ok    open_terminal [chain, clang++]: open_terminal OK
+  ok    distinct_args [chain, clang++]: distinct_args OK
   ok    ctors [chain, clang++]: ctors OK
   ok    self [chain, clang++]: self OK
   ok    family [chain, clang++]: family OK
@@ -22,6 +26,8 @@
 == positive, --lower=nested (EXPERIMENTAL)
   ok    base_chain [nested, g++]: base_chain OK
   ok    named_chain [nested, g++]: named_chain OK
+  ok    open_terminal [nested, g++]: open_terminal OK
+  ok    distinct_args [nested, g++]: distinct_args OK
   ok    ctors [nested, g++]: ctors OK
   ok    self [nested, g++]: self OK
   ok    family [nested, g++]: family OK
@@ -32,6 +38,8 @@
   ok    identity_tu [nested, g++]: identity_tu (A:B:C across translation units) OK
   ok    base_chain [nested, clang++]: base_chain OK
   ok    named_chain [nested, clang++]: named_chain OK
+  ok    open_terminal [nested, clang++]: open_terminal OK
+  ok    distinct_args [nested, clang++]: distinct_args OK
   ok    ctors [nested, clang++]: ctors OK
   ok    self [nested, clang++]: self OK
   ok    family [nested, clang++]: family OK
@@ -43,6 +51,8 @@
 == the translator must refuse
   ok    alias_form: neg_translate/alias_form.cpp:4:11: error: [od-rule4] ':' is only valid in a base clause; name the composition: struct X : A:B {};
   ok    closed_left: neg_translate/closed_left.cpp:4:12: error: [od-rule7] 'K' is closed (its body never names `super`): only the last operand of ':' may be closed
+  ok    dup_layer: neg_translate/dup_layer.cpp:6:12: error: [od-dup] duplicate layer: 'A' is composed over 'X', which already derives from 'A' (via 'X')
+  ok    dup_layer_chain: neg_translate/dup_layer_chain.cpp:5:12: error: [od-dup] duplicate layer: 'Self' occurs twice in the composition
   ok    fold_left: neg_translate/fold_left.cpp:3:38: error: [od-rule9] only the right fold (PP : ... : T) / (PP : ... : P : T) is supported: a left fold (T : ... : PP)
   ok    fold_unparenthesized: neg_translate/fold_unparenthesized.cpp:3:37: error: [od-rule9] a pack fold over ':' must be parenthesized: (PP : ... : T)
   ok    out_of_line_decl: neg_translate/out_of_line_decl.cpp:2:11: error: [od-scope] member 'f' of open class 'A' is declared but not defined in the class: out-of-line members (.cpp) are out of scope
@@ -59,8 +69,10 @@
   ok    bare_use [clang++]: error: no member named 'f' in 'Twice'
   ok    not_a_subtype2 [g++]: error: invalid initialization of reference of type 'A&' from expression of type 'AB'
   ok    not_a_subtype2 [clang++]: error: non-const lvalue reference to type 'A' cannot bind to a value of unrelated type 'AB'
+  ok    open_terminal_super [g++]: error: 'missing' is not a member of 'B::Part<od::Nil>::Base' {aka 'od::Nil'}
+  ok    open_terminal_super [clang++]: error: no member named 'missing' in 'od::Nil'
   ok    super_undefined [g++]: error: 'f' is not a member of 'Twice::Part<Empty>::Base' {aka 'Empty'}
   ok    super_undefined [clang++]: error: no member named 'f' in 'Empty'
 
-59 ok, 0 FAIL
+71 ok, 0 FAIL
 exit 0

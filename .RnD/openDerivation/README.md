@@ -43,6 +43,8 @@ The `[od-ruleN]` tag names the rule of the proposal that the input breaks. `[od-
 | `struct Z : A:(B:C) {};` | flattened, the same as `A:B:C` |
 | `template<class... OO> struct Z : (OO : ... : P : T) {};` | `struct Z : hapi::Chain<OO...,P>::template Part<T> {using Base=typename hapi::Chain<OO...,P>::template Part<T>; using Base::Base;};` |
 | `super` inside `Z` above | `Base` |
+| `struct Z : A:B {};` with `B` open (names `super`) | `struct Z : hapi::Chain<A,B>::Part<od::Nil> {...};` (no explicit termination; `support/od_nil.h`) |
+| `struct Y : A:X {};` where `X` already derives from `A` | refused: `[od-dup]` (exact type match: `Bias<1>:Bias<2>` is fine) |
 | `using X = A:B;` | refused: `[od-rule4]` |
 
 Inside an open class body:
@@ -62,12 +64,14 @@ In a template, `typename`/`::template` are added when an operand names a templat
   - a closed class as a left operand
   - rebasing: an open class with an ordinary base, a class with a base as a left operand, or `(A:B):C`
   - two `:` bases in one class
+  - a duplicate layer (`A:X` with `A` already in `X` or its bases, as spelled in this file)
   - out-of-line members of an open class
   - left or unparenthesized folds
   - `super` outside a class
 - **Only the prototype's grammar is recognized.** Everything else, including `super` inside `#define`s, is left untouched.
 - **You must provide the includes:**
   - The input must include `<hapi/chain.h>` (or `hapi.h`) itself.
+  - A chain that ends open needs `support/od_nil.h`.
   - For `--lower=nested` with folds, it must also include `support/od_fold.h`.
 
 ## Layout and how to run
@@ -81,7 +85,7 @@ that does everything and writes its logs next to it (`log.txt`, and `log/` for r
 | `round1/` | one named composition over one open class and a closed terminal; bare use must not compile; the alias form must be refused | `round1/run.sh` |
 | `round2/` | static_net's `waveCell.h` / `linCell.h` in `:` syntax (`src/`, `Cell` as a struct over the fold), translated (`out/include/`); round trip (diff = the `Cell` lines only); `check/build.sh` unchanged; `compare_emlearn` and `measure/` in simavr; `avr-objdump` of 27 AVR programs, raw and with symbols stripped; the struct `Cell` next to `hapi::APIOf` | `round2/run.sh` (a few minutes) |
 | `round2/variants/` | (a) `hapi::APIOf` written in `:` syntax; (b) EXPERIMENTAL `--lower=nested` through `check/build.sh` | `round2/variants/run.sh` |
-| `round3/` | coverage: base-clause chains and folds, named compositions against their plain-C++ equivalent, constructors, rule-1 rebinding, family/statics, nominal identity (incl. across TUs), `super` precedence, dependence, the label hazard; 11 translator refusals; 4 compiler rejections; positive cases also under `--lower=nested` (experimental) | `round3/run.sh` |
+| `round3/` | coverage: base-clause chains and folds, open terminals (`od::Nil`), distinct specializations as layers, named compositions against their plain-C++ equivalent, constructors, rule-1 rebinding, family/statics, nominal identity (incl. across TUs), `super` precedence, dependence, the label hazard; 13 translator refusals (incl. duplicate layers); 5 compiler rejections; positive cases also under `--lower=nested` (experimental) | `round3/run.sh` |
 
 Round 2 runs `build.sh` "unchanged" by building two throwaway mirrors of `examples/static_net`: `check/`, `compare_emlearn/`
 and `measure/` are copied, `models/` is linked, and `include/` is copied. In one mirror `include/{waveCell,linCell}.h` are replaced by the translated headers.

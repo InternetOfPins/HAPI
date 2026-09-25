@@ -17,7 +17,7 @@ for mode in chain nested; do
   python3 ../translate.py --lower=$mode --report --outdir "$o" src/pos/* 2> "$o/translate.log" || { bad "translate [$mode]" "$(cat "$o/translate.log")"; continue; }
   D=; [ $mode = nested ] && D=-DOD_NESTED
   for c in $(cxxs); do
-    for f in base_chain named_chain ctors self family identity user_super dependent label_hazard; do
+    for f in base_chain named_chain open_terminal distinct_args ctors self family identity user_super dependent label_hazard; do
       if $c -std=c++17 -Wall -Wno-unused-label $D -I"$H" -I../support -I"$o" "$o/$f.cpp" -o "$W/x" 2>"$W/err"; then
         r=$("$W/x"); [ $? -eq 0 ] && ok "$f [$mode, $c]: $r" || bad "$f [$mode, $c]" "$r"
       else bad "$f [$mode, $c]" "$(grep -m1 -E 'error|static assert' "$W/err")"; fi
@@ -40,7 +40,7 @@ rm -rf out/neg_compile; mkdir -p out/neg_compile
 for f in src/neg_compile/*.cpp; do n=$(basename "$f" .cpp); e=$(head -1 "$f" | sed 's|^// expect: ||')
   python3 ../translate.py "$f" -o out/neg_compile/$n.cpp || { bad "$n" "translation failed"; continue; }
   for c in $(cxxs); do
-    if $c -std=c++17 -fsyntax-only -I"$H" out/neg_compile/$n.cpp 2>"$W/err"; then bad "$n [$c]" "compiled, but must be rejected"
+    if $c -std=c++17 -fsyntax-only -I"$H" -I../support out/neg_compile/$n.cpp 2>"$W/err"; then bad "$n [$c]" "compiled, but must be rejected"
     else m=$(grep -m1 'error' "$W/err" | sed 's|^[^ ]* ||')
       printf '%s' "$m" | grep -qE -- "$e" && ok "$n [$c]: $m" || bad "$n [$c]" "rejected, but not with /$e/: $m"; fi
   done

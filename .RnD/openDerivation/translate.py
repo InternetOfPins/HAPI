@@ -643,6 +643,9 @@ class Translator:
             raise self.err(a, "[od-rule4] ':' is only valid in a base clause; name the composition: "
                               "struct X : A:B {};")
         items, terminal = res
+        if self.names_open_class(terminal):     # no explicit termination: an open rightmost operand ends in od::Nil
+            items, terminal = items + [terminal], "od::Nil"
+        self.check_duplicate_layers(a, items, terminal)
         scope = self.params_in_scope(a) | alias_params | {"Base", "super"}
         dep = any(self.t[k].kind == "id" and (self.txt(k) in scope or self.subst.get(k) == "Base")
                   for k in range(a, b))
@@ -663,6 +666,52 @@ class Translator:
         self.log.append(f"{self.path}:{self.t[a].line}: {kind:5} {self.render(a, b)}  ->  {text}")
         return text, dep
 
+    @staticmethod
+    def _norm(x):
+        return re.sub(r"\s+", "", x)
+
+    def _classes_named(self, text):
+        """class definitions in this file that a (possibly qualified) name without template arguments refers to."""
+        m = re.fullmatch(r"(?:\w+::)*(\w+)", self._norm(text))
+        return [c for c in self.classes if m and c["name"] == m.group(1)]
+
+    def names_open_class(self, text):
+        m = re.fullmatch(r"(?:\w+::)*(\w+)(<.*>)?", self._norm(text))
+        return bool(m) and any(c["is_open"] for c in self.classes if c["name"] == m.group(1))
+
+    def layers_of(self, text, seen=None):
+        """every type `text` already derives from, as written in this file: the operands of a ':' base, the ordinary
+        bases, recursively through named classes (exact text; aliases and template parameters are not looked through)."""
+        seen = set() if seen is None else seen
+        out = []
+        for c in self._classes_named(text):
+            if id(c) in seen:
+                continue
+            seen.add(id(c))
+            for s, e in c.get("base_specs", []):
+                if self.is_chain(s, e):
+                    items, terminal = self.parse_chain(s, e)
+                    ops = items + [terminal]
+                else:
+                    ops = [self.render(s, e)]
+                for x in ops:
+                    if not x.endswith("..."):
+                        out.append((x, c["name"]))
+                        out.extend(self.layers_of(x, seen))
+        return out
+
+    def check_duplicate_layers(self, a, items, terminal):
+        """reject A:X when A already occurs in X or in X's bases (exact type match: Bias<1>:Bias<2> is fine)."""
+        ops = [x for x in items + [terminal] if not x.endswith("...") and x != "od::Nil"]
+        for i, x in enumerate(ops):
+            for y in ops[i + 1:]:
+                if self._norm(x) == self._norm(y):
+                    raise self.err(a, f"[od-dup] duplicate layer: '{x}' occurs twice in the composition")
+                for z, via in self.layers_of(y):
+                    if self._norm(z) == self._norm(x):
+                        raise self.err(a, f"[od-dup] duplicate layer: '{x}' is composed over '{y}', which already "
+                                          f"derives from '{z}' (via '{via}')")
+
     def is_chain(self, s, e):
         """does the base-specifier [s,e) use ':' (a chain, or a parenthesized chain / fold)?"""
         if self.split_colons(s, e):
@@ -672,6 +721,8 @@ class Translator:
     # ---- a class whose base clause is a ':' chain: implicit constructor inheritance, `super` = that base
     def mark_chain_bases(self, sites):
         for kind, s, e, _, _, c in sites:
+            if kind == "base":
+                c.setdefault("base_specs", []).append((s, e))
             if kind == "base" and self.is_chain(s, e):
                 c.setdefault("chain_bases", []).append(s)
         for c in self.classes:

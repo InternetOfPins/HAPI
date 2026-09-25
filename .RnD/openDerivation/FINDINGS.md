@@ -18,6 +18,11 @@ Logs are in each round's `log.txt` (round 2 also has `log/`).
 - Every struct with a `:` base clause implicitly inherits that base's constructors. The translator injects `using Base=<chain>; using Base::Base;`, as `hapi::APIOf` does by hand.
 - Inside such a struct, `super` names that base: `struct A : B:C {..}` ⇔ `struct C {..}; struct B : C {..}; struct A : B {..};` *(host, `round3/src/pos/named_chain.cpp`)*.
 - Base-clause chains lower to the wrapping form `hapi::Chain<...>::Part<T>`.
+- **Amendment: no explicit termination.** The rightmost operand may be open (it names `super`). The chain then ends in an implicit empty
+  terminal: `struct Z : A:B {};` with `B` open lowers to `hapi::Chain<A,B>::Part<od::Nil>` (`support/od_nil.h`). There is no
+  "the last operand must be closed" check.
+- **Amendment: no duplicate layers.** `A:X` is rejected when `A` already occurs in `X` or in `X`'s bases, by exact type match
+  (`Bias<1>:Bias<2>` stays legal). The diagnostic is `[od-dup]`, at the composition site, and names both types.
 - `--lower=nested` is kept as experimental only (§4).
 
 This replaces an earlier round of the same prototype that also accepted the alias form. Its two identity findings are moot now; they are summarized in §5.
@@ -70,16 +75,19 @@ A mixed net of struct cells and `APIOf` cells (sugar's rolled cells) works *(hos
 - **The restricted grammar is enough for static_net.** It needs open classes (the seven parts of the two engines) plus a named struct over a pack fold for the cell. *(built)*
 - **A small Python script is enough, with no Clang LibTooling.** Edits are spliced onto the original text, so comments and whitespace survive. *(built)*
 - **Round 1, 5/5:** `struct My : Twice:Id {};` runs on g++ and clang++. Bare use of `Twice` is rejected, and `using My = Twice:Id;` is refused. *(host, built)*
-- **Round 3, 59/59:**
+- **Round 3, 71/71:**
   - Base-clause chains work, including an access specifier next to an ordinary base, and folds (empty pack included).
   - Named compositions match their plain-C++ equivalents (`named_chain.cpp`), including a dependent base (`template<class T> struct W : B:T`).
   - Constructor inheritance through a chain *and* into the named struct needs no user `using`: `Offset(int)` hides `Term(int)`, while `Term(int,int)` is still inherited.
+  - An open rightmost operand ends in `od::Nil` and runs, while its unused `super` call stays unchecked (`open_terminal.cpp`, also for a fold with an empty pack).
+    Calling that member is a compile error (`neg_compile/open_terminal_super.cpp`: g++ `'missing' is not a member of 'B::Part<od::Nil>::Base' {aka 'od::Nil'}`, clang++ `no member named 'missing' in 'od::Nil'`).
+  - `Add<1>:Add<2>:Term` is two layers (`distinct_args.cpp`).
   - Rule 2 holds: family, not subtype, with separate statics.
   - Rule 3 holds nominally, across TUs.
   - Rule 7 holds: user `super` precedence, and dependence.
   - The label hazard is pinned.
   - All of the above on g++ and clang++. Also under experimental `--lower=nested`. *(host)*
-  - **Diagnostics:** 11 translator refusals (rules 4, 6, 7, 8 and 9, and scope) and 4 compiler rejections. *(built)*
+  - **Diagnostics:** 13 translator refusals (rules 4, 6, 7, 8 and 9, duplicate layers, and scope) and 5 compiler rejections. *(built)*
 
 ## 3. Semantics as implemented
 
@@ -105,10 +113,26 @@ A mixed net of struct cells and `APIOf` cells (sugar's rolled cells) works *(hos
   - A closed class as a left operand is refused.
   - A data-only mixin must write `using super::super;` to be usable as `M:X`.
   - The proposal should state this. Rule 1's "any A" and rule 7's "only the last layer may be closed" conflict without it.
+  - With the no-explicit-termination amendment the last layer may be either: closed (it is the terminal) or open (the chain
+    ends in `od::Nil`). Left operands must still be open.
 - **Rule 8 (rebasing) is unchanged.**
   - An open class with an ordinary base is refused.
   - So is a named composition used as a *left* operand, and `(A:B):C`.
   - A named composition can be the **last** operand: `struct Y : Any:X {}`.
+- **Open terminal** (amendment). An open rightmost operand becomes the last layer over `od::Nil`. Its `super`
+  calls are dependent: checked only when used, and then a compile error naming `od::Nil` *(host, built)*.
+  - Detected textually: the operand names a class defined in the same file whose body names `super`. An open class from
+    another file used as the terminal is lowered as a plain terminal, and its `super` calls then fail to compile when the class is used, since a
+    holder has no members of its own. This is a translator limitation, not part of the rule.
+- **Duplicate layers** (amendment). `A:X` is refused when `A` already occurs among the operands to its right, or in their bases. The bases are followed recursively
+  through named classes defined in the file (`:` bases and ordinary ones):
+  - `struct Y : Self:Self:Term {}`: `[od-dup] duplicate layer: 'Self' occurs twice in the composition`
+  - `struct X : A:C {}; struct Y : A:X {};`: `[od-dup] duplicate layer: 'A' is composed over 'X', which already derives from 'A' (via 'X')`
+
+  The match is on exact spelling after removing whitespace, so `Bias<1>:Bias<2>` is legal *(built)*.
+  Not seen: pack elements (`OO...` is only known at instantiation), aliases (`Wave<...>` vs `WaveOf<Slot<...>,...>`), and
+  equal types spelled differently (`Bias<1>` vs `Bias<0+1>`). A compiler, or a HAPI uniqueness rule run at instantiation,
+  would check the exact types, including packs.
 - **Rule 9 (fold)**:
   - `(T : ... : PP)` and `(PP : ... : T)` have the same token shape. The translator uses the template head to find the pack, and only the right fold exists.
   - An unparenthesized fold in a base clause is refused.
@@ -142,14 +166,28 @@ With `using X = A:B:C;` allowed:
 
 The struct-only form removes the question: an alias can no longer carry a composition, and identity is nominal.
 
-## 6. Suggested HAPI improvements (tools that are missing)
+## 6. Future work
+
+- **Fallback-API sugar.**
+  - The problem: with no explicit termination, a chain that ends open gets `od::Nil`, an empty terminal. So a `super::proc(in)` that
+    reaches the end is a compile error.
+  - What `APIOf` does instead: it provides a fallback API at the end (`wave::API`: `proc` returns 0, `update` does nothing), and every chain ends on it by hand
+    (`(OO : ... : Bias<k> : API)`).
+  - The idea: let a family declare its fallback API once, so that an open chain of that family ends on it instead of `od::Nil`.
+    Then `struct Cell : (OO : ... : Bias<k>) {};` would need no explicit `: API`.
+  - To be designed: where the declaration lives (on the part, on a family tag), how it combines across mixed chains, and
+    what the lowering is (the translator would pick the terminal where it now picks `od::Nil`).
+- **Duplicate layers in packs and through aliases**, checked on exact types at instantiation (see §3). This is a candidate HAPI rule, next to
+  the uniqueness rules `APIOf`'s `BuildRules` already runs.
+
+## 7. Suggested HAPI improvements (tools that are missing)
 
 - **Validation for named compositions.** A struct over a bare `Chain::Part` skips `BuildRules`/`NoCollision`, which `APIOf` runs.
   - A small HAPI helper that a named composition can opt into would restore it: `hapi::Validated<Chain<...>>`, or a `static_assert` the translator could inject next to `using Base::Base;`.
   - A hook for this could also add the API-first `Types`, if queries on the terminal are ever needed.
 - **A non-wrapping fold in `chain.h`**, as in `support/od_fold.h`. Only needed if the nested lowering is ever wanted. It is not needed by the struct-only form.
 
-## 7. Translator limitations
+## 8. Translator limitations
 
 - Its classification is textual:
   - Openness comes from `super` tokens.
@@ -159,5 +197,6 @@ The struct-only form removes the question: an alias can no longer carry a compos
 - There is no semantic lookup.
 - Names the lowering introduces are refused where they would be captured: `O`, `Base` and `Part` inside open classes, and `Base` inside named compositions.
 - The out-of-line check is a heuristic: a declared-only member function in an open class is refused, and that could misfire on a function-like macro at class scope.
-- The translator does not add includes (`<hapi/chain.h>`, or `od_fold.h` for experimental nested folds).
+- The translator does not add includes: `<hapi/chain.h>`, `od_nil.h` when a chain ends open, or `od_fold.h` for experimental nested folds.
+- Open-terminal and duplicate-layer detection only see classes defined in the file being translated (§3).
 - Round-3 programs use `<cstdio>`/`<type_traits>` and are host-only. The lowered forms they exercise (dependent `typename ...::template Part` in a base clause and in the injected `Base`) build with avr-gcc 7.3 in round 2 *(built)*.

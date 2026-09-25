@@ -53,4 +53,3 @@ src/linCell.h:42: named CellOf  (Base + ctors, 0 super)
   ok    cell_vs_apiof [clang++]: own type, same base as APIOf, Types = Chain<OO...,Bias<k>> (no API)
 
 37 ok, 0 FAIL
-exit 0
