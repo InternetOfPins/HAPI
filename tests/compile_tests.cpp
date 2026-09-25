@@ -145,6 +145,28 @@ static_assert(!Requires<SameAs<C>,Chain<A,B>>, "Requires: C is absent");
 static_assert( Excludes<SameAs<C>,Chain<A,B>>, "Excludes: C is absent");
 static_assert(!Excludes<SameAs<A>,Chain<A,B>>, "Excludes: A is present");
 
+// -- Distinct (rules.h): no layer twice in one composition, on exact types --
+namespace distinct_tests {
+  struct L1 {template<typename O> struct Part : O {using O::O;};};
+  template<int k> struct Lk {template<typename O> struct Part : O {using O::O;};};
+  template<int k> using LkAlias = Lk<k>;
+  struct T0 {}; struct T1 : T0 {};
+  struct Named : Chain<L1,Lk<1>>::Part<T0> {};                 // a named composition: its Types (L1, Lk<1>) are spliced
+  template<typename... OO> constexpr bool viaPack = Distinct<Chain<OO...,T0>>;
+  static_assert( Distinct<Chain<L1,Lk<1>,Lk<2>,T0>>,  "Distinct: distinct layers");
+  static_assert( Distinct<Chain<>>,                    "Distinct: empty");
+  static_assert(!Distinct<Chain<L1,Lk<1>,L1,T0>>,     "Distinct: L1 twice");
+  static_assert(!Distinct<Chain<Lk<1>,Lk<0+1>,T0>>,   "Distinct: one type spelled two ways");
+  static_assert(!Distinct<Chain<LkAlias<2>,Lk<2>,T0>>,"Distinct: through an alias");
+  static_assert(!viaPack<L1,L1> && viaPack<L1,Lk<1>>, "Distinct: through a pack");
+  static_assert(!Distinct<Chain<L1,Named>>,           "Distinct: Named already holds L1");
+  static_assert( Distinct<Chain<Lk<3>,Named>>,        "Distinct: Named spliced, no clash");
+  static_assert(!Distinct<Chain<Lk<1>,APIOf<T0,Lk<1>>>>, "Distinct: an APIOf's Types are spliced");
+  static_assert(!Distinct<Chain<L1,Chain<Lk<2>,L1>>>, "Distinct: a nested Chain is spliced");
+  static_assert(!Distinct<Chain<T0,T1>>,              "Distinct: closed operands, T1 derives from T0");
+  static_assert( Distinct<Chain<L1,T1>>,              "Distinct: an open layer and a closed operand never clash");
+}
+
 // -- NoCollision (rules.h): member name-hiding diagnostic --
 // Mirrors the real .RnD/focCompose finding: two Chain<> siblings declaring
 // the same member name with different signatures silently hide one behind

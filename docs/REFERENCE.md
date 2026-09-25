@@ -32,6 +32,7 @@ All of these are **types**, not runtime functions — they operate on the type l
 | `Exists<Q,Input>` | alias (`bool_constant`) | Presence-only check via `Any<Q>`; never fails to compile |
 | `Any<Q>` | `::Check<Input>` | Fold: `true` if `Q` matches any element (`OO::value \|\| ...` over the whole tree) |
 | `query<Q,O>` | `constexpr bool` variable template | `= Exists<Q,O>::value`; the runtime-usable boolean form used by `Requires`/`Excludes` |
+| `Distinct<L>` | `constexpr bool` variable template (`rules.h`) | `true` when no layer of the list `L` occurs twice, on exact types. `L` is flattened first: a nested `Chain` is spliced; a type with `::Types` (a named composition, an `APIOf`) is replaced by its `Types`, recursively; a type with `Part<O>` is an open layer (compared by `is_same`); anything else is a closed operand (compared by `is_same`, and by `is_base_of` either way with the other closed ones). `LayersOf<L>` is the flattened list. Use: `static_assert(Distinct<Chain<A,B,OO...,T>>, "...")` |
 | `Expand<O>` | `::Children` + policy bits | What a container holds. Primary is declared, never defined (a leaf); specialize it per exact type. See [Containers](#containers-expand) |
 | `Expansion<Kids,Queried,Selected,Validates,Searched>` | base for an `Expand` entry | Provides `Children = Kids` and the four bits, all defaulting to `false` |
 | `IsContainer<O>` | `bool_constant` | `true` if `O` has an `Expand` entry |

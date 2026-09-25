@@ -1,0 +1,8 @@
+51c51
+<   template<u8 k,typename... OO> using Cell=hapi::APIOf<API,OO...,Bias<k>>;
+---
+>   template<u8 k,typename... OO> struct Cell : hapi::APIOf<API,OO...,Bias<k>> {using Base=hapi::APIOf<API,OO...,Bias<k>>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<OO...,Bias<k>,API>>, "duplicate layer in Cell");}; template<u8 k,typename... OO> using Cell_APIOf=hapi::APIOf<API,OO...,Bias<k>>; } namespace hapi { template<auto k,typename... OO> struct Expand< ::wave::Cell<k,OO...>> : Expand< ::wave::Cell_APIOf<k,OO...>> {}; template<auto k,typename... OO> struct HasOwnRules< ::wave::Cell<k,OO...>> : HasOwnRules< ::wave::Cell_APIOf<k,OO...>> {}; } namespace wave {
+45c45
+<   template<typename Acc,Acc b,typename... OO> using CellOf=hapi::APIOf<APIOf<Acc>,OO...,BiasOf<Acc,b>>;
+---
+>   template<typename Acc,Acc b,typename... OO> struct CellOf : hapi::APIOf<APIOf<Acc>,OO...,BiasOf<Acc,b>> {using Base=hapi::APIOf<APIOf<Acc>,OO...,BiasOf<Acc,b>>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<OO...,BiasOf<Acc,b>,APIOf<Acc>>>, "duplicate layer in CellOf");}; template<typename Acc,Acc b,typename... OO> using CellOf_APIOf=hapi::APIOf<APIOf<Acc>,OO...,BiasOf<Acc,b>>; } namespace hapi { template<typename Acc,auto b,typename... OO> struct Expand< ::lin::CellOf<Acc,b,OO...>> : Expand< ::lin::CellOf_APIOf<Acc,b,OO...>> {}; template<typename Acc,auto b,typename... OO> struct HasOwnRules< ::lin::CellOf<Acc,b,OO...>> : HasOwnRules< ::lin::CellOf_APIOf<Acc,b,OO...>> {}; } namespace lin {

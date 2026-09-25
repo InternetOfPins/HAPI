@@ -1,0 +1,57 @@
+== 1. translate and round-trip
+src/waveCell.h:18: part  Bias  (1 super)
+src/waveCell.h:24: part  WaveOf  (1 super)
+src/waveCell.h:34: part  Threshold  (1 super)
+src/waveCell.h:40: part  Store  (2 super)
+src/waveCell.h:47: base  (OO : ... : Bias<k> : final API)  ->  hapi::APIOf<API,OO...,Bias<k>>
+src/waveCell.h:47: def   Cell  (hapi::Expand / HasOwnRules forward to its APIOf)
+src/waveCell.h:47: named Cell  (closed by APIOf, Base + ctors, 0 super)
+src/linCell.h:18: part  BiasOf  (1 super)
+src/linCell.h:32: part  TermOf  (1 super)
+src/linCell.h:39: part  SignOf  (1 super)
+src/linCell.h:42: base  (OO : ... : BiasOf<Acc,b> : final APIOf<Acc>)  ->  hapi::APIOf<APIOf<Acc>,OO...,BiasOf<Acc,b>>
+src/linCell.h:42: def   CellOf  (hapi::Expand / HasOwnRules forward to its APIOf)
+src/linCell.h:42: named CellOf  (closed by APIOf, Base + ctors, 0 super)
+  ok    waveCell.h: byte-identical except the Cell line (alias of hapi::APIOf -> struct closed by APIOf with final API)
+  ok    linCell.h: byte-identical except the Cell line (alias of hapi::APIOf -> struct closed by APIOf with final API)
+== 2/3. check/build.sh (unchanged) in both mirrors
+  ok    build.sh [orig]: 61 ok, 0 FAIL, 0 note(s)
+  ok    build.sh [od]: 61 ok, 0 FAIL, 0 note(s)
+  ok    build.sh output identical, orig vs od
+== 4. compare_emlearn (simavr) and measure/ cycles
+  ok    wave4 [od, simavr, net of null]: 44 B flash, 0 B RAM, 274/274, 25 cycles  (| wave4 | 44 | 0 | 274/274 | 25 / 25.0 / 25 | 100.00 / 99.27 |)
+  ok    compare_emlearn rows identical, orig vs od: null 2342 34 274 28 19 19 5206;wave4 2386 34 274 274 44 44 12056;lin4 2454 34 274 273 81 81 22194;
+  ok    measure/ cycles identical, orig vs od: 32mwave4:23 32mlin4:33 
+== 5. avr-objdump -d, orig vs od, every AVR program
+  ok    objdump mixed_avr_size: identical (141 lines, 304 B / 4 B)
+  ok    objdump refid_avr: identical (141 lines, 304 B / 4 B)
+  ok    objdump sugar_avr: identical (126 lines, 274 B / 4 B)
+  ok    objdump sugar_hand_avr: identical (126 lines, 274 B / 4 B)
+  ok    objdump sonar_lin_avr_size: identical (913 lines, 1842 B / 61 B)
+  ok    objdump sonar_lin_avr_size_wide: identical (728 lines, 1582 B / 61 B)
+  ok    objdump roll_avr_unrolled: identical (884 lines, 1784 B / 61 B)
+  ok    objdump roll_avr_rolled: identical (160 lines, 332 B / 61 B)
+  ok    objdump roll_avr_sparse: identical (175 lines, 410 B / 61 B)
+  ok    objdump sugar_roll_avr: identical (154 lines, 322 B / 62 B)
+  ok    objdump sugar_roll_hand_avr: identical (154 lines, 322 B / 62 B)
+  ok    objdump sugar_roll_avr_off: identical (494 lines, 1006 B / 62 B)
+  ok    objdump sugar_unroll_hand_avr: identical (494 lines, 1006 B / 62 B)
+  ok    objdump banknote_avr_check: identical (1142 lines, 2346 B / 26 B)
+  ok    objdump sonar_rows_avr: identical (3264 lines, 6790 B / 98 B)
+  ok    objdump bnc_wave4: identical (670 lines, 2386 B / 34 B)
+  ok    objdump bnc_lin4: identical (704 lines, 2454 B / 34 B)
+  ok    objdump bn_wave: identical (251 lines, 568 B / 13 B)
+  ok    objdump bn_lin: identical (257 lines, 578 B / 11 B)
+  ok    objdump bn_table: identical (272 lines, 604 B / 13 B)
+  ok    objdump u32: identical (945 lines, 2048 B / 67 B)
+  ok    objdump u16: identical (1060 lines, 2170 B / 67 B)
+  ok    objdump t60: identical (330 lines, 710 B / 71 B)
+  ok    objdump sonar_lin: identical (1742 lines, 3688 B / 79 B)
+  ok    objdump ru: identical (1059 lines, 2166 B / 65 B)
+  ok    objdump rr: identical (326 lines, 696 B / 65 B)
+  ok    objdump rs: identical (343 lines, 778 B / 65 B)
+== 6. the struct Cell next to hapi::APIOf (cell_vs_apiof.cpp)
+  ok    cell_vs_apiof [g++]: own type, derived from exactly the APIOf it replaces, same Types (API first), same Expand/HasOwnRules
+  ok    cell_vs_apiof [clang++]: own type, derived from exactly the APIOf it replaces, same Types (API first), same Expand/HasOwnRules
+
+37 ok, 0 FAIL

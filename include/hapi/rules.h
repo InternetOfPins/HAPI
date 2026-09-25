@@ -193,4 +193,54 @@ namespace hapi {
   template<typename Detector, typename Input>
   inline constexpr bool NoCollision = NoCollision_<Detector, Input>::value;
 
+  // ====================== DISTINCT LAYERS ======================--
+  // No layer may occur twice in one composition. Checked on exact types at instantiation, so it sees what a
+  // source-level check cannot: pack elements, aliases (Wave<...> vs WaveOf<Slot<...>,...>), equal types spelled
+  // differently (Bias<1> vs Bias<0+1>), and types defined in other headers. The list is flattened first:
+  //   Chain<...>              spliced: a nested chain is its elements
+  //   a type with ::Types     a named composition (a struct over a chain, an APIOf): replaced by its Types, recursively
+  //   a type with Part<O>     an open layer: compared by is_same
+  //   anything else           a closed operand: compared by is_same, and by is_base_of (either way) with the other
+  //                           closed operands, so a closed type and one derived from it do not both appear
+  // Usage: static_assert(hapi::Distinct<Chain<A,B,OO...,T>>, "duplicate layer in Z");
+
+  template<typename O, typename = void> struct HasTypes : std::false_type {};
+  template<typename O> struct HasTypes<O, std::void_t<typename O::Types>> : std::true_type {};
+
+  template<typename O> struct OpenLayer   { using Type = O; };
+  template<typename O> struct ClosedLayer { using Type = O; };
+
+  // 0 open layer, 1 named composition (splice its Types), 2 closed operand, 3 Chain (splice)
+  template<typename O> struct LayerKind { static constexpr int value = HasTypes<O>::value ? 1 : HasPart<O>::value ? 0 : 2; };
+  template<typename... OO> struct LayerKind<Chain<OO...>> { static constexpr int value = 3; };
+
+  template<typename O, int = LayerKind<O>::value> struct LayersOf_;
+  template<typename O> struct LayersOf_<O,0> { using Type = Chain<OpenLayer<O>>; };
+  template<typename O> struct LayersOf_<O,1> { using Type = typename LayersOf_<typename O::Types>::Type; };
+  template<typename O> struct LayersOf_<O,2> { using Type = Chain<ClosedLayer<O>>; };
+  template<typename... OO> struct LayersOf_<Chain<OO...>,3> {
+    using Type = typename ConcatChains<typename LayersOf_<OO>::Type...>::Type;
+  };
+  /// @brief the flattened layer list Distinct compares: Chain<OpenLayer<X>|ClosedLayer<X>...>
+  template<typename L> using LayersOf = typename LayersOf_<L>::Type;
+
+  template<typename A, typename B> struct LayerClash : std::false_type {};
+  template<typename A, typename B> struct LayerClash<OpenLayer<A>, OpenLayer<B>> : std::is_same<A,B> {};
+  template<typename A, typename B> struct LayerClash<ClosedLayer<A>, ClosedLayer<B>>
+    : std::bool_constant<std::is_same<A,B>::value || std::is_base_of<A,B>::value || std::is_base_of<B,A>::value> {};
+
+  template<typename E, typename L> struct ClashesWith;
+  template<typename E> struct ClashesWith<E, Chain<>> : std::false_type {};
+  template<typename E, typename O, typename... OO> struct ClashesWith<E, Chain<O,OO...>>
+    : std::bool_constant<LayerClash<E,O>::value || ClashesWith<E, Chain<OO...>>::value> {};
+
+  template<typename L> struct Distinct_;
+  template<> struct Distinct_<Chain<>> : std::true_type {};
+  template<typename O, typename... OO> struct Distinct_<Chain<O,OO...>>
+    : std::bool_constant<!ClashesWith<O, Chain<OO...>>::value && Distinct_<Chain<OO...>>::value> {};
+
+  /// @brief true when no layer of the (flattened) list L occurs twice; same calling convention as Requires/Excludes/NoCollision
+  template<typename L>
+  inline constexpr bool Distinct = Distinct_<LayersOf<L>>::value;
+
 };

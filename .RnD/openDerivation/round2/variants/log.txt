@@ -1,0 +1,8 @@
+== APIOf in ':' syntax
+apiof/apiof_od.cpp:11: part  P1  (1 super)
+apiof/apiof_od.cpp:12: part  P2  (1 super)
+apiof/apiof_od.cpp:7: base  (OO : ... : final API)  ->  hapi::APIOf<API,OO...>
+apiof/apiof_od.cpp:7: def   APIOf  (hapi::Expand / HasOwnRules forward to its APIOf)
+apiof/apiof_od.cpp:7: named APIOf  (closed by APIOf, Base + ctors, 0 super)
+  ok    apiof [g++]: static_asserts hold
+  ok    apiof [clang++]: static_asserts hold
