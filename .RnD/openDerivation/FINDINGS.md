@@ -124,8 +124,8 @@ Nothing that `APIOf` gives is lost: the XXXDef entries (§3) forward `Expand` / 
   as OneMenu's `ItemDef` has. Round 2's `Cell`, as translated:
   ```c++
   template<u8 k,typename... OO> using Cell_APIOf=hapi::APIOf<API,OO...,Bias<k>>; } namespace hapi {
-    template<auto k,typename... OO> struct Expand<wave::Cell<k,OO...>> : Expand<wave::Cell_APIOf<k,OO...>> {};
-    template<auto k,typename... OO> struct HasOwnRules<wave::Cell<k,OO...>> : HasOwnRules<wave::Cell_APIOf<k,OO...>> {}; } namespace wave {
+    template<auto k,typename... OO> struct Expand< ::wave::Cell<k,OO...>> : Expand< ::wave::Cell_APIOf<k,OO...>> {};
+    template<auto k,typename... OO> struct HasOwnRules< ::wave::Cell<k,OO...>> : HasOwnRules< ::wave::Cell_APIOf<k,OO...>> {}; } namespace wave {
   ```
   - **Why the `<Name>_APIOf` alias:** it names the base where the operands' names resolve (inside `wave`). Forwarding through `Cell<...>::Base`
     would instantiate the whole composed class whenever a walk probes it, which `rules.h` avoids on purpose for `APIOf`.

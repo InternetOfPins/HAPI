@@ -48,7 +48,7 @@ namespace wave {
     }
   };};
 
-  template<u8 k,typename... OO> struct Cell : hapi::APIOf<API,OO...,Bias<k>> {using Base=hapi::APIOf<API,OO...,Bias<k>>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<OO...,Bias<k>,API>>, "duplicate layer in Cell");}; template<u8 k,typename... OO> using Cell_APIOf=hapi::APIOf<API,OO...,Bias<k>>; } namespace hapi { template<auto k,typename... OO> struct Expand<wave::Cell<k,OO...>> : Expand<wave::Cell_APIOf<k,OO...>> {}; template<auto k,typename... OO> struct HasOwnRules<wave::Cell<k,OO...>> : HasOwnRules<wave::Cell_APIOf<k,OO...>> {}; } namespace wave {
+  template<u8 k,typename... OO> struct Cell : hapi::APIOf<API,OO...,Bias<k>> {using Base=hapi::APIOf<API,OO...,Bias<k>>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<OO...,Bias<k>,API>>, "duplicate layer in Cell");}; template<u8 k,typename... OO> using Cell_APIOf=hapi::APIOf<API,OO...,Bias<k>>; } namespace hapi { template<auto k,typename... OO> struct Expand< ::wave::Cell<k,OO...>> : Expand< ::wave::Cell_APIOf<k,OO...>> {}; template<auto k,typename... OO> struct HasOwnRules< ::wave::Cell<k,OO...>> : HasOwnRules< ::wave::Cell_APIOf<k,OO...>> {}; } namespace wave {
 
   // input state passed by value/reference, no global reads (CSE-eligible)
   template<size_t N> struct Features {
