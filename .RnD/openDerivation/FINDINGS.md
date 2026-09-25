@@ -117,7 +117,7 @@ Part I onto exactly these forms.
 | translated headers equal to the originals, or the diff explained | The seven layers are **byte-identical**. The only differing line in each header is the cell: `struct Cell : (OO : ... : Bias<k> : final API) {};` becomes a struct deriving from **exactly the `hapi::APIOf` the original alias named**, plus its XXXDef entries (`round2/log/cell.diff`) | built |
 | `check/build.sh` unchanged | 61 ok, 0 FAIL on the translated tree, identical output to the original tree. That covers the host tests (g++, clang++), 6 must-not-build programs, AVR sizes, 4 identical-disassembly checks, and simavr row by row (`bitexact.py`: BIT-EXACT) | host, built, simulated |
 | Banknote `wave4` | **44 B flash, 0 B RAM, 274/274, 25 cycles** (min = mean = max), net of the null program. `lin4` is identical to the original (112 B, 0 B, 273/274, 62 cycles) | simulated |
-| `objdump` over all 27 AVR programs | **27/27 raw-identical** `avr-objdump -d` (`build.sh`'s 15, `compare_emlearn`'s wave4/lin4, `measure/`'s 10). `measure/` cycles are identical too (`wave4:23 lin4:33`) | built, simulated |
+| `objdump` over all 27 AVR programs | **27/27 raw-identical** `avr-objdump -d` (`build.sh`'s 15, `compare_emlearn`'s wave4/lin4, `measure/`'s 10). `measure/` cycles are identical too (`wave4:23 lin4:33`). wave4 on Compiler Explorer, the hand-written `APIOf` cell against the translated one: <https://godbolt.org/z/TvM334frd> | built, simulated; Compiler Explorer, AVR gcc 7.3.0 |
 
 `round2/cell_vs_apiof.cpp` *(built)*: `wave::Cell<k,OO...>` is its own type, derives from `hapi::APIOf<API,OO...,Bias<k>>`,
 and has the same `Types` (API first), the same `Expand` children and policy, and the same `HasOwnRules`.
