@@ -1,35 +1,7 @@
-== (a) APIOf in ':' syntax
+== APIOf in ':' syntax
 apiof/apiof_od.cpp:11: part  P1  (1 super)
 apiof/apiof_od.cpp:12: part  P2  (1 super)
-apiof/apiof_od.cpp:7: base  (OO : ... : API)  ->  hapi::Chain<OO...>::template Part<API>
-apiof/apiof_od.cpp:7: named APIOf  (Base + ctors, 0 super)
+apiof/apiof_od.cpp:7: base  (OO : ... : final API)  ->  hapi::APIOf<API,OO...>
+apiof/apiof_od.cpp:7: named APIOf  (closed by APIOf, Base + ctors, 0 super)
   ok    apiof [g++]: static_asserts hold
   ok    apiof [clang++]: static_asserts hold
-== (b) EXPERIMENTAL: --lower=nested (od::FoldT: no Chain wrapper, so no Types) through check/build.sh
-../src/waveCell.h:18: part  Bias  (1 super)
-../src/waveCell.h:24: part  WaveOf  (1 super)
-../src/waveCell.h:34: part  Threshold  (1 super)
-../src/waveCell.h:40: part  Store  (2 super)
-../src/waveCell.h:47: base  (OO : ... : Bias<k> : API)  ->  od::FoldT<API,OO...,Bias<k>>
-../src/waveCell.h:47: named Cell  (Base + ctors, 0 super)
-../src/linCell.h:18: part  BiasOf  (1 super)
-../src/linCell.h:32: part  TermOf  (1 super)
-../src/linCell.h:39: part  SignOf  (1 super)
-../src/linCell.h:42: base  (OO : ... : BiasOf<Acc,b> : APIOf<Acc>)  ->  od::FoldT<APIOf<Acc>,OO...,BiasOf<Acc,b>>
-../src/linCell.h:42: named CellOf  (Base + ctors, 0 super)
-  FAIL  refid_check [g++]: does not compile: ../include/refid.h:33:27: error: static assertion failed: snet::RefQ<Q>: no cell in the net matches Q (for RefId<id>: no cell carries Tag<id>)
-  FAIL  refid_check [clang++]: does not compile: ../include/refid.h:33:19: error: static assertion failed due to requirement 'detail::never<hapi::SameAs<hapi::Tag<10>>>': snet::RefQ<Q>: no cell in the net matches Q (for RefId<id>: no cell carries Tag<id>)
-  FAIL  refid_order [g++]: does not compile: ../include/refid.h:33:27: error: static assertion failed: snet::RefQ<Q>: no cell in the net matches Q (for RefId<id>: no cell carries Tag<id>)
-  FAIL  refid_order [clang++]: does not compile: ../include/refid.h:33:19: error: static assertion failed due to requirement 'detail::never<hapi::SameAs<hapi::Tag<99>>>': snet::RefQ<Q>: no cell in the net matches Q (for RefId<id>: no cell carries Tag<id>)
-  FAIL  refq_check [g++]: does not compile: refq_check.cpp:22:74: error: static assertion failed: the net really has two DUP cells
-  FAIL  refq_check [clang++]: does not compile: refq_check.cpp:22:15: error: static assertion failed due to requirement 'snet::Chain<>::size == 2': the net really has two DUP cells
-  FAIL  refid_ids [g++]: refid_ids.cpp:14:70: error: static assertion failed: the matching cell comes back whole
-  FAIL  refid_ids [clang++]: refid_ids.cpp:14:17: error: static assertion failed due to requirement 'std::is_same<hapi::Chain<>, hapi::Chain<lin::CellOf<short, -1, hapi::Tag<20>, lin::SignOf<short>, lin::TermOf<short, short, snet::Slot<0>, 2>>>>::value': the matching cell comes back whole
-  FAIL  refid_ids [avr-g++]: refid_ids.cpp:14:3: error: static assertion failed: the matching cell comes back whole
-  FAIL  net_expand [g++]: net_expand.cpp:39:100: error: static assertion failed: the whole-object match refid relies on works through a Net too
-  FAIL  net_expand [clang++]: net_expand.cpp:39:17: error: static assertion failed due to requirement 'std::is_same<hapi::Chain<>, hapi::Chain<wave::Cell<'\x80', hapi::Tag<3>, wave::Threshold, wave::WaveOf<snet::Slot<1>, false, 6, '\x00', '\xff'>>>>::value': the whole-object match refid relies on works through a Net too
-  FAIL  net_expand [avr-g++]: net_expand.cpp:39:3: error: static assertion failed: the whole-object match refid relies on works through a Net too
-  FAIL  refid_cycle [clang++]: rejected, but not with "in-place reference must point to a lower net index": ../include/refid.h:33:19: error: static assertion failed due to requirement 'detail::never<hapi::SameAs<hapi::Tag<1>>>': snet::RefQ<Q>: no cell in the net matches Q (for RefId<id>: no cell carries Tag<id>)
-  FAIL  refid_avr [avr]: ../include/refid.h:33:5: error: static assertion failed: snet::RefQ<Q>: no cell in the net matches Q (for RefId<id>: no cell carries Tag<id>)
-  FAIL  by id == by index: mixed_avr_size and refid_avr differ
-46 ok, 15 FAIL, 0 note(s)

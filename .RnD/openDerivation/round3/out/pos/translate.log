@@ -1,0 +1,80 @@
+src/pos/base_chain.cpp:5: part  Inc  (1 super)
+src/pos/base_chain.cpp:6: part  Dbl  (1 super)
+src/pos/base_chain.cpp:8: base  Inc:Dbl:final Term  ->  hapi::APIOf<Term,Inc,Dbl>
+src/pos/base_chain.cpp:8: named Z  (closed by APIOf, Base + ctors, 0 super)
+src/pos/base_chain.cpp:9: base  Inc:final Term  ->  hapi::APIOf<Term,Inc>
+src/pos/base_chain.cpp:9: named Z2  (closed by APIOf, Base + ctors, 0 super)
+src/pos/base_chain.cpp:10: base  (PP : ... : final Term)  ->  hapi::APIOf<Term,PP...>
+src/pos/base_chain.cpp:10: named ZF  (closed by APIOf, Base + ctors, 0 super)
+src/pos/base_chain.cpp:11: base  (PP : ... : Dbl : final Term)  ->  hapi::APIOf<Term,PP...,Dbl>
+src/pos/base_chain.cpp:11: named ZG  (closed by APIOf, Base + ctors, 0 super)
+src/pos/component.cpp:7: part  B  (1 super)
+src/pos/component.cpp:8: part  A  (1 super)
+src/pos/component.cpp:9: part  C  (1 super)
+src/pos/component.cpp:10: base  A:B  ->  hapi::Chain<A,B>
+src/pos/component.cpp:10: named W  (component)
+src/pos/component.cpp:11: base  C:W  ->  hapi::Chain<C,W>
+src/pos/component.cpp:11: named W2  (component)
+src/pos/component.cpp:12: base  (PP : ... : B)  ->  hapi::Chain<PP...,B>
+src/pos/component.cpp:12: named WF  (component)
+src/pos/component.cpp:13: base  W:final Nil  ->  hapi::APIOf<Nil,W>
+src/pos/component.cpp:13: named Z  (closed by APIOf, Base + ctors, 0 super)
+src/pos/component.cpp:14: base  W2:final Nil  ->  hapi::APIOf<Nil,W2>
+src/pos/component.cpp:14: named Z2  (closed by APIOf, Base + ctors, 1 super)
+src/pos/component.cpp:15: base  W:final T  ->  hapi::APIOf<T,W>
+src/pos/component.cpp:15: named Z3  (closed by APIOf, Base + ctors, 0 super)
+src/pos/component.cpp:16: base  WF<A>:final Nil  ->  hapi::APIOf<Nil,WF<A>>
+src/pos/component.cpp:16: named Z4  (closed by APIOf, Base + ctors, 0 super)
+src/pos/component.cpp:17: base  final T  ->  hapi::APIOf<T>
+src/pos/component.cpp:17: named Z5  (closed by APIOf, Base + ctors, 0 super)
+src/pos/ctors.cpp:5: part  Pass  (1 super)
+src/pos/ctors.cpp:6: part  Pass2  (1 super)
+src/pos/ctors.cpp:7: part  Offset  (2 super)
+src/pos/ctors.cpp:8: part  Explicit  (2 super)
+src/pos/ctors.cpp:10: base  Pass:Pass2:final Term  ->  hapi::APIOf<Term,Pass,Pass2>
+src/pos/ctors.cpp:10: named X  (closed by APIOf, Base + ctors, 0 super)
+src/pos/ctors.cpp:11: base  Offset:Pass2:final Term  ->  hapi::APIOf<Term,Offset,Pass2>
+src/pos/ctors.cpp:11: named Y  (closed by APIOf, Base + ctors, 0 super)
+src/pos/ctors.cpp:12: base  Explicit:final Term  ->  hapi::APIOf<Term,Explicit>
+src/pos/ctors.cpp:12: named E  (closed by APIOf, Base + ctors, 0 super)
+src/pos/dependent.cpp:4: part  Uses  (2 super)
+src/pos/dependent.cpp:8: base  Uses:final Only  ->  hapi::APIOf<Only,Uses>
+src/pos/dependent.cpp:8: named U  (closed by APIOf, Base + ctors, 0 super)
+src/pos/distinct_args.cpp:4: part  Add  (1 super)
+src/pos/distinct_args.cpp:5: base  Add<1>:Add<2>:final Term  ->  hapi::APIOf<Term,Add<1>,Add<2>>
+src/pos/distinct_args.cpp:5: named Z  (closed by APIOf, Base + ctors, 0 super)
+src/pos/family.cpp:5: part  A  (1 super)
+src/pos/family.cpp:6: base  A:final B  ->  hapi::APIOf<B,A>
+src/pos/family.cpp:6: named AB  (closed by APIOf, Base + ctors, 0 super)
+src/pos/family.cpp:7: base  A:final C  ->  hapi::APIOf<C,A>
+src/pos/family.cpp:7: named AC  (closed by APIOf, Base + ctors, 0 super)
+src/pos/identity.cpp:4: base  A:(B:final C)  ->  hapi::APIOf<C,A,B>
+src/pos/identity.cpp:4: named G  (closed by APIOf, Base + ctors, 0 super)
+src/pos/identity.cpp:5: base  Any:final X  ->  hapi::APIOf<X,Any>
+src/pos/identity.cpp:5: named Y  (closed by APIOf, Base + ctors, 0 super)
+src/pos/identity.cpp:6: base  Any:A:B:final C  ->  hapi::APIOf<C,Any,A,B>
+src/pos/identity.cpp:6: named Y2  (closed by APIOf, Base + ctors, 0 super)
+src/pos/identity.cpp:7: base  (PP : ... : final C)  ->  hapi::APIOf<C,PP...>
+src/pos/identity.cpp:7: named F  (closed by APIOf, Base + ctors, 0 super)
+src/pos/identity.h:5: part  A  (1 super)
+src/pos/identity.h:6: part  B  (1 super)
+src/pos/identity.h:7: part  Any  (1 super)
+src/pos/identity.h:8: base  A:B:final C  ->  hapi::APIOf<C,A,B>
+src/pos/identity.h:8: named X  (closed by APIOf, Base + ctors, 0 super)
+src/pos/label_hazard.cpp:5: part  A  (1 super)
+src/pos/named_chain.cpp:5: part  B  (1 super)
+src/pos/named_chain.cpp:6: base  B:final C  ->  hapi::APIOf<C,B>
+src/pos/named_chain.cpp:6: named A  (closed by APIOf, Base + ctors, 1 super)
+src/pos/named_chain.cpp:12: base  B:final T  ->  hapi::APIOf<T,B>
+src/pos/named_chain.cpp:12: named W  (closed by APIOf, Base + ctors, 1 super)
+src/pos/named_chain.cpp:14: base  B:final K  ->  hapi::APIOf<K,B>
+src/pos/named_chain.cpp:14: named AK  (closed by APIOf, Base + ctors, 1 super)
+src/pos/rules_ok.cpp:6: part  A  (1 super)
+src/pos/rules_ok.cpp:7: part  B  (1 super, rules() kept on the holder)
+src/pos/rules_ok.cpp:15: base  A:B:final T  ->  hapi::APIOf<T,A,B>
+src/pos/rules_ok.cpp:15: named Z  (closed by APIOf, Base + ctors, 0 super)
+src/pos/rules_ok.cpp:16: base  (OO : ... : final T)  ->  hapi::APIOf<T,OO...>
+src/pos/rules_ok.cpp:16: named ZF  (closed by APIOf, Base + ctors, 0 super)
+src/pos/self.cpp:5: part  Self  (2 super)
+src/pos/self.cpp:12: base  Self:final Term  ->  hapi::APIOf<Term,Self>
+src/pos/self.cpp:12: named X  (closed by APIOf, Base + ctors, 0 super)

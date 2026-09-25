@@ -3,15 +3,15 @@ src/waveCell.h:18: part  Bias  (1 super)
 src/waveCell.h:24: part  WaveOf  (1 super)
 src/waveCell.h:34: part  Threshold  (1 super)
 src/waveCell.h:40: part  Store  (2 super)
-src/waveCell.h:47: base  (OO : ... : Bias<k> : API)  ->  hapi::Chain<OO...,Bias<k>>::template Part<API>
-src/waveCell.h:47: named Cell  (Base + ctors, 0 super)
+src/waveCell.h:47: base  (OO : ... : Bias<k> : final API)  ->  hapi::APIOf<API,OO...,Bias<k>>
+src/waveCell.h:47: named Cell  (closed by APIOf, Base + ctors, 0 super)
 src/linCell.h:18: part  BiasOf  (1 super)
 src/linCell.h:32: part  TermOf  (1 super)
 src/linCell.h:39: part  SignOf  (1 super)
-src/linCell.h:42: base  (OO : ... : BiasOf<Acc,b> : APIOf<Acc>)  ->  hapi::Chain<OO...,BiasOf<Acc,b>>::template Part<APIOf<Acc>>
-src/linCell.h:42: named CellOf  (Base + ctors, 0 super)
-  ok    waveCell.h: byte-identical except the Cell line (alias of hapi::APIOf -> struct over the fold)
-  ok    linCell.h: byte-identical except the Cell line (alias of hapi::APIOf -> struct over the fold)
+src/linCell.h:42: base  (OO : ... : BiasOf<Acc,b> : final APIOf<Acc>)  ->  hapi::APIOf<APIOf<Acc>,OO...,BiasOf<Acc,b>>
+src/linCell.h:42: named CellOf  (closed by APIOf, Base + ctors, 0 super)
+  ok    waveCell.h: byte-identical except the Cell line (alias of hapi::APIOf -> struct closed by APIOf with final API)
+  ok    linCell.h: byte-identical except the Cell line (alias of hapi::APIOf -> struct closed by APIOf with final API)
 == 2/3. check/build.sh (unchanged) in both mirrors
   ok    build.sh [orig]: 61 ok, 0 FAIL, 0 note(s)
   ok    build.sh [od]: 61 ok, 0 FAIL, 0 note(s)
@@ -49,7 +49,7 @@ src/linCell.h:42: named CellOf  (Base + ctors, 0 super)
   ok    objdump rr: identical (326 lines, 696 B / 65 B)
   ok    objdump rs: identical (343 lines, 778 B / 65 B)
 == 6. the struct Cell next to hapi::APIOf (cell_vs_apiof.cpp)
-  ok    cell_vs_apiof [g++]: own type, same base as APIOf, Types = Chain<OO...,Bias<k>> (no API)
-  ok    cell_vs_apiof [clang++]: own type, same base as APIOf, Types = Chain<OO...,Bias<k>> (no API)
+  ok    cell_vs_apiof [g++]: own type, derived from exactly the APIOf it replaces, same Types (API first)
+  ok    cell_vs_apiof [clang++]: own type, derived from exactly the APIOf it replaces, same Types (API first)
 
 37 ok, 0 FAIL

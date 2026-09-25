@@ -1,8 +1,10 @@
 // expect: duplicate layer in Y
-// A:X where X already holds A: rejected by the compiler (hapi::Distinct), like `struct X : Nil, Nil {}` is
-#include <hapi/rules.h>
+// A over a component X that already holds A: rejected by the compiler (hapi::Distinct splices X's Types)
+#include <hapi/hapi.h>
 struct A {template<typename O> struct Part:O {
  using Base=O; using Base::Base; int f() const {return 1+Base::f();}};};
+struct B {template<typename O> struct Part:O {
+ using Base=O; using Base::Base; int f() const {return 2+Base::f();}};};
 struct C {int f() const {return 0;}};
-struct X : hapi::Chain<A>::Part<C> {using Base=hapi::Chain<A>::Part<C>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<A,C>>, "duplicate layer in X"); static_assert(hapi::BuildRules<hapi::Chain<>,hapi::Chain<C,A>>::rules(), "HAPI: validation failed in X");};
-struct Y : hapi::Chain<A>::Part<X> {using Base=hapi::Chain<A>::Part<X>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<A,X>>, "duplicate layer in Y"); static_assert(hapi::BuildRules<hapi::Chain<>,hapi::Chain<X,A>>::rules(), "HAPI: validation failed in Y");};
+struct X : hapi::Chain<A,B> {static_assert(hapi::Distinct<hapi::Chain<A,B>>, "duplicate layer in X");};
+struct Y : hapi::APIOf<C,A,X> {using Base=hapi::APIOf<C,A,X>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<A,X,C>>, "duplicate layer in Y");};

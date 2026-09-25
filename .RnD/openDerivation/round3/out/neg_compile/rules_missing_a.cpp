@@ -1,6 +1,6 @@
 // expect: B only after A
 // B with no A before it: a component's rules<Before,After>() rejects the composition (HAPI's rule walk in every composed struct)
-#include <hapi/rules.h>
+#include <hapi/hapi.h>
 struct T {int f() const {return 0;}};
 struct A {template<typename O> struct Part:O {
  using Base=O; using Base::Base; int f() const {return 1+Base::f();}};};
@@ -13,4 +13,4 @@ struct B {template<typename O> struct Part:O {                                  
     static_assert(!hapi::query<hapi::SameAs<A>,After>,"A must be before B");
     return true;
   }};
-struct Z : hapi::Chain<B>::Part<T> {using Base=hapi::Chain<B>::Part<T>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<B,T>>, "duplicate layer in Z"); static_assert(hapi::BuildRules<hapi::Chain<>,hapi::Chain<T,B>>::rules(), "HAPI: validation failed in Z");};
+struct Z : hapi::APIOf<T,B> {using Base=hapi::APIOf<T,B>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<B,T>>, "duplicate layer in Z");};

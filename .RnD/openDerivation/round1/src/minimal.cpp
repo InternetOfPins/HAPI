@@ -1,5 +1,5 @@
 // round 1: one open class (names `super`), one closed terminal, one named composition (struct-only form)
-#include <hapi/rules.h>
+#include <hapi/hapi.h>
 #include <cstdio>
 
 struct Id {                                   // closed: the last operand
@@ -12,7 +12,7 @@ struct Twice {                                // open: only usable as Twice:X
   int twice_n() const {return 2*super::n;}
 };
 
-struct My : Twice:Id {};
+struct My : Twice:final Id {};
 
 int main() {
   My m;

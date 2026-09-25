@@ -14,8 +14,8 @@ struct B {template<typename O> struct Part:O {                                  
     static_assert(!hapi::query<hapi::SameAs<A>,After>,"A must be before B");
     return true;
   }};
-struct Z : hapi::Chain<A,B>::Part<T> {using Base=hapi::Chain<A,B>::Part<T>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<A,B,T>>, "duplicate layer in Z"); static_assert(hapi::BuildRules<hapi::Chain<>,hapi::Chain<T,A,B>>::rules(), "HAPI: validation failed in Z");};
-template<typename... OO> struct ZF : hapi::Chain<OO...>::template Part<T> {using Base=typename hapi::Chain<OO...>::template Part<T>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<OO...,T>>, "duplicate layer in ZF"); static_assert(hapi::BuildRules<hapi::Chain<>,hapi::Chain<T,OO...>>::rules(), "HAPI: validation failed in ZF");};
+struct Z : hapi::APIOf<T,A,B> {using Base=hapi::APIOf<T,A,B>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<A,B,T>>, "duplicate layer in Z");};
+template<typename... OO> struct ZF : hapi::APIOf<T,OO...> {using Base=hapi::APIOf<T,OO...>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<OO...,T>>, "duplicate layer in ZF");};
 static_assert(hapi::BuildRules<hapi::Chain<>,hapi::Chain<T,A,B>>::rules(), "the same list, as APIOf<T,A,B> validates it");
 int main() {
   CHECK((Z{}.f()==11 && ZF<A,B>{}.f()==11 && hapi::APIOf<T,A,B>{}.f()==11));

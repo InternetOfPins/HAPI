@@ -9,11 +9,10 @@ struct Self {
   static int tag() {return 42;}
   int get() const {return super::v + Self::tag();}
 };
-struct X : Self:Term {};
+struct X : Self:final Term {};
 int main() {
   X x(1,2);                        CHECK(x.get()==45 && &x.self()==&x);
   static_assert(!std::is_same<X::Me,X>::value && std::is_base_of<X::Me,X>::value,
                 "the injected name is the Part layer under the named struct (a base of X, not X)");
-  IF_NESTED(static_assert(std::is_same<X::Me,X::Base>::value, "nested: it is exactly X's base");)
   DONE("self");
 }

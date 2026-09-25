@@ -1,5 +1,5 @@
 // round 1: one open class (names `super`), one closed terminal, one named composition (struct-only form)
-#include <hapi/rules.h>
+#include <hapi/hapi.h>
 #include <cstdio>
 
 struct Id {                                   // closed: the last operand
@@ -13,7 +13,7 @@ struct Twice {template<typename O> struct Part:O {                              
   int twice_n() const {return 2*Base::n;}
 };};
 
-struct My : hapi::Chain<Twice>::Part<Id> {using Base=hapi::Chain<Twice>::Part<Id>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<Twice,Id>>, "duplicate layer in My"); static_assert(hapi::BuildRules<hapi::Chain<>,hapi::Chain<Id,Twice>>::rules(), "HAPI: validation failed in My");};
+struct My : hapi::APIOf<Id,Twice> {using Base=hapi::APIOf<Id,Twice>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<Twice,Id>>, "duplicate layer in My");};
 
 int main() {
   My m;

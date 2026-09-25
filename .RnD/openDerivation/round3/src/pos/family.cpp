@@ -3,8 +3,8 @@
 struct B {int b=0; void has_B_method() {b=1;}};
 struct C {};
 struct A {static inline int n=0; void touch() {++n; super::has_B_method();}};
-struct AB : A:B {};
-struct AC : A:C {};
+struct AB : A:final B {};
+struct AC : A:final C {};
 int main() {
   AB ab; ab.has_B_method(); ab.touch();
   CHECK(ab.b==1 && AB::n==1 && AC::n==0);

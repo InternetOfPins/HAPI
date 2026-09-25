@@ -8,5 +8,5 @@ struct B   {template<typename O> struct Part:O {
  using Base=O; using Base::Base; int b() const {return 2+Base::v;}};};
 struct Any {template<typename O> struct Part:O {
  using Base=O; using Base::Base; int any() const {return 1+Base::a();}};};
-struct X : A::Part<B::Part<C>> {using Base=A::Part<B::Part<C>>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<A,B,C>>, "duplicate layer in X"); static_assert(hapi::BuildRules<hapi::Chain<>,hapi::Chain<C,A,B>>::rules(), "HAPI: validation failed in X");};
+struct X : hapi::APIOf<C,A,B> {using Base=hapi::APIOf<C,A,B>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<A,B,C>>, "duplicate layer in X");};
 int use(X& x);     // defined in identity_tu2.cpp, called from identity_tu1.cpp

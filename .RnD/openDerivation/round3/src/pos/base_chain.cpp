@@ -5,10 +5,10 @@ struct Other {int o=100;};
 struct Inc   {int get() const {return 1+super::get();}};
 struct Dbl   {int get() const {return 2*super::get();}};
 
-struct Z  : Inc:Dbl:Term {};
-struct Z2 : public Inc:Term, Other {};
-template<typename... PP> struct ZF : (PP : ... : Term) {};
-template<typename... PP> struct ZG : (PP : ... : Dbl : Term) {};
+struct Z  : Inc:Dbl:final Term {};
+struct Z2 : public Inc:final Term, Other {};
+template<typename... PP> struct ZF : (PP : ... : final Term) {};
+template<typename... PP> struct ZG : (PP : ... : Dbl : final Term) {};
 
 int main() {
   Z z; Z2 z2; ZF<Dbl,Inc> zf; ZF<> ze; ZG<Inc> zg;

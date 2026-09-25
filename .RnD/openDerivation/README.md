@@ -1,24 +1,30 @@
 # Open Derivation: translator prototype
 
 This directory prototypes a proposed C++ extension, **late derivation**. `A:B` is the class `A` re-declared with base `B`,
-so a class's base is chosen where the class is used. `translate.py` lowers the new syntax, source to source, into the HAPI
-`Part<O>` form that avr-gcc 7.3 already accepts. For the results, see [FINDINGS.md](FINDINGS.md).
+so a class's base is chosen where the class is used. `translate.py` lowers the new syntax, source to source, into HAPI:
+- open classes become HAPI parts (`Part<O>`)
+- a chain left open becomes a component (`hapi::Chain<...>`)
+- a closed composition becomes `hapi::APIOf<Terminal,...>`, which is what starts the Part collapse
 
-**Struct-only form.** `:` derivation is valid only in a base clause, so every composition is a named struct:
+The output is plain C++17 that avr-gcc 7.3 accepts. For the results, see [FINDINGS.md](FINDINGS.md).
 
 ```c++
-struct Twice { static int f(int x) {return 2*super::f(x);} };   // open: names `super`
-struct Id    { static int f(int x) {return x;} };                // closed: can only be the last operand
-struct My : Twice:Id {};                                         // My::f(21) == 42
+struct Id    { static int f(int x) {return x;} };                // closed: can only be the terminal
+struct Twice { static int f(int x) {return 2*super::f(x);} };   // open: names `super`, usable as a layer
+struct My : Twice:final Id {};                                   // closed on the terminal API Id: My::f(21) == 42
+
+struct W : A:B {};                                               // no `final`: a component, open
+struct X : W:final Nil {};                                       // closed where it is used, on the user's own Nil
 
 template<u8 k, typename... OO>
-struct Cell : (OO : ... : Bias<k> : API) {};                     // right fold over ':'
+struct Cell : (OO : ... : Bias<k> : final API) {};               // right fold over ':', closed on API
 
-using X = Twice:Id;                                              // error [od-rule4]: ':' is only valid in a base clause
+using Y = Twice:final Id;                                        // error [od-rule4]: ':' is only valid in a base clause
 ```
 
-`struct A : B:C {...}` means the same as `struct C {..}; struct B : C {..}; struct A : B {..};`. Inside `A`, `super` is its
-base `B:C`, and `A` inherits that base's constructors.
+`final T` closes on the terminal API `T`. It is always the last operand, and it becomes `APIOf`'s first parameter. A chain without `final` stays
+open, so it can be used as a layer and closed later. Inside a closed struct, `super` is its base, and the struct inherits that base's constructors:
+`struct A : B:final C {...}` means the same as `struct C {..}; struct B : C {..}; struct A : B {..};`.
 
 ## Usage
 
@@ -26,27 +32,27 @@ base `B:C`, and `A` inherits that base's constructors.
 python3 translate.py IN [-o OUT]            # one file (stdout without -o)
 python3 translate.py --outdir DIR IN...     # several files, same basenames under DIR
 python3 translate.py --report ...           # one line per lowering on stderr
-python3 translate.py --lower=nested ...     # EXPERIMENTAL: A::Part<B::Part<C>> / od::FoldT, no Chain wrapper (see FINDINGS)
 python3 tokdiff.py A B                      # are two sources equal modulo whitespace? (tokens + comments)
 ```
 
-Errors are reported compiler-style, `file:line:col: error: [od-ruleN] ...`, and set exit status 1.
-The `[od-ruleN]` tag names the rule of the proposal that the input breaks. `[od-scope]` marks input that is outside this prototype's scope.
+Errors are reported compiler-style, `file:line:col: error: [od-...] ...`, and set exit status 1.
+The tag names the rule of the proposal that the input breaks.
 
 ## What it lowers
 
-| input | output (default `chain` lowering: HAPI's form) |
+| input | output |
 |---|---|
 | `struct P { ...super::f()... };` (an *open* class) | `struct P {template<typename O> struct Part:O { using Base=O; using Base::Base; ...Base::f()... };};` |
 | `template<u8 k> struct Bias {...};` | same, with the template head kept on the outer holder |
-| `struct Z : A:B:C {...};` | `struct Z : hapi::Chain<A,B>::Part<C> {using Base=hapi::Chain<A,B>::Part<C>; using Base::Base; ...};` |
-| `struct Z : A:(B:C) {};` | flattened, the same as `A:B:C` |
-| `template<class... OO> struct Z : (OO : ... : P : T) {};` | `struct Z : hapi::Chain<OO...,P>::template Part<T> {using Base=typename hapi::Chain<OO...,P>::template Part<T>; using Base::Base;};` |
-| `super` inside `Z` above | `Base` |
-| `struct Z : A:B {};` with `B` open (names `super`) | `struct Z : hapi::Chain<A,B>::Part<od::Nil> {...};` (no explicit termination; `support/od_nil.h`) |
-| every struct with a `:` base | also gets `static_assert(hapi::Distinct<hapi::Chain<operands...>>, "duplicate layer in Z");` (exact types, at instantiation) and `static_assert(hapi::BuildRules<hapi::Chain<>,hapi::Chain<T,operands...>>::rules(), "HAPI: validation failed in Z");` (components' `rules()`, the list `APIOf` validates); both HAPI `rules.h` |
 | `template<class Bf,class Af> static constexpr bool rules() {...}` in an open class | kept on the holder, outside `Part`, where HAPI's rule walk asks for it |
-| `struct Y : A:X {};` where `X` already derives from `A` | a compile error from that `static_assert`, like `struct X : Nil, Nil {};` (no translator check) |
+| `struct Z : A:B:final T {...};` | `struct Z : hapi::APIOf<T,A,B> {using Base=hapi::APIOf<T,A,B>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<A,B,T>>, "duplicate layer in Z"); ...};` |
+| `super` inside `Z` above | `Base` |
+| `struct Z : final T {};` | `struct Z : hapi::APIOf<T> {...};` |
+| `struct W : A:B {};` (no `final`) | `struct W : hapi::Chain<A,B> {static_assert(hapi::Distinct<hapi::Chain<A,B>>, "duplicate layer in W");};`: a component |
+| `struct Z : W:C:final T {};` with `W` a component | `struct Z : hapi::APIOf<T,W,C> {...};` (`W` is spliced by HAPI's walks) |
+| `struct Z : A:(B:final C) {};` | flattened, the same as `A:B:final C` |
+| `template<class... OO> struct Z : (OO : ... : P : final T) {};` | `struct Z : hapi::APIOf<T,OO...,P> {...};` |
+| `template<class... OO> struct W : (OO : ... : P) {};` | `struct W : hapi::Chain<OO...,P> {...};` |
 | `using X = A:B;` | refused: `[od-rule4]` |
 
 Inside an open class body:
@@ -54,26 +60,26 @@ Inside an open class body:
 - `using super::super;` is dropped, because the lowering always adds `using Base::Base;`.
 - The class's own name, when unqualified and without template arguments, becomes `Part`. This covers constructors, `A&` and `A::x`.
 
-In a template, `typename`/`::template` are added when an operand names a template parameter that is in scope.
+**Checks happen in HAPI, at compile time.**
+- `APIOf` runs HAPI's rule walk, i.e. the components' `rules<Before,After>()`.
+- The injected `static_assert(hapi::Distinct<...>)` rejects duplicate layers on exact types: packs, aliases, `Bias<1>` vs `Bias<0+1>`, and components from other headers.
+  This is the stand-in for the native error that `struct X : Nil, Nil {}` already gets.
 
 **Scope and restrictions.**
 - **What makes a class open:** a class is *open* (lowered to a `Part` holder) when its body names `super` unqualified.
   - Ordinary lookup wins: a member `typedef X super;` / `using super = X;`, or a namespace-scope declaration of `super`, leaves the class alone.
-- **Named compositions:** a class whose base clause uses `:` is a named composition. It is concrete, not open, and gets the injected `Base`.
-  - Only one `:` base-specifier is allowed per class. Other, ordinary bases may sit next to it.
 - **Refused input:**
   - a `:` in an alias-declaration
-  - a closed class as a left operand
-  - rebasing: an open class with an ordinary base, a class with a base as a left operand, or `(A:B):C`
+  - `final` on any operand but the last, or a closed class as the open end of a component (`[od-final]`)
+  - a component with a non-empty body (`[od-component]`)
+  - a closed class or a closed composition as a layer
+  - rebasing: an open class with an ordinary base, or `(A:B):final C`
   - two `:` bases in one class
   - out-of-line members of an open class
   - left or unparenthesized folds
-  - `super` outside a class
+  - `super` outside a class, or inside `rules()`
 - **Only the prototype's grammar is recognized.** Everything else, including `super` inside `#define`s, is left untouched.
-- **You must provide the includes:**
-  - The input must include `<hapi/rules.h>` (or `hapi.h`) itself, for `hapi::Chain` and `hapi::Distinct`.
-  - A chain that ends open needs `support/od_nil.h`.
-  - For `--lower=nested` with folds, it must also include `support/od_fold.h`.
+- **You must provide the includes:** the input must include `<hapi/hapi.h>` itself.
 
 ## Layout and how to run
 
@@ -83,11 +89,11 @@ that does everything and writes its logs next to it (`log.txt`, and `log/` for r
 
 | dir | what | run |
 |---|---|---|
-| `round1/` | one named composition over one open class and a closed terminal; bare use must not compile; the alias form must be refused | `round1/run.sh` |
-| `round2/` | static_net's `waveCell.h` / `linCell.h` in `:` syntax (`src/`, `Cell` as a struct over the fold), translated (`out/include/`); round trip (diff = the `Cell` lines only); `check/build.sh` unchanged; `compare_emlearn` and `measure/` in simavr; `avr-objdump` of 27 AVR programs, raw and with symbols stripped; the struct `Cell` next to `hapi::APIOf` | `round2/run.sh` (a few minutes) |
-| `round2/variants/` | (a) `hapi::APIOf` written in `:` syntax; (b) EXPERIMENTAL `--lower=nested` through `check/build.sh` | `round2/variants/run.sh` |
-| `round3/` | coverage: base-clause chains and folds, open terminals (`od::Nil`), distinct specializations as layers, named compositions against their plain-C++ equivalent, constructors, rule-1 rebinding, family/statics, nominal identity (incl. across TUs), `super` precedence, dependence, the label hazard; component `rules()` through the chain; 12 translator refusals; 15 compiler rejections (incl. 6 duplicate layers via `hapi::Distinct`, 4 compositions a component's `rules()` rejects); positive cases also under `--lower=nested` (experimental) | `round3/run.sh` |
+| `round1/` | one closed composition over one open class and a terminal; bare use must not compile; the alias form must be refused | `round1/run.sh` |
+| `round2/` | static_net's `waveCell.h` / `linCell.h` in `:` syntax (`src/`, `Cell` closed with `final API`), translated (`out/include/`); round trip (diff = the `Cell` lines only); `check/build.sh` unchanged; `compare_emlearn` and `measure/` in simavr; `avr-objdump` of 27 AVR programs; the struct `Cell` next to `hapi::APIOf` | `round2/run.sh` (a few minutes) |
+| `round2/variants/` | `hapi::APIOf` itself written in `:` syntax | `round2/variants/run.sh` |
+| `round3/` | coverage: components and closing on a user terminal, base-clause chains and folds, named compositions against their plain-C++ equivalent, constructors, rule-1 rebinding, family/statics, nominal identity (incl. across TUs), `super` precedence, dependence, component `rules()`, duplicate layers, the label hazard; 16 translator refusals; 15 compiler rejections | `round3/run.sh` |
 
 Round 2 runs `build.sh` "unchanged" by building two throwaway mirrors of `examples/static_net`: `check/`, `compare_emlearn/`
 and `measure/` are copied, `models/` is linked, and `include/` is copied. In one mirror `include/{waveCell,linCell}.h` are replaced by the translated headers.
-This is needed because `build.sh` hard-codes `-I../include`. Nothing under `include/hapi/` or `examples/static_net/` is modified.
+This is needed because `build.sh` hard-codes `-I../include`. Nothing under `examples/static_net/` is modified.

@@ -12,8 +12,8 @@ struct B {                                        // fx.h's rules, in ':' form: 
   }
   int f() const {return 10+super::f();}
 };
-struct Z : A:B:T {};
-template<typename... OO> struct ZF : (OO : ... : T) {};
+struct Z : A:B:final T {};
+template<typename... OO> struct ZF : (OO : ... : final T) {};
 static_assert(hapi::BuildRules<hapi::Chain<>,hapi::Chain<T,A,B>>::rules(), "the same list, as APIOf<T,A,B> validates it");
 int main() {
   CHECK((Z{}.f()==11 && ZF<A,B>{}.f()==11 && hapi::APIOf<T,A,B>{}.f()==11));

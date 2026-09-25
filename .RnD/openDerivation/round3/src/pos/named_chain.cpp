@@ -3,15 +3,15 @@
 #include "common.h"
 struct C  {int v=1; int get() const {return v;}};
 struct B  {int get() const {return 2*super::get();}};
-struct A  : B:C {int get() const {return 1+super::get();}};
+struct A  : B:final C {int get() const {return 1+super::get();}};
 
 struct C2 {int v=1; int get() const {return v;}};         // the same, in plain C++
 struct B2 : C2 {int get() const {return 2*C2::get();}};
 struct A2 : B2 {int get() const {return 1+B2::get();}};
 
-template<typename T> struct W : B:T {int get() const {return 100+super::get();}};   // dependent base
+template<typename T> struct W : B:final T {int get() const {return 100+super::get();}};   // dependent base
 struct K  {int v; K(int x):v(x) {} int get() const {return v;}};
-struct AK : B:K {int get() const {return 1+super::get();}};                          // K(int) reaches AK
+struct AK : B:final K {int get() const {return 1+super::get();}};                          // K(int) reaches AK
 
 int main() {
   A a; A2 a2;

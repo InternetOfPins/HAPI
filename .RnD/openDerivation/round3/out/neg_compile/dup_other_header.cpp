@@ -1,5 +1,5 @@
 // expect: duplicate layer in Y
-// Distinct: A:X where X (from another header) already holds A; X's Types are spliced at instantiation
+// Distinct: A over X, a component from another header that already holds A; X's Types are spliced
 #include "dup_other.h"
-struct Y : hapi::Chain<A>::Part<X> {using Base=hapi::Chain<A>::Part<X>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<A,X>>, "duplicate layer in Y"); static_assert(hapi::BuildRules<hapi::Chain<>,hapi::Chain<X,A>>::rules(), "HAPI: validation failed in Y");};
+struct Y : hapi::APIOf<C,A,X> {using Base=hapi::APIOf<C,A,X>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<A,X,C>>, "duplicate layer in Y");};
 int main() {return Y{}.f();}

@@ -11,47 +11,53 @@ Base commit: `5c4bfeb`. Toolchains: g++ and clang++ (host, `-std=c++17`), avr-gc
 
 Logs are in each round's `log.txt` (round 2 also has `log/`).
 
-## 0. The form of the proposal these results are for: struct-only
+## 0. The form of the proposal these results are for
 
-- `:` derivation is valid **only in a base clause**: `struct Z : A:B:C {...};`, and pack folds `struct Z : (OO : ... : T) {};`.
-- The alias form `using X = A:B;` is no longer valid, and the translator refuses it with `[od-rule4]`.
-- Every struct with a `:` base clause implicitly inherits that base's constructors. The translator injects `using Base=<chain>; using Base::Base;`, as `hapi::APIOf` does by hand.
-- Inside such a struct, `super` names that base: `struct A : B:C {..}` ⇔ `struct C {..}; struct B : C {..}; struct A : B {..};` *(host, `round3/src/pos/named_chain.cpp`)*.
-- Base-clause chains lower to the wrapping form `hapi::Chain<...>::Part<T>`.
-- **Amendment: no explicit termination.** The rightmost operand may be open (it names `super`). The chain then ends in an implicit empty
-  terminal: `struct Z : A:B {};` with `B` open lowers to `hapi::Chain<A,B>::Part<od::Nil>` (`support/od_nil.h`). There is no
-  "the last operand must be closed" check.
-- **HAPI core changes in one place:** `hapi::Distinct` is added to `include/hapi/rules.h` (§7). Nothing else under `include/hapi/` is touched.
-- **Amendment: no duplicate layers.** `A:X` is rejected when `A` already occurs in `X` or in `X`'s bases, by exact type match
-  (`Bias<1>:Bias<2>` stays legal). The check runs **at instantiation**, in HAPI core: every composed struct gets
-  `static_assert(hapi::Distinct<hapi::Chain<operands...>>, "duplicate layer in <Name>");`. The compiler catches it, as it already
-  catches `struct X : Nil, Nil {};` (g++ `duplicate base type 'Nil' invalid`, clang++ `specified more than once as a direct base class`).
-  The translator has no duplicate check of its own.
-- `--lower=nested` is kept as experimental only (§4).
-
-This replaces an earlier round of the same prototype that also accepted the alias form. Its two identity findings are moot now; they are summarized in §5.
+- **Syntax is the surface, HAPI is underneath.** Whether a composition is closed, and on what, is written in the source. The translator
+  never infers it from what an operand happens to be.
+- **`:` only in a base clause:** `struct Z : A:B:final T {...};`, and pack folds `struct Z : (OO : ... : P : final T) {};`.
+  - The alias form `using X = A:B;` is refused, `[od-rule4]`.
+- **`final T` closes the composition on the terminal API `T`.** It is always the last operand, and `T` is the user's (their own `Nil` when there is no API).
+  - It lowers to `hapi::APIOf<T,layers...>` (`T` first, as `APIOf`'s first parameter), because in HAPI `APIOf` is what closes: it starts the Part collapse.
+  - `struct Z : final T {}` is `APIOf<T>`, closed with no layers.
+- **Without `final`, the chain stays open: a component.** `struct W : A:B {};` lowers to `hapi::Chain<A,B>`.
+  - A component is reusable as a layer (`struct Z : C:W:final Nil {}`) and is closed where it is used. That is how components are built on the fly.
+- **A closed composition's body is the composed object.** `super` names its base, and it inherits that base's constructors (`using Base=...; using Base::Base;` is injected, as `APIOf` itself does).
+  - `struct A : B:final C {..}` ⇔ `struct C {..}; struct B : C {..}; struct A : B {..};` *(host, `named_chain.cpp`)*.
+- **Checks are HAPI's, run by the compiler.**
+  - `APIOf` runs HAPI's rule walk, i.e. the components' `rules<Before,After>()`.
+  - Every composed struct also gets `static_assert(hapi::Distinct<...>)` for duplicate layers.
+  - A component's rules are only checked once it is closed, because only then are its Before/After known.
+- **HAPI core changes in one place:** `hapi::Distinct` in `include/hapi/rules.h` (§6).
+- **Dropped along the way:**
+  - the implicit `od::Nil` terminal (closing is explicit now)
+  - `--lower=nested` (the collapse must start at `APIOf`)
+  - the translator's own duplicate check and rule walk (HAPI does both)
 
 ## 1. Results against the acceptance criteria (Round 2)
 
 | criterion | result | evidence |
 |---|---|---|
-| translated headers equal to the originals, or the diff explained | Parts are **byte-identical**. The only differing line in each header is the cell, which is now a struct over the fold instead of an alias of `hapi::APIOf` (`round2/log/cell.diff`) | built |
+| translated headers equal to the originals, or the diff explained | Parts are **byte-identical**. The only differing line in each header is the cell: a struct closed with `final API`, whose base is **exactly the `hapi::APIOf` the original alias named** (`round2/log/cell.diff`) | built |
 | `check/build.sh` unchanged | 61 ok, 0 FAIL on the translated tree, same as the original tree. The two outputs are identical line for line. This covers the host tests (g++, clang++), the 6 must-not-build programs, the AVR sizes, the 4 identical-disassembly checks, and simavr row by row (`bitexact.py`: BIT-EXACT) | host, built, simulated |
 | Banknote `wave4` | **44 B flash, 0 B RAM, 274/274, 25 cycles** (min = mean = max), net of the null program (`compare_emlearn/run.sh` + `report.py`). `lin4` is identical to the original too (112 B, 0 B, 273/274, 62 cycles) | simulated |
-| `objdump` over all 27 AVR programs | **27/27 raw-identical** `avr-objdump -d`: the 15 from `build.sh`, `bnc` wave4/lin4, and all 10 of `measure/`. The fallback comparison with symbol names stripped was never needed: everything that touches a cell type is inlined, so no symbol mentions `wave::Cell<…>`. `measure/` cycles are identical too (`wave4:23 lin4:33`) | built, simulated |
+| `objdump` over all 27 AVR programs | **27/27 raw-identical** `avr-objdump -d`: the 15 from `build.sh`, `bnc` wave4/lin4, and all 10 of `measure/`. `measure/` cycles are identical too (`wave4:23 lin4:33`) | built, simulated |
 
-The two cell lines, as translated:
+The two cell lines:
 
 ```c++
-template<u8 k,typename... OO> struct Cell : (OO : ... : Bias<k> : API) {};
+template<u8 k,typename... OO> struct Cell : (OO : ... : Bias<k> : final API) {};
 // ->
-template<u8 k,typename... OO> struct Cell : hapi::Chain<OO...,Bias<k>>::template Part<API> {using Base=typename hapi::Chain<OO...,Bias<k>>::template Part<API>; using Base::Base;};
+template<u8 k,typename... OO> struct Cell : hapi::APIOf<API,OO...,Bias<k>> {using Base=hapi::APIOf<API,OO...,Bias<k>>; using Base::Base;
+  static_assert(hapi::Distinct<hapi::Chain<OO...,Bias<k>,API>>, "duplicate layer in Cell");};
 ```
 
-`lin::CellOf` gets the same treatment (terminal `APIOf<Acc>`). `lin::Cell=CellOf<acc,b,OO...>` stays a plain alias, which is allowed because it has no `:`.
+`lin::CellOf` gets the same treatment (`final APIOf<Acc>`). `lin::Cell=CellOf<acc,b,OO...>` stays a plain alias, which is allowed because it has no `:`.
+`round2/cell_vs_apiof.cpp` pins it on both compilers *(built)*: `wave::Cell<k,OO...>` is its own type, derives from exactly `hapi::APIOf<API,OO...,Bias<k>>`,
+and has the same `Types` (API first). `APIOf`'s rule walk runs as before.
 
 ### Checks that depend on matching `APIOf<...>` by pattern
-No check failed. These are the places that name `APIOf`, and why each one still passes:
+No check failed. The places that name `APIOf`, and why each still passes:
 
 | place | what it matches | why it still passes |
 |---|---|---|
@@ -59,183 +65,131 @@ No check failed. These are the places that name `APIOf`, and why each one still 
 | `check/sugar_roll.cpp:17` | `is_same_v<U<decltype(six)>, hapi::APIOf<lin::API,...>>` (the rolled cell) | as above. If `sugar.h` were rewritten in struct form, this assert would have to name that struct instead: it pins the `APIOf` pattern |
 | `check/sugar_roll.cpp:16,22,25,30` | `is_same_v<..., lin::Cell<...>>` (unrolled) | both sides are `lin::Cell`, which now names the struct |
 | `check/sugar_roll_hand_avr.cpp` (and `same` in `build.sh` against `sugar_roll_avr`) | the "by hand" rolled net spelled `hapi::APIOf<...>` | the sugar side is still `APIOf`, so the disassembly is identical |
-| `models/roll60/roll_common.h` | `using C=hapi::APIOf<API32,OO...>` | not translated, and has its own terminal |
-| `refid.h` / `refid_*`, `refq_check`, `net_expand` | `FromTypes<Q>` reads a cell's `Types`; `Expand<Net>` holds the cells whole | the struct inherits `Types` from `Chain::Part`: `Chain<OO...,Bias<k>>`, **without the API**. No static_net query asks for the API, and matching tags and parts (`Tag<id>`, `lin::Sign`, `wave::Threshold`) still works *(host, built)* |
+| `models/roll60/roll_common.h` | `using C=hapi::APIOf<API32,OO...>` | not translated |
+| `refid.h` / `refid_*`, `refq_check`, `net_expand` | `FromTypes<Q>` reads a cell's `Types` | the struct inherits `APIOf`'s `Types`, API first, the same list as before *(host, built)* |
 
-`round2/cell_vs_apiof.cpp` pins the difference on both compilers *(built)*:
-- `wave::Cell<k,OO...>` is not `hapi::APIOf<API,OO...,Bias<k>>`.
-- It has the same base.
-- Its `Types` is `Chain<OO...,Bias<k>>`, where `APIOf`'s is `Chain<API,OO...,Bias<k>>`.
-
-The `BuildRules` validation `APIOf` runs is **kept**: every composed struct runs it over the same list, API first
-(`static_assert(hapi::BuildRules<hapi::Chain<>,hapi::Chain<API,OO...,Bias<k>>>::rules(), "HAPI: validation failed in Cell")`, §3).
-
-What static_net no longer gets from `APIOf` on these two cells, none of which it exercises:
-- the `Expand<APIOf>` / `HasOwnRules<APIOf>` specializations (a cell nested inside another rule-validated container)
-- `APIOf::Part<T>`
-
+What static_net no longer gets on these two cells, and does not exercise: the `Expand<APIOf>` / `HasOwnRules<APIOf>` specializations. They are keyed on the
+exact type `APIOf<...>`, and the struct is derived from it, so a struct cell nested in another rule-validated container would need
+HAPI's one-line forwarding entry (`template<...> struct Expand<Cell<...>> : Expand<APIOf<...>> {}`).
 A mixed net of struct cells and `APIOf` cells (sugar's rolled cells) works *(host: `sugar_check`, `sugar_roll`)*.
 
 ## 2. What worked
 
-- **The restricted grammar is enough for static_net.** It needs open classes (the seven parts of the two engines) plus a named struct over a pack fold for the cell. *(built)*
+- **The restricted grammar is enough for static_net.** It needs open classes (the seven parts of the two engines) plus one closed struct over a pack fold per engine. *(built)*
 - **A small Python script is enough, with no Clang LibTooling.** Edits are spliced onto the original text, so comments and whitespace survive. *(built)*
-- **Round 1, 5/5:** `struct My : Twice:Id {};` runs on g++ and clang++. Bare use of `Twice` is rejected, and `using My = Twice:Id;` is refused. *(host, built)*
-- **Round 3, 94/94:**
-  - Base-clause chains work, including an access specifier next to an ordinary base, and folds (empty pack included).
-  - Named compositions match their plain-C++ equivalents (`named_chain.cpp`), including a dependent base (`template<class T> struct W : B:T`).
-  - Constructor inheritance through a chain *and* into the named struct needs no user `using`: `Offset(int)` hides `Term(int)`, while `Term(int,int)` is still inherited.
-  - An open rightmost operand ends in `od::Nil` and runs, while its unused `super` call stays unchecked (`open_terminal.cpp`, also for a fold with an empty pack).
-    Calling that member is a compile error (`neg_compile/open_terminal_super.cpp`: g++ `'missing' is not a member of 'B::Part<od::Nil>::Base' {aka 'od::Nil'}`, clang++ `no member named 'missing' in 'od::Nil'`).
-  - `Add<1>:Add<2>:Term` is two layers (`distinct_args.cpp`).
-  - Rule 2 holds: family, not subtype, with separate statics.
-  - Rule 3 holds nominally, across TUs.
-  - Rule 7 holds: user `super` precedence, and dependence.
-  - The label hazard is pinned.
-  - All of the above on g++ and clang++. Also under experimental `--lower=nested`. *(host)*
-  - **Diagnostics:** 12 translator refusals (rules 4, 6, 7, 8 and 9, `super` in `rules()`, and scope), and 15 compiler rejections: 6 duplicate
-    layers caught by `hapi::Distinct`, and 4 compositions a component's own `rules()` rejects. *(built)*
+- **Round 1, 5/5:** `struct My : Twice:final Id {};` runs on g++ and clang++. Bare use of `Twice` is rejected, and `using My = Twice:final Id;` is refused. *(host, built)*
+- **Round 3, 72/72:** 13 programs on g++ and clang++, 16 translator refusals, and 15 compiler rejections on both compilers. *(host, built)*
+  - **Components (`component.cpp`):**
+    - A component (`W : A:B`), a component of a component (`W2 : C:W`), and a component fold (`(PP : ... : B)`) all work.
+    - Each is closed where it is used, on the user's own `Nil` or on another terminal: the same `W` is closed twice, as `W:final Nil` and as `W:final T`.
+    - `final T` alone works.
+    - `B`'s unused `super::missing()` compiles. Calling it is a compile error naming the user's `Nil` (`neg_compile/component_super.cpp`).
+  - **Base-clause chains and folds:** including an access specifier next to an ordinary base, and an empty pack (`APIOf<Term>`).
+  - **Named compositions** match their plain-C++ equivalents, including a dependent base (`template<class T> struct W : B:final T`).
+  - **Constructor inheritance** through a chain and into the closed struct needs no user `using`: `Offset(int)` hides `Term(int)`, while `Term(int,int)` is still inherited.
+  - **Rule 2 holds:** family, not subtype, with separate statics.
+  - **Rule 3 holds nominally,** across TUs.
+  - **Rule 7 holds:** user `super` precedence, and dependence.
+  - **The label hazard is pinned.**
 
 ## 3. Semantics as implemented
 
+- **Closing (`final T`).** `final` is a contextual keyword, and today it is only valid right after a class name (`struct X final : ...`), never
+  inside a base-specifier. So `A:B:final T` does not clash with valid C++.
+  - `[od-final]` refusals:
+    - `final` not on the last operand
+    - a closed class used as the open end of a component: "close the composition on it with `final K`"
+- **Components.** A chain without `final` lowers to `hapi::Chain<layers...>`. A component is a type list, so members in its body would not be part of any
+  composed object, and a non-empty body is refused (`[od-component]`). It is checked once it is closed:
+  - `APIOf`'s rule walk sees the component spliced in place (`Expand<Chain>` validates).
+  - `Distinct` splices its `Types`.
+- **Rule 8 (rebasing) and closed compositions.**
+  - A *closed* composition cannot be a layer (`[od-rule8] 'X' is a closed composition`). Compose the component instead.
+  - A closed composition can be the terminal: `struct Y : Any:final X {}`.
+  - An open class with an ordinary base, and `(A:B):final C`, are still refused.
 - **Rule 3 (identity) holds trivially:** a composition's identity is its name. The same struct is the same type in every TU (`identity_tu1/2` link) *(host)*.
-  - Two structs over the same chain are different types with the same base and behaviour: `struct G : A:(B:C)` and `struct X : A:B:C` have `G::Base == X::Base` *(host)*.
-- **Rule 1 (injected-class-name):** the translator rewrites the class's own name inside an open class's body to `Part`. That makes it the family-member *layer*, which is a base of the named struct, not the struct itself (`self.cpp`, asserted in both modes) *(host)*.
-  - `A<other args>` is not rebound, which is correct: it names another specialization.
-  - Macros are not seen.
+  - Two structs over the same chain are different types with the same base and behaviour: `struct G : A:(B:final C)` and `struct X : A:B:final C` have `G::Base == X::Base` *(host)*.
+- **Rule 1 (injected-class-name):** inside an open class's body, the class's own name is rewritten to `Part`, the layer. That is a base of the closed struct, not the struct itself (`self.cpp`) *(host)*.
 - **"super undefined": any compiler error is accepted.** For reference *(built)*:
 
   | situation | g++ | clang++ |
   |---|---|---|
   | bare use `Twice::f(21)` | `'f' is not a member of 'Twice'` | `no member named 'f' in 'Twice'` |
-  | `struct Bad : Twice:Empty {}`, used | `'f' is not a member of 'Twice::Part<Empty>::Base' {aka 'Empty'}` | `no member named 'f' in 'Empty'` |
+  | `struct Bad : Twice:final Empty {}`, used | `'f' is not a member of 'Twice::Part<Empty>::Base' {aka 'Empty'}` | `no member named 'f' in 'Empty'` |
   | `A& r = ab;` (rule 2) | `... from expression of type 'AB'` | `... unrelated type 'AB'` |
 
-  Named compositions print as their own name (`AB`), where the alias form printed `hapi::Chain<A>::Part<B>`.
-- **Rule 4 is now base clause only.** The hazard stays as supporting evidence: `A:B x;` in a block is valid C++ today (label `A:` then `B x;`). It compiles and `x` is a `B` *(host, `label_hazard.cpp`)*.
-- **Rule 6** becomes "every struct with a `:` base inherits that base's constructors", lowered to `using Base=...; using Base::Base;`.
-  - A class with two `:` bases is refused: `Base` would be ambiguous.
-  - A class with *ordinary* bases next to one `:` base is fine.
-- **Rule 7 (open vs closed)** is decided at the definition, by whether the body names `super`.
-  - A closed class as a left operand is refused.
-  - A data-only mixin must write `using super::super;` to be usable as `M:X`.
-  - The proposal should state this. Rule 1's "any A" and rule 7's "only the last layer may be closed" conflict without it.
-  - With the no-explicit-termination amendment the last layer may be either: closed (it is the terminal) or open (the chain
-    ends in `od::Nil`). Left operands must still be open.
-- **Rule 8 (rebasing) is unchanged.**
-  - An open class with an ordinary base is refused.
-  - So is a named composition used as a *left* operand, and `(A:B):C`.
-  - A named composition can be the **last** operand: `struct Y : Any:X {}`.
-- **Open terminal** (amendment). An open rightmost operand becomes the last layer over `od::Nil`. Its `super`
-  calls are dependent: checked only when used, and then a compile error naming `od::Nil` *(host, built)*.
-  - Detected textually: the operand names a class defined in the same file whose body names `super`. An open class from
-    another file used as the terminal is lowered as a plain terminal, and its `super` calls then fail to compile when the class is used, since a
-    holder has no members of its own. This is a translator limitation, not part of the rule.
-- **Duplicate layers** (amendment), in two stages.
-  - **At instantiation, `hapi::Distinct` (HAPI core, `include/hapi/rules.h`).**
-    - **What the translator emits:** in every composed struct, `static_assert(hapi::Distinct<hapi::Chain<A,B,OO...,T>>, "duplicate layer in Z");`. The list holds the operands as written, packs included; an `od::Nil` terminal is left out.
-    - **How `Distinct` compares:**
-      - It flattens the list, splicing nested `Chain`s.
-      - A type with `::Types` (a named composition, an `APIOf`) is replaced by its `Types`, recursively. That is how `X` from another header is seen into.
-      - A type with `Part<O>` is an open layer, compared by `is_same`.
-      - Anything else is a closed operand, compared by `is_same`, and by `is_base_of` either way with the other closed operands.
-    - **Rejected in round 3** (`neg_compile/`), each on g++ and clang++ with `static assertion failed: duplicate layer in Z|Y`. clang++ also prints the flattened list:
-      - via a pack: `template<class... OO> struct Z : (OO : ... : T) {}; Z<A,A>` (`hapi::Distinct<hapi::Chain<A, A, T>>`)
-      - via an alias: `Wave<0>:WaveOf<Slot<0>>:T`, with `Wave<i> = WaveOf<Slot<i>>` (`Chain<WaveOf<Slot<0>>, WaveOf<Slot<0>>, T>`)
-      - one type spelled two ways: `Bias<1>:Bias<0+1>:T` (`Chain<Bias<1>, Bias<1>, T>`)
-      - a class from another header: `struct Y : A:X {}`, where `X : A:C` is defined in `dup_other.h` (`Chain<A, X>`, with `X`'s `Types` spliced)
-
-      *(built)*
-    - **It caught a real mistake:** round 3's own positive `base_chain.cpp` instantiated `ZF<Inc,Dbl,Inc>` (`Inc` twice through a pack). The text
-      check never saw it, `Distinct` rejected it, and the test now uses `ZF<Dbl,Inc>`.
-    - **Cost:** every static_net cell passes it. `check/build.sh` stays at 61/61, and the 27 AVR programs' disassembly is identical to the original (§1) *(built, simulated)*.
-      `Distinct` also builds with avr-gcc 7.3 (`tests/compile_tests.cpp`'s `distinct_tests`) *(built)*.
-    - **Why an operand list, not `typename Base::Types`:** `Base::Types` leaves out the terminal, so `struct Y : A:X` with `X` from another header would be missed. And for an empty-pack fold, `Chain<>::Part<T>` *is* `T`, which usually has no `Types`.
-    - **What it does not see:** layers inside a closed operand that has no `Types`, for example a hand-written `struct K : A::Part<C> {}`. Its `A` is not
-      recoverable from the type, because `A::Part<C>` is not `A`.
-  - **No text check in the translator.** An earlier version refused `Self:Self:Term` and `A:X` (with `X : A:C` in the same file) from the
-    source text (`[od-dup]`). That check was removed: it only saw one file and exact spellings, and the compiler rejects both cases anyway
-    (`neg_compile/dup_layer_chain.cpp`, `dup_layer.cpp`: `duplicate layer in Y`) *(built)*.
-  - **Why a check is needed at all in the lowering:** natively, a duplicate layer would be the same kind of error as a duplicate direct base. In the
-    Part lowering it is not one: `A:A:T` is `A::Part<A::Part<T>>`, two different types, and without `Distinct` it compiles and runs on g++ and clang++.
-    `Distinct` is the prototype's stand-in for that native error.
-- **Component rules (HAPI's rules system).** Constraints on a composition other than duplicates live in HAPI's rules: a component's
-  `rules<Before,After>()`, walked by `BuildRules` (e.g. "B only after A", "A must be before B", as in `tests/negative/fx.h`).
-  - **What the translator emits:** every composed struct gets
-    `static_assert(hapi::BuildRules<hapi::Chain<>,hapi::Chain<T,A,B,OO...>>::rules(), "HAPI: validation failed in Z");`.
-    The list is the one `APIOf<T,A,B,OO...>` validates: the terminal first, then the layers outer to inner. An `od::Nil` terminal is left out.
-  - **Where `rules()` lives:** HAPI asks the *holder* for `rules()`, so the translator keeps a `rules` member of an open class outside `Part`, verbatim.
-    Inside it, the class's own name means the holder, which is the type that appears in the lists being checked. A `super` inside `rules()` is refused, because the holder has no base.
+- **Rule 4 is base clause only.** The hazard stays as supporting evidence: `A:B x;` in a block is valid C++ today (label `A:` then `B x;`). It compiles and `x` is a `B` *(host, `label_hazard.cpp`)*.
+- **Rule 6:** a closed struct inherits its base's constructors.
+  - A class with two `:` bases is refused (`Base` would be ambiguous).
+  - Ordinary bases next to one `:` base are fine.
+- **Rule 7 (open vs closed class)** is decided at the definition, by whether the body names `super`.
+  - A closed class as a layer is refused. It can only be the terminal, `final K`.
+  - A data-only mixin must write `using super::super;` to be a layer.
+- **Duplicate layers: left to the compiler.**
+  - Natively, a duplicate layer is the same kind of error as a duplicate direct base (`struct X : Nil, Nil {}`: g++ `duplicate base type 'Nil' invalid`).
+    In the Part lowering it is not one: `A:A:T` is `A::Part<A::Part<T>>`, two different types, which would compile silently.
+  - So every composed struct gets `static_assert(hapi::Distinct<hapi::Chain<layers...,T>>, "duplicate layer in Z")`, the prototype's stand-in for that native error. How it works is in §6.
+  - **Rejected** (`neg_compile/`, g++ and clang++, `duplicate layer in Z|Y`; clang++ prints the flattened list) *(built)*:
+    - `Self:Self:final Term`
+    - via a pack: `Z<A,A>` (`Chain<A, A, T>`)
+    - via an alias: `Wave<0>` vs `WaveOf<Slot<0>>`
+    - `Bias<1>` vs `Bias<0+1>` (`Chain<Bias<1>, Bias<1>, T>`)
+    - `A` over a component `X : A:B`, from the same file (`dup_layer.cpp`) and from another header (`dup_other_header.cpp`)
+  - **It caught a real mistake:** round 3's own `base_chain.cpp` had instantiated `ZF<Inc,Dbl,Inc>`, and the test now uses `ZF<Dbl,Inc>`.
+  - **Not seen:** layers inside a closed operand that has no `Types`, e.g. a hand-written `struct K : A::Part<C> {}`, since `A::Part<C>` is not `A`.
+- **Component rules (HAPI's rules system), run by `APIOf`.** A component's `rules<Before,After>()` is asked of the holder, so the translator keeps a
+  `rules` member of an open class outside `Part`, verbatim. `super` inside `rules()` is refused, because the holder has no base.
   - **Round 3** (`rules_ok.cpp`, `neg_compile/rules_*`), g++ and clang++ *(host, built)*:
-    - `struct Z : A:B:T {}` passes, as does `ZF<A,B>` through a pack. `hapi::APIOf<T,A,B>` agrees.
-    - `B:T` fails with the component's own message, "B only after A". So do `B:A:T` and `ZF<B,A>`.
-    - A `rules()` that answers `false` fails with "HAPI: validation failed in Z".
-  - **static_net:** every `Cell` validates `Chain<API,OO...,Bias<k>>`, exactly what `APIOf` validated. No part declares rules, and the codegen is unchanged: 27/27 identical disassembly *(built)*.
+    - `A:B:final T` passes, as does `ZF<A,B>` through a pack. `hapi::APIOf<T,A,B>` agrees.
+    - `B:final T`, `B:A:final T` and `ZF<B,A>` fail with the component's own message, "B only after A".
+    - A `rules()` that answers `false` fails with `APIOf`'s own "HAPI: validation failed".
 - **Rule 9 (fold)**:
   - `(T : ... : PP)` and `(PP : ... : T)` have the same token shape. The translator uses the template head to find the pack, and only the right fold exists.
-  - An unparenthesized fold in a base clause is refused.
-- **`typename` / `::template`** are added in dependent contexts, both in the base clause and in the injected `using Base=typename ...;`.
+  - An unparenthesized fold is refused.
+  - A closed fold ends in `final T`. A component fold does not.
+- **No `typename` / `::template` in the output any more.** `hapi::APIOf<...>` and `hapi::Chain<...>` are template-ids at namespace scope, not dependent member templates.
 
-## 4. What is lost compared with the alias form
+## 4. What is lost, and what is kept, compared with the alias form
 
-1. **Every composition needs a name.** There is no anonymous `A:B` at a use site. `Twice:Id` can't be written inline in a template argument.
-2. **Two structs over the same chain are different types** (`struct Y : Any:X {}` vs `struct Y2 : Any:A:B:C {}`), with the same behaviour.
-   With aliases, identity was structural and could hold across independently written code. Now it is nominal, so shared compositions need a shared name.
-3. **A named composition cannot be a left operand** (rule 8), only the last operand. Composing compositions means ending a chain at one: `Any:X` gives `Chain<Any>::Part<X>`, not a flat `Chain<Any,A,B>::Part<C>`.
-4. **The injected-class-name inside a part means the layer, not the named struct** (§3, rule 1).
-5. **`APIOf`'s extras are not carried:**
-   - `Types` with the API first
-   - `Expand` / `HasOwnRules`
-   - `Part<T>`
+1. **Every composition needs a name.** There is no anonymous `A:B` at a use site.
+2. **Two structs over the same chain are different types,** with the same behaviour. Identity is nominal, so shared compositions need a shared name.
+3. **Only components compose further.** A closed composition is a terminal, never a layer. Build the component, then close it where it is used.
+4. **The injected-class-name inside a part means the layer,** not the named struct.
+5. **`APIOf`'s extras are kept** (`Types` with the API first, the rule walk, `Part<T>`), because the closed struct *is* an `APIOf` by derivation.
+   The exception is the exact-type `Expand<APIOf>`/`HasOwnRules<APIOf>` specializations (§1).
+6. **Generic partial application needs a struct template** (`template<class T> struct AnyOf : Any:final T {};`), not an alias template.
 
-   A struct over a fold gets only what `Chain::Part` has (`Types` without the API) and the injected `Base`. static_net needed none of the rest (§1).
-6. **Generic partial application needs a struct template** (`template<class T> struct AnyOf : Any:T {};`) instead of an alias template. Each instantiation is again its own named type.
-
-The experimental `--lower=nested` (`A::Part<B::Part<C>>`, `od::FoldT`) has no `Chain` wrapper, so a struct over it has no `Types`.
-Through `check/build.sh` it gives **46 ok / 15 FAIL**: every refid/`RefQ`/`net_expand` check fails ("no cell in the net matches Q"). Everything that does not query components still builds on avr-gcc 7.3 at the same sizes (`round2/variants/nested/build.txt`) *(host, built)*.
-The wrapping lowering is the one HAPI's introspection needs.
-
-## 5. Superseded: identity results of the alias form (earlier round)
-
-With `using X = A:B:C;` allowed:
-- `Any:X` and `Any:A:B:C` lowered to different types (`Chain<Any>::Part<Chain<A,B>::Part<C>>` vs `Chain<Any,A,B>::Part<C>`), with the same behaviour.
-- Making them equal (the nested lowering) cost HAPI's `Types`.
-
-The struct-only form removes the question: an alias can no longer carry a composition, and identity is nominal.
-
-## 6. Future work
+## 5. Future work
 
 - **Fallback-API sugar.**
-  - The problem: with no explicit termination, a chain that ends open gets `od::Nil`, an empty terminal. So a `super::proc(in)` that
-    reaches the end is a compile error.
-  - What `APIOf` does instead: it provides a fallback API at the end (`wave::API`: `proc` returns 0, `update` does nothing), and every chain ends on it by hand
-    (`(OO : ... : Bias<k> : API)`).
-  - The idea: let a family declare its fallback API once, so that an open chain of that family ends on it instead of `od::Nil`.
-    Then `struct Cell : (OO : ... : Bias<k>) {};` would need no explicit `: API`.
-  - To be designed: where the declaration lives (on the part, on a family tag), how it combines across mixed chains, and
-    what the lowering is (the translator would pick the terminal where it now picks `od::Nil`).
-- **`Distinct` inside `APIOf`?** `APIOf` could run `Distinct` next to its `BuildRules` static_assert, so a hand-written HAPI composition gets the same check.
-  Not done here, because it would change existing HAPI behaviour: a composition that repeats a layer on purpose would stop compiling.
+  - The idea: a family declares its terminal API once, so that closing needs no spelled-out terminal.
+    For example, a `final` with no type would close on the family's API.
+  - Where the declaration lives, and how it combines across mixed families, is to be designed.
+  - Closing stays explicit either way (`final`). Only the terminal would be implied.
+- **`Distinct` inside `APIOf`?** It would give hand-written HAPI compositions the same check. It is not done, because it changes existing HAPI behaviour:
+  a composition that repeats a layer on purpose would stop compiling.
+- **`Expand` for closed structs:** a translator-emitted `Expand<Z> : Expand<APIOf<...>>` forwarding line. That line exists in HAPI for types derived from `APIOf`, and a closed struct would then also nest as an `APIOf` does.
 
-## 7. Suggested HAPI improvements (tools that are missing)
+## 6. HAPI core: `hapi::Distinct<L>`
 
-- **Done: `hapi::Distinct<L>`** (`include/hapi/rules.h`, with tests in `tests/compile_tests.cpp`, `docs/REFERENCE.md`, `CHANGELOG.md`). This is
-  the only change to HAPI core. It is additive, and HAPI's own tests are unchanged: `compile_tests` on g++ and clang++, and `tests/negative` 17/17 on both.
+- **Where:** `include/hapi/rules.h`, with tests in `tests/compile_tests.cpp` (g++, clang++, avr-gcc 7.3), an entry in `docs/REFERENCE.md`, and `CHANGELOG.md`.
+- **Impact:** it is additive. HAPI's own tests are unchanged: `compile_tests` passes on g++ and clang++, and `tests/negative` is 17/17 on both.
+- **How it compares:** it flattens the list, then compares on exact types.
+  - Nested `Chain`s are spliced.
+  - A type with `::Types` (a component struct, an `APIOf`, a closed struct) is replaced by its `Types`, recursively.
+  - Types with `Part<O>` are open layers, compared by `is_same`.
+  - Everything else is a closed operand, compared by `is_same`, and by `is_base_of` either way with the other closed operands.
+- **Why the translator passes the operand list, not `Base::Types`:** it names the terminal and the packs directly, and an empty closed fold (`APIOf<T>`) has no layers of its own.
 
-- **Validation for named compositions: done in the translator.** It injects `BuildRules` (and `Distinct`) next to `using Base::Base;`.
-  `NoCollision` needs a member name per check (`HAPI_DETECT_MEMBER`), so it stays opt-in, as in HAPI.
-- **A non-wrapping fold in `chain.h`**, as in `support/od_fold.h`. Only needed if the nested lowering is ever wanted. It is not needed by the struct-only form.
-
-## 8. Translator limitations
+## 7. Translator limitations
 
 - Its classification is textual:
-  - Openness comes from `super` tokens.
-  - Dependence comes from template-parameter names in scope.
-  - Class-name checks are file-local and by simple name, so a closed class defined in another file is not caught as a left operand; the compiler catches it later.
+  - Openness of a class comes from `super` tokens.
+  - Class-name checks (closed class as a layer, component or closed composition) are file-local and by simple name.
+    A misuse involving a class from another file is caught later by the compiler, or not at all when it only changes meaning.
 - Macros are opaque.
 - There is no semantic lookup.
-- Names the lowering introduces are refused where they would be captured: `O`, `Base` and `Part` inside open classes, and `Base` inside named compositions.
+- Names the lowering introduces are refused where they would be captured: `O`, `Base` and `Part` inside open classes, and `Base` inside closed compositions.
 - The out-of-line check is a heuristic: a declared-only member function in an open class is refused, and that could misfire on a function-like macro at class scope.
-- The translator does not add includes: `<hapi/rules.h>` (for `Chain` and `Distinct`), `od_nil.h` when a chain ends open, or `od_fold.h` for experimental nested folds.
-- Open-terminal detection only sees classes defined in the file being translated (§3). Duplicate layers are left to the compiler (`hapi::Distinct`).
-- Round-3 programs use `<cstdio>`/`<type_traits>` and are host-only. The lowered forms they exercise (dependent `typename ...::template Part` in a base clause and in the injected `Base`) build with avr-gcc 7.3 in round 2 *(built)*.
+- The translator does not add includes: the input includes `<hapi/hapi.h>`, for `Chain`, `APIOf` and `Distinct`.
+- Round-3 programs use `<cstdio>`/`<type_traits>` and are host-only. The lowered forms (`hapi::APIOf<T,OO...,P>` in a template's base clause) build with avr-gcc 7.3 in round 2 *(built)*.

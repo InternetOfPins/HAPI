@@ -2,4 +2,4 @@
 struct A {int f() const {return super::f();}};
 struct B {int f() const {return super::f();}};
 struct C {int f() const {return 0;}};
-struct Z : (A:B):C {};
+struct Z : (A:B):final C {};

@@ -1,5 +1,5 @@
 // expect: duplicate layer in Y
-// Distinct: A:X where X (from another header) already holds A; X's Types are spliced at instantiation
+// Distinct: A over X, a component from another header that already holds A; X's Types are spliced
 #include "dup_other.h"
-struct Y : A:X {};
+struct Y : A:X:final C {};
 int main() {return Y{}.f();}

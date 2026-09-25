@@ -7,9 +7,9 @@ struct Pass2  {int twice() const {return 2*super::v;}};
 struct Offset {Offset(int x):super(x+1000) {} int get() const {return super::v;}};
 struct Explicit {using super::super; int get() const {return super::v;}};   // writing rule 6 out is allowed, and redundant
 
-struct X : Pass:Pass2:Term {};
-struct Y : Offset:Pass2:Term {};
-struct E : Explicit:Term {};
+struct X : Pass:Pass2:final Term {};
+struct Y : Offset:Pass2:final Term {};
+struct E : Explicit:final Term {};
 
 int main() {
   X a(5), b(3,4);     CHECK(a.get()==5 && a.twice()==10 && b.get()==12);

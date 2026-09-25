@@ -1,7 +1,7 @@
 #!/bin/bash
 # Round 2: static_net's waveCell.h / linCell.h written in ':' syntax (src/), translated (out/include/), then
 #   1. round trip: the parts translate back byte-identical; the only lines that differ are Cell / CellOf, now a struct over
-#      the pack fold (struct-only form) instead of an alias of hapi::APIOf (log/cell.diff)
+#      the pack fold closed with `final API` (struct-only form: hapi::APIOf<API,...> as its base) instead of an alias of hapi::APIOf (log/cell.diff)
 #   2. two mirror trees of examples/static_net, identical except include/{waveCell,linCell}.h: "orig" and "od"
 #   3. check/build.sh, unchanged, in both mirrors (host g++/clang++, must-not-build, AVR sizes, identical-disassembly, simavr rows)
 #   4. compare_emlearn/run.sh wave4 lin4 in both (simavr: flash, RAM, agreement, cycles); measure/ bn_wave cycles
@@ -21,9 +21,9 @@ python3 ../translate.py --report --outdir out/include src/waveCell.h src/linCell
 : > log/cell.diff
 for h in waveCell linCell; do
   diff "$SN/include/$h.h" out/include/$h.h >> log/cell.diff
-  other=$(diff "$SN/include/$h.h" out/include/$h.h | grep '^[<>]' | grep -vE '^< +template<[^>]*> using Cell(Of)?=hapi::APIOf<|^> +template<[^>]*> struct Cell(Of)? : hapi::Chain<' )
+  other=$(diff "$SN/include/$h.h" out/include/$h.h | grep '^[<>]' | grep -vE '^< +template<[^>]*> using Cell(Of)?=hapi::APIOf<|^> +template<[^>]*> struct Cell(Of)? : hapi::APIOf<' )
   n=$(diff "$SN/include/$h.h" out/include/$h.h | grep -c '^[<>]')
-  [ -z "$other" ] && [ "$n" -eq 2 ] && ok "$h.h: byte-identical except the Cell line (alias of hapi::APIOf -> struct over the fold)" \
+  [ -z "$other" ] && [ "$n" -eq 2 ] && ok "$h.h: byte-identical except the Cell line (alias of hapi::APIOf -> struct closed by APIOf with final API)" \
     || bad "$h.h round trip" "unexpected differences: $other"
 done
 mirror() { local d=$W/$1/static_net; mkdir -p "$d"
@@ -102,7 +102,7 @@ done <<< "$PROGS"
 echo "== 6. the struct Cell next to hapi::APIOf (cell_vs_apiof.cpp)"
 for c in g++ clang++; do
   $c -std=c++17 -I"$H" -Iout/include -I"$SN/include" cell_vs_apiof.cpp -o "$W/cv" 2>"$W/err" \
-    && ok "cell_vs_apiof [$c]: own type, same base as APIOf, Types = Chain<OO...,Bias<k>> (no API)" || bad "cell_vs_apiof [$c]" "$(grep -m1 error "$W/err")"
+    && ok "cell_vs_apiof [$c]: own type, derived from exactly the APIOf it replaces, same Types (API first)" || bad "cell_vs_apiof [$c]" "$(grep -m1 error "$W/err")"
 done
 
 echo; echo "$pass ok, $fail FAIL"; [ $fail -eq 0 ]

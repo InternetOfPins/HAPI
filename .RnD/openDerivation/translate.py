@@ -1,22 +1,21 @@
 #!/usr/bin/env python3
-"""translate.py -- Open Derivation prototype: lower `A:B` (late derivation) into today's HAPI Part form.
+"""translate.py -- Open Derivation prototype: lower `A:B` (late derivation) into HAPI's Part form.
 
-    struct P { ...super::f()... };            ->  struct P {template<typename O> struct Part:O { using Base=O; using Base::Base; ...Base::f()... };};
-    struct Z : A:B:C {};                      ->  struct Z : hapi::Chain<A,B>::Part<C> {using Base=hapi::Chain<A,B>::Part<C>; using Base::Base;
-                                                    static_assert(hapi::Distinct<hapi::Chain<A,B,C>>, "duplicate layer in Z");
-                                                    static_assert(hapi::BuildRules<hapi::Chain<>,hapi::Chain<C,A,B>>::rules(), "...");};
-    an open class's rules<Before,After>() stays on the holder, where HAPI's rule walk looks for it
-    struct Z : (OO : ... : P : T) {};         ->  struct Z : hapi::Chain<OO...,P>::template Part<T> {using Base=typename ...; using Base::Base;};
-    inside such a struct, `super` names that base (-> Base)
-    using X = A:B;                            ->  error [od-rule4]: ':' is only valid in a base clause
+`:` derivation is valid only in a base clause. The syntax says whether a composition is closed:
+    struct P { ...super::f()... };            an open layer: struct P {template<typename O> struct Part:O { using Base=O; using Base::Base; ...Base::f()... };};
+    struct W : A:B {};                        a component (no `final`): struct W : hapi::Chain<A,B> {static_assert(hapi::Distinct<...>);};
+    struct Z : A:B:final T {...};             closed on the terminal API T: struct Z : hapi::APIOf<T,A,B> {using Base=hapi::APIOf<T,A,B>; using Base::Base;
+                                              static_assert(hapi::Distinct<hapi::Chain<A,B,T>>, "duplicate layer in Z"); ...};
+    struct Z : W:final Nil {};                a component closed later, on the user's own terminal: hapi::APIOf<Nil,W>
+    template<class... OO> struct Z : (OO : ... : P : final T) {};   ->  hapi::APIOf<T,OO...,P>
+    struct Z : final T {};                    closed on T with no layers: hapi::APIOf<T>
+    inside a closed struct, `super` names its base (-> Base); APIOf runs HAPI's rule walk (components' rules<Before,After>())
+    using X = A:B;                            error [od-rule4]: ':' is only valid in a base clause
 
 Usage:
     translate.py IN [-o OUT]                  one file (stdout when no -o)
     translate.py --outdir DIR IN...           several files, same basenames under DIR
-    --lower=chain   (default) hapi::Chain<...>::Part<T>, the form HAPI headers use today
-    --lower=nested  EXPERIMENTAL: A::Part<B::Part<C>>, and od::FoldT<T,PP...> for packs (needs support/od_fold.h);
-                    no Chain wrapper, so no Types: HAPI's queries (refid/FromTypes) do not see the components
-    --report        one line per lowering on stderr
+    --report                                  one line per lowering on stderr
 
 Errors are printed compiler-style (file:line:col: error: [rule] message) and the exit status is 1.
 The grammar is deliberately restricted (see README.md); anything outside it is either passed through untouched
@@ -119,8 +118,8 @@ def lex(src, path):
 
 # ---------------------------------------------------------------- translator
 class Translator:
-    def __init__(self, src, path="<input>", lower="chain", report=False):
-        self.src, self.path, self.lower, self.report = src, path, lower, report
+    def __init__(self, src, path="<input>", report=False):
+        self.src, self.path, self.report = src, path, report
         self.t = lex(src, path)
         self.match = self._match_groups()
         self.subst = {}        # token index -> replacement text
@@ -128,7 +127,7 @@ class Translator:
         self.pre = {}          # token index -> text inserted before the token
         self.span = {}         # first token index -> (last token index, replacement text)
         self.packs = set()     # parameter packs in scope at the site being lowered
-        self._open_terminal = False
+        self._last_operand = None
         self.gap_override = {} # token index -> replacement for the whitespace/comments that follow it
         self.log = []
 
@@ -595,6 +594,9 @@ class Translator:
         """returns ('ops', [items], terminal) or None when [a,b) is not a ':' expression.
         items are strings (a pack element is rendered 'P...'); dependent flag is computed by the caller."""
         cols = self.split_colons(a, b)
+        if not cols and top and self.txt(a) == "final":
+            self._last_operand = (a + 1, b)
+            return [], self.render(a, b)        # struct X : final T {}: closed on T, no layers
         if not cols:
             if self.is_paren_group(a, b):
                 inner = self.parse_chain(a + 1, b - 1, top=False)
@@ -637,12 +639,15 @@ class Translator:
                 terminal = sub[1]
                 return items, terminal
             if last:
+                self._last_operand = (s + 1, e) if self.txt(s) == "final" else (s, e)
                 return items, self.render(s, e)
+            if self.txt(s) == "final":
+                raise self.err(s, "[od-final] `final` marks the terminal: only the last operand of ':' can be `final T`")
             items.append(self.render(s, e))
             self.check_left_operand(s, e)
         raise AssertionError
 
-    def check_left_operand(self, s, e):
+    def check_left_operand(self, s, e, closing_hint=False):
         t = self.t
         if t[s].kind != "id":
             return
@@ -654,12 +659,18 @@ class Translator:
         if rest != 0 and not (t[k + 1].text == "<" and self.angle_fwd(k + 1, e) == e - 1):
             return
         defs = [c for c in self.classes if c["name"] == nm]
-        if defs and not any(c["is_open"] for c in defs):
+        if defs and not any(c["is_open"] or c.get("is_component") for c in defs):
             c = defs[0]
+            if c.get("chain_bases"):
+                raise self.err(s, f"[od-rule8] '{nm}' is a closed composition (it ends on `final ...`): only a component "
+                                  f"(a chain with no `final`) can be a layer")
             if c["base_i"] is not None:
                 raise self.err(s, f"[od-rule8] '{nm}' already has a base: rebasing it ({nm}:X) is rejected")
-            raise self.err(s, f"[od-rule7] '{nm}' is closed (its body never names `super`): only the last operand "
-                              f"of ':' may be closed")
+            if closing_hint:
+                raise self.err(s, f"[od-final] '{nm}' is closed (its body never names `super`): close the composition "
+                                  f"on it with `final {nm}`, or end the chain on an open layer (a component)")
+            raise self.err(s, f"[od-rule7] '{nm}' is closed (its body never names `super`): only the terminal "
+                              f"(`final {nm}`) may be closed")
 
     def render(self, s, e):
         out = []
@@ -680,41 +691,30 @@ class Translator:
             raise self.err(a, "[od-rule4] ':' is only valid in a base clause; name the composition: "
                               "struct X : A:B {};")
         items, terminal = res
-        self._open_terminal = self.names_open_class(terminal)
-        if self._open_terminal:                 # no explicit termination: an open rightmost operand ends in od::Nil
-            items, terminal = items + [terminal], "od::Nil"
-        scope = self.params_in_scope(a) | alias_params | {"Base", "super"}
-        dep = any(self.t[k].kind == "id" and (self.txt(k) in scope or self.subst.get(k) == "Base")
-                  for k in range(a, b))
-        tn = "typename " if dep and kind == "alias" else ""
-        tn_inner = "typename " if dep else ""
-        tp = "template " if dep else ""
-        if self.lower == "chain":
-            text = f"{tn}hapi::Chain<{','.join(items)}>::{tp}Part<{terminal}>"
+        # the syntax says it: `final T` as the last operand closes the composition on the terminal API T, and APIOf starts
+        # the Part collapse there (hapi::APIOf<T,layers...>); without `final` the chain stays open: a component
+        # (hapi::Chain<layers...>), reusable as a layer and closed later by whoever uses it
+        closed = terminal.startswith("final ")
+        if closed:
+            terminal = terminal[len("final "):].strip()
+            text = f"hapi::APIOf<{terminal}{''.join(',' + x for x in items)}>"
+            operands = items + [terminal]
         else:
-            if any(x.endswith("...") for x in items):
-                text = f"od::FoldT<{terminal},{','.join(items)}>"
-            else:
-                text = terminal
-                for n, x in enumerate(reversed(items)):
-                    outer = n == len(items) - 1
-                    text = f"{tn if outer else tn_inner}{x}::{tp}Part<{text}>"
+            self.check_left_operand(*self._last_operand, closing_hint=True)
+            items = items + [terminal]
+            text = f"hapi::Chain<{','.join(items)}>"
+            operands = items
         self.span[a] = (b - 1, text)
         self.log.append(f"{self.path}:{self.t[a].line}: {kind:5} {self.render(a, b)}  ->  {text}")
-        operands = items + ([] if terminal == "od::Nil" else [terminal])
-        return text, dep, operands
+        return text, not closed, operands
 
     @staticmethod
     def _norm(x):
         return re.sub(r"\s+", "", x)
 
-    def names_open_class(self, text):
-        m = re.fullmatch(r"(?:\w+::)*(\w+)(<.*>)?", self._norm(text))
-        return bool(m) and any(c["is_open"] for c in self.classes if c["name"] == m.group(1))
-
     def is_chain(self, s, e):
         """does the base-specifier [s,e) use ':' (a chain, or a parenthesized chain / fold)?"""
-        if self.split_colons(s, e):
+        if self.split_colons(s, e) or self.txt(s) == "final":
             return True
         return self.is_paren_group(s, e) and bool(self.split_colons(s + 1, e - 1))
 
@@ -735,30 +735,37 @@ class Translator:
                         raise self.err(i, f"'Base' inside '{c['name']}' would be captured by the implicit "
                                           f"`using Base=...; using Base::Base;` (write `super` for the base)")
 
-    def lower_chain_based(self, c, base_text, dep, operands):
+    def lower_chain_based(self, c, base_text, component, operands):
         t = self.t
-        for i in c["super_uses"]:
-            if (t[i - 1].text == "using" and i + 3 < len(t) and t[i + 1].text == "::"
-                    and t[i + 2].text == "super" and t[i + 3].text == ";"):
-                for k in range(i - 1, i + 4):
-                    self.drop.add(k)
-                continue
-            if i not in self.drop:
-                self.subst[i] = "Base"
-        # duplicate layers: checked by the compiler, on exact types at instantiation (hapi::Distinct, rules.h);
-        # component rules (rules<Before,After>()): HAPI's rule walk over the list APIOf would validate, terminal first
-        rules_order = operands[-1:] + operands[:-1] if operands and not self._open_terminal else operands
-        line = (f"using Base={'typename ' if dep else ''}{base_text}; using Base::Base; "
-                f"static_assert(hapi::Distinct<hapi::Chain<{','.join(operands)}>>, \"duplicate layer in {c['name']}\"); "
-                f"static_assert(hapi::BuildRules<hapi::Chain<>,hapi::Chain<{','.join(rules_order)}>>::rules(), "
-                f"\"HAPI: validation failed in {c['name']}\");")
+        name = c["name"]
+        # duplicate layers: checked by the compiler, on exact types (hapi::Distinct, rules.h)
+        distinct = f"static_assert(hapi::Distinct<hapi::Chain<{','.join(operands)}>>, \"duplicate layer in {name}\");"
+        if component:
+            # a component is a type list: its own members would not be part of any composed object
+            if c["close"] > c["open"] + 1:
+                raise self.err(c["open"] + 1, f"[od-component] '{name}' is a component (its chain ends open): members "
+                                              f"in its body would not be part of the composed object; put them in a layer, "
+                                              f"or close it where it is used (struct X : {name}:final Terminal {{}})")
+            line = distinct
+        else:
+            for i in c["super_uses"]:
+                if (t[i - 1].text == "using" and i + 3 < len(t) and t[i + 1].text == "::"
+                        and t[i + 2].text == "super" and t[i + 3].text == ";"):
+                    for k in range(i - 1, i + 4):
+                        self.drop.add(k)
+                    continue
+                if i not in self.drop:
+                    self.subst[i] = "Base"
+            # the rule walk (components' rules<Before,After>()) is APIOf's own static_assert
+            line = f"using Base={base_text}; using Base::Base; " + distinct
         o = c["open"]
         g = self._gap(o, o + 1)
         same_line, nl, rest = g.partition("\n")
         text = (same_line + "\n" + self._indent_after(o) + line + "\n" + rest) if nl else (line + g)
         self.pre[o + 1] = text + self.pre.get(o + 1, "")
         self.gap_override[o] = ""
-        self.log.append(f"{self.path}:{t[c['kw']].line}: named {c['name']}  (Base + ctors, {len(c['super_uses'])} super)")
+        what = "component" if component else f"closed by APIOf, Base + ctors, {len(c['super_uses'])} super"
+        self.log.append(f"{self.path}:{t[c['kw']].line}: named {name}  ({what})")
 
     # ---- driver
     def run(self):
@@ -773,6 +780,7 @@ class Translator:
             self.packs = pk | {p for k in self.classes if k["open"] < a < k["close"] for p in k["packs"]}
             r = self.lower_site(kind, a, b, ap)
             if r is not None and kind == "base":
+                c["is_component"] = r[1]
                 self.lower_chain_based(c, *r)
         return self.emit()
 
@@ -803,8 +811,8 @@ class Translator:
         return "".join(out)
 
 
-def translate(src, path="<input>", lower="chain", report=False):
-    tr = Translator(src, path, lower, report)
+def translate(src, path="<input>", report=False):
+    tr = Translator(src, path, report)
     out = tr.run()
     if report:
         for line in tr.log:
@@ -817,7 +825,6 @@ def main(argv=None):
     ap.add_argument("inputs", nargs="+")
     ap.add_argument("-o", "--output")
     ap.add_argument("--outdir")
-    ap.add_argument("--lower", choices=("chain", "nested"), default="chain")
     ap.add_argument("--report", action="store_true")
     a = ap.parse_args(argv)
     if a.output and len(a.inputs) != 1:
@@ -827,7 +834,7 @@ def main(argv=None):
         try:
             with open(p) as f:
                 src = f.read()
-            out = translate(src, p, a.lower, a.report)
+            out = translate(src, p, a.report)
         except ODError as e:
             print(e, file=sys.stderr)
             status = 1

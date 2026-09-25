@@ -44,7 +44,7 @@ namespace wave {
     }
   };
 
-  template<u8 k,typename... OO> struct Cell : (OO : ... : Bias<k> : API) {};
+  template<u8 k,typename... OO> struct Cell : (OO : ... : Bias<k> : final API) {};
 
   // input state passed by value/reference, no global reads (CSE-eligible)
   template<size_t N> struct Features {

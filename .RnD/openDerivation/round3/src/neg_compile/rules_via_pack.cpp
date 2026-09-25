@@ -1,6 +1,6 @@
 // expect: B only after A|A must be before B
 // A after B, only known once the pack is: a component's rules<Before,After>() rejects the composition (HAPI's rule walk in every composed struct)
-#include <hapi/rules.h>
+#include <hapi/hapi.h>
 struct T {int f() const {return 0;}};
 struct A {int f() const {return 1+super::f();}};
 struct B {                                        // fx.h's rules, in ':' form: kept on the holder by the translator
@@ -11,5 +11,5 @@ struct B {                                        // fx.h's rules, in ':' form: 
   }
   int f() const {return 10+super::f();}
 };
-template<typename... OO> struct ZF : (OO : ... : T) {};
+template<typename... OO> struct ZF : (OO : ... : final T) {};
 int main() {return ZF<B,A>{}.f();}
