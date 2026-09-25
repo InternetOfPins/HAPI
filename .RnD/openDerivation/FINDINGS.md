@@ -67,8 +67,10 @@ No check failed. These are the places that name `APIOf`, and why each one still 
 - It has the same base.
 - Its `Types` is `Chain<OO...,Bias<k>>`, where `APIOf`'s is `Chain<API,OO...,Bias<k>>`.
 
-What static_net silently no longer gets from `APIOf` on these two cells, none of which it exercises:
-- the `BuildRules` static_assert (no static_net part declares rules)
+The `BuildRules` validation `APIOf` runs is **kept**: every composed struct runs it over the same list, API first
+(`static_assert(hapi::BuildRules<hapi::Chain<>,hapi::Chain<API,OO...,Bias<k>>>::rules(), "HAPI: validation failed in Cell")`, §3).
+
+What static_net no longer gets from `APIOf` on these two cells, none of which it exercises:
 - the `Expand<APIOf>` / `HasOwnRules<APIOf>` specializations (a cell nested inside another rule-validated container)
 - `APIOf::Part<T>`
 
@@ -79,7 +81,7 @@ A mixed net of struct cells and `APIOf` cells (sugar's rolled cells) works *(hos
 - **The restricted grammar is enough for static_net.** It needs open classes (the seven parts of the two engines) plus a named struct over a pack fold for the cell. *(built)*
 - **A small Python script is enough, with no Clang LibTooling.** Edits are spliced onto the original text, so comments and whitespace survive. *(built)*
 - **Round 1, 5/5:** `struct My : Twice:Id {};` runs on g++ and clang++. Bare use of `Twice` is rejected, and `using My = Twice:Id;` is refused. *(host, built)*
-- **Round 3, 81/81:**
+- **Round 3, 94/94:**
   - Base-clause chains work, including an access specifier next to an ordinary base, and folds (empty pack included).
   - Named compositions match their plain-C++ equivalents (`named_chain.cpp`), including a dependent base (`template<class T> struct W : B:T`).
   - Constructor inheritance through a chain *and* into the named struct needs no user `using`: `Offset(int)` hides `Term(int)`, while `Term(int,int)` is still inherited.
@@ -91,8 +93,8 @@ A mixed net of struct cells and `APIOf` cells (sugar's rolled cells) works *(hos
   - Rule 7 holds: user `super` precedence, and dependence.
   - The label hazard is pinned.
   - All of the above on g++ and clang++. Also under experimental `--lower=nested`. *(host)*
-  - **Diagnostics:** 11 translator refusals (rules 4, 6, 7, 8 and 9, and scope), and 11 compiler rejections, 6 of them duplicate
-    layers caught by `hapi::Distinct`. *(built)*
+  - **Diagnostics:** 12 translator refusals (rules 4, 6, 7, 8 and 9, `super` in `rules()`, and scope), and 15 compiler rejections: 6 duplicate
+    layers caught by `hapi::Distinct`, and 4 compositions a component's own `rules()` rejects. *(built)*
 
 ## 3. Semantics as implemented
 
@@ -157,6 +159,18 @@ A mixed net of struct cells and `APIOf` cells (sugar's rolled cells) works *(hos
   - **Why a check is needed at all in the lowering:** natively, a duplicate layer would be the same kind of error as a duplicate direct base. In the
     Part lowering it is not one: `A:A:T` is `A::Part<A::Part<T>>`, two different types, and without `Distinct` it compiles and runs on g++ and clang++.
     `Distinct` is the prototype's stand-in for that native error.
+- **Component rules (HAPI's rules system).** Constraints on a composition other than duplicates live in HAPI's rules: a component's
+  `rules<Before,After>()`, walked by `BuildRules` (e.g. "B only after A", "A must be before B", as in `tests/negative/fx.h`).
+  - **What the translator emits:** every composed struct gets
+    `static_assert(hapi::BuildRules<hapi::Chain<>,hapi::Chain<T,A,B,OO...>>::rules(), "HAPI: validation failed in Z");`.
+    The list is the one `APIOf<T,A,B,OO...>` validates: the terminal first, then the layers outer to inner. An `od::Nil` terminal is left out.
+  - **Where `rules()` lives:** HAPI asks the *holder* for `rules()`, so the translator keeps a `rules` member of an open class outside `Part`, verbatim.
+    Inside it, the class's own name means the holder, which is the type that appears in the lists being checked. A `super` inside `rules()` is refused, because the holder has no base.
+  - **Round 3** (`rules_ok.cpp`, `neg_compile/rules_*`), g++ and clang++ *(host, built)*:
+    - `struct Z : A:B:T {}` passes, as does `ZF<A,B>` through a pack. `hapi::APIOf<T,A,B>` agrees.
+    - `B:T` fails with the component's own message, "B only after A". So do `B:A:T` and `ZF<B,A>`.
+    - A `rules()` that answers `false` fails with "HAPI: validation failed in Z".
+  - **static_net:** every `Cell` validates `Chain<API,OO...,Bias<k>>`, exactly what `APIOf` validated. No part declares rules, and the codegen is unchanged: 27/27 identical disassembly *(built)*.
 - **Rule 9 (fold)**:
   - `(T : ... : PP)` and `(PP : ... : T)` have the same token shape. The translator uses the template head to find the pack, and only the right fold exists.
   - An unparenthesized fold in a base clause is refused.
@@ -171,7 +185,6 @@ A mixed net of struct cells and `APIOf` cells (sugar's rolled cells) works *(hos
 4. **The injected-class-name inside a part means the layer, not the named struct** (§3, rule 1).
 5. **`APIOf`'s extras are not carried:**
    - `Types` with the API first
-   - `BuildRules` validation
    - `Expand` / `HasOwnRules`
    - `Part<T>`
 
@@ -201,12 +214,6 @@ The struct-only form removes the question: an alias can no longer carry a compos
     Then `struct Cell : (OO : ... : Bias<k>) {};` would need no explicit `: API`.
   - To be designed: where the declaration lives (on the part, on a family tag), how it combines across mixed chains, and
     what the lowering is (the translator would pick the terminal where it now picks `od::Nil`).
-- **Other constraints through HAPI's rules system.** Beyond duplicates, a constraint on a composition belongs in HAPI's rules:
-  a component's `rules<Before,After>()`, walked by `BuildRules` (e.g. "B only after A", "do not repeat B" in `tests/negative/fx.h`).
-  `APIOf` runs `BuildRules`, but a struct over a bare `Chain::Part` does not (§1).
-  - **Possible next step:** the translator emits `static_assert(hapi::BuildRules<hapi::Chain<>,hapi::Chain<T,operands...>>::rules())` in every composed struct, with the
-    terminal first as in `APIOf::Types`, next to `Distinct`. Then any rule a component declares is enforced in the `:` form too.
-  - **Status:** not done yet.
 - **`Distinct` inside `APIOf`?** `APIOf` could run `Distinct` next to its `BuildRules` static_assert, so a hand-written HAPI composition gets the same check.
   Not done here, because it would change existing HAPI behaviour: a composition that repeats a layer on purpose would stop compiling.
 
@@ -215,9 +222,8 @@ The struct-only form removes the question: an alias can no longer carry a compos
 - **Done: `hapi::Distinct<L>`** (`include/hapi/rules.h`, with tests in `tests/compile_tests.cpp`, `docs/REFERENCE.md`, `CHANGELOG.md`). This is
   the only change to HAPI core. It is additive, and HAPI's own tests are unchanged: `compile_tests` on g++ and clang++, and `tests/negative` 17/17 on both.
 
-- **Validation for named compositions.** A struct over a bare `Chain::Part` skips `BuildRules`/`NoCollision`, which `APIOf` runs.
-  - A small HAPI helper that a named composition can opt into would restore it: `hapi::Validated<Chain<...>>`, or a `static_assert` the translator could inject next to `using Base::Base;`.
-  - A hook for this could also add the API-first `Types`, if queries on the terminal are ever needed.
+- **Validation for named compositions: done in the translator.** It injects `BuildRules` (and `Distinct`) next to `using Base::Base;`.
+  `NoCollision` needs a member name per check (`HAPI_DETECT_MEMBER`), so it stays opt-in, as in HAPI.
 - **A non-wrapping fold in `chain.h`**, as in `support/od_fold.h`. Only needed if the nested lowering is ever wanted. It is not needed by the struct-only form.
 
 ## 8. Translator limitations

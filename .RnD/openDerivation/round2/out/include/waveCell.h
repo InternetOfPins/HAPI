@@ -48,7 +48,7 @@ namespace wave {
     }
   };};
 
-  template<u8 k,typename... OO> struct Cell : hapi::Chain<OO...,Bias<k>>::template Part<API> {using Base=typename hapi::Chain<OO...,Bias<k>>::template Part<API>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<OO...,Bias<k>,API>>, "duplicate layer in Cell");};
+  template<u8 k,typename... OO> struct Cell : hapi::Chain<OO...,Bias<k>>::template Part<API> {using Base=typename hapi::Chain<OO...,Bias<k>>::template Part<API>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<OO...,Bias<k>,API>>, "duplicate layer in Cell"); static_assert(hapi::BuildRules<hapi::Chain<>,hapi::Chain<API,OO...,Bias<k>>>::rules(), "HAPI: validation failed in Cell");};
 
   // input state passed by value/reference, no global reads (CSE-eligible)
   template<size_t N> struct Features {

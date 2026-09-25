@@ -3,7 +3,9 @@
 
     struct P { ...super::f()... };            ->  struct P {template<typename O> struct Part:O { using Base=O; using Base::Base; ...Base::f()... };};
     struct Z : A:B:C {};                      ->  struct Z : hapi::Chain<A,B>::Part<C> {using Base=hapi::Chain<A,B>::Part<C>; using Base::Base;
-                                                    static_assert(hapi::Distinct<hapi::Chain<A,B,C>>, "duplicate layer in Z");};
+                                                    static_assert(hapi::Distinct<hapi::Chain<A,B,C>>, "duplicate layer in Z");
+                                                    static_assert(hapi::BuildRules<hapi::Chain<>,hapi::Chain<C,A,B>>::rules(), "...");};
+    an open class's rules<Before,After>() stays on the holder, where HAPI's rule walk looks for it
     struct Z : (OO : ... : P : T) {};         ->  struct Z : hapi::Chain<OO...,P>::template Part<T> {using Base=typename ...; using Base::Base;};
     inside such a struct, `super` names that base (-> Base)
     using X = A:B;                            ->  error [od-rule4]: ':' is only valid in a base clause
@@ -126,6 +128,7 @@ class Translator:
         self.pre = {}          # token index -> text inserted before the token
         self.span = {}         # first token index -> (last token index, replacement text)
         self.packs = set()     # parameter packs in scope at the site being lowered
+        self._open_terminal = False
         self.gap_override = {} # token index -> replacement for the whitespace/comments that follow it
         self.log = []
 
@@ -422,8 +425,41 @@ class Translator:
                            + "using Base=O; using Base::Base;" + ("\n" if nl else "") + rest + self.pre[o + 1])
         self.gap_override[o] = ""   # the gap after '{' was moved after the inserted line
         cl = c["close"]
-        self.pre[cl] = self.pre.get(cl, "") + "};"
-        self.log.append(f"{self.path}:{t[c['kw']].line}: part  {name}  ({len(c['super_uses'])} super)")
+        hoisted = self.hoist_rules(c)
+        self.pre[cl] = self.pre.get(cl, "") + "};" + hoisted
+        self.log.append(f"{self.path}:{t[c['kw']].line}: part  {name}  ({len(c['super_uses'])} super"
+                        f"{', rules() kept on the holder' if hoisted else ''})")
+
+    def hoist_rules(self, c):
+        """HAPI's rule walk (BuildRules) asks the HOLDER for rules<Before,After>(): a member named `rules` stays outside
+        Part, verbatim (inside it the class's own name means the holder, the layer type the rule lists hold)."""
+        t, out = self.t, []
+        i, start = c["open"] + 1, c["open"] + 1
+        while i < c["close"]:
+            x = t[i].text
+            if x in ("(", "["):
+                i = self.match[i] + 1
+                continue
+            if x == ";" or (x == ":" and t[i - 1].text in ("public", "private", "protected")):
+                start = i + 1
+            elif x == "{":
+                end = self.match[i]
+                names = [k for k in range(start, i) if t[k].text == "rules" and k + 1 < i and t[k + 1].text == "("]
+                if names:
+                    for k in range(start, end + 1):
+                        if k in c["super_uses"]:
+                            raise self.err(k, f"`super` inside rules() of '{c['name']}': rules are asked of the holder, "
+                                              f"which has no base")
+                        self.drop.add(k)
+                        self.subst.pop(k, None)
+                        if k < end:
+                            self.gap_override[k] = ""
+                    out.append(self.src[t[start].start:t[end].end])
+                i = end + 1
+                start = i
+                continue
+            i += 1
+        return "".join(" " + r for r in out)
 
     def _gap(self, a, b):
         return self.src[self.t[a].end:self.t[b].start]
@@ -644,7 +680,8 @@ class Translator:
             raise self.err(a, "[od-rule4] ':' is only valid in a base clause; name the composition: "
                               "struct X : A:B {};")
         items, terminal = res
-        if self.names_open_class(terminal):     # no explicit termination: an open rightmost operand ends in od::Nil
+        self._open_terminal = self.names_open_class(terminal)
+        if self._open_terminal:                 # no explicit termination: an open rightmost operand ends in od::Nil
             items, terminal = items + [terminal], "od::Nil"
         scope = self.params_in_scope(a) | alias_params | {"Base", "super"}
         dep = any(self.t[k].kind == "id" and (self.txt(k) in scope or self.subst.get(k) == "Base")
@@ -708,9 +745,13 @@ class Translator:
                 continue
             if i not in self.drop:
                 self.subst[i] = "Base"
-        # duplicate layers: checked by the compiler, on exact types at instantiation (hapi::Distinct, rules.h)
+        # duplicate layers: checked by the compiler, on exact types at instantiation (hapi::Distinct, rules.h);
+        # component rules (rules<Before,After>()): HAPI's rule walk over the list APIOf would validate, terminal first
+        rules_order = operands[-1:] + operands[:-1] if operands and not self._open_terminal else operands
         line = (f"using Base={'typename ' if dep else ''}{base_text}; using Base::Base; "
-                f"static_assert(hapi::Distinct<hapi::Chain<{','.join(operands)}>>, \"duplicate layer in {c['name']}\");")
+                f"static_assert(hapi::Distinct<hapi::Chain<{','.join(operands)}>>, \"duplicate layer in {c['name']}\"); "
+                f"static_assert(hapi::BuildRules<hapi::Chain<>,hapi::Chain<{','.join(rules_order)}>>::rules(), "
+                f"\"HAPI: validation failed in {c['name']}\");")
         o = c["open"]
         g = self._gap(o, o + 1)
         same_line, nl, rest = g.partition("\n")

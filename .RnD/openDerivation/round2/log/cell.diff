@@ -1,8 +1,8 @@
 51c51
 <   template<u8 k,typename... OO> using Cell=hapi::APIOf<API,OO...,Bias<k>>;
 ---
->   template<u8 k,typename... OO> struct Cell : hapi::Chain<OO...,Bias<k>>::template Part<API> {using Base=typename hapi::Chain<OO...,Bias<k>>::template Part<API>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<OO...,Bias<k>,API>>, "duplicate layer in Cell");};
+>   template<u8 k,typename... OO> struct Cell : hapi::Chain<OO...,Bias<k>>::template Part<API> {using Base=typename hapi::Chain<OO...,Bias<k>>::template Part<API>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<OO...,Bias<k>,API>>, "duplicate layer in Cell"); static_assert(hapi::BuildRules<hapi::Chain<>,hapi::Chain<API,OO...,Bias<k>>>::rules(), "HAPI: validation failed in Cell");};
 45c45
 <   template<typename Acc,Acc b,typename... OO> using CellOf=hapi::APIOf<APIOf<Acc>,OO...,BiasOf<Acc,b>>;
 ---
->   template<typename Acc,Acc b,typename... OO> struct CellOf : hapi::Chain<OO...,BiasOf<Acc,b>>::template Part<APIOf<Acc>> {using Base=typename hapi::Chain<OO...,BiasOf<Acc,b>>::template Part<APIOf<Acc>>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<OO...,BiasOf<Acc,b>,APIOf<Acc>>>, "duplicate layer in CellOf");};
+>   template<typename Acc,Acc b,typename... OO> struct CellOf : hapi::Chain<OO...,BiasOf<Acc,b>>::template Part<APIOf<Acc>> {using Base=typename hapi::Chain<OO...,BiasOf<Acc,b>>::template Part<APIOf<Acc>>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<OO...,BiasOf<Acc,b>,APIOf<Acc>>>, "duplicate layer in CellOf"); static_assert(hapi::BuildRules<hapi::Chain<>,hapi::Chain<APIOf<Acc>,OO...,BiasOf<Acc,b>>>::rules(), "HAPI: validation failed in CellOf");};

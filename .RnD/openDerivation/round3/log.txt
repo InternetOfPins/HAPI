@@ -3,6 +3,7 @@
   ok    named_chain [chain, g++]: named_chain OK
   ok    open_terminal [chain, g++]: open_terminal OK
   ok    distinct_args [chain, g++]: distinct_args OK
+  ok    rules_ok [chain, g++]: rules_ok OK
   ok    ctors [chain, g++]: ctors OK
   ok    self [chain, g++]: self OK
   ok    family [chain, g++]: family OK
@@ -15,6 +16,7 @@
   ok    named_chain [chain, clang++]: named_chain OK
   ok    open_terminal [chain, clang++]: open_terminal OK
   ok    distinct_args [chain, clang++]: distinct_args OK
+  ok    rules_ok [chain, clang++]: rules_ok OK
   ok    ctors [chain, clang++]: ctors OK
   ok    self [chain, clang++]: self OK
   ok    family [chain, clang++]: family OK
@@ -28,6 +30,7 @@
   ok    named_chain [nested, g++]: named_chain OK
   ok    open_terminal [nested, g++]: open_terminal OK
   ok    distinct_args [nested, g++]: distinct_args OK
+  ok    rules_ok [nested, g++]: rules_ok OK
   ok    ctors [nested, g++]: ctors OK
   ok    self [nested, g++]: self OK
   ok    family [nested, g++]: family OK
@@ -40,6 +43,7 @@
   ok    named_chain [nested, clang++]: named_chain OK
   ok    open_terminal [nested, clang++]: open_terminal OK
   ok    distinct_args [nested, clang++]: distinct_args OK
+  ok    rules_ok [nested, clang++]: rules_ok OK
   ok    ctors [nested, clang++]: ctors OK
   ok    self [nested, clang++]: self OK
   ok    family [nested, clang++]: family OK
@@ -58,6 +62,7 @@
   ok    rebase_closed: neg_translate/rebase_closed.cpp:4:12: error: [od-rule8] 'K' already has a base: rebasing it (K:X) is rejected
   ok    rebase_composed: neg_translate/rebase_composed.cpp:5:12: error: [od-rule8] a composed class as a left operand ((A:B):C) is a rebase of A:B, rejected
   ok    rebase_open: neg_translate/rebase_open.cpp:3:10: error: [od-rule8] 'A' already has a base and uses `super`: rebasing a class that has a base is rejected (A:E with `class A : Y`)
+  ok    super_in_rules: neg_translate/super_in_rules.cpp:4:82: error: `super` inside rules() of 'B': rules are asked of the holder, which has no base
   ok    super_outside: neg_translate/super_outside.cpp:2:17: error: [od-rule7] `super` used outside a class body
   ok    two_chain_bases: neg_translate/two_chain_bases.cpp:5:17: error: [od-rule6] 'Z' has 2 ':' bases: the implicit `Base` (constructor inheritance, `super`) would be ambiguous
 == the compilers must reject (after translation; any compiler error is accepted)
@@ -81,8 +86,16 @@
   ok    not_a_subtype2 [clang++]: error: non-const lvalue reference to type 'A' cannot bind to a value of unrelated type 'AB'
   ok    open_terminal_super [g++]: error: 'missing' is not a member of 'B::Part<od::Nil>::Base' {aka 'od::Nil'}
   ok    open_terminal_super [clang++]: error: no member named 'missing' in 'od::Nil'
+  ok    rules_false [g++]: error: static assertion failed: HAPI: validation failed in Z
+  ok    rules_false [clang++]: error: static assertion failed due to requirement 'hapi::BuildRules<hapi::Chain<>, hapi::Chain<T, Never>, false>::rules()': HAPI: validation failed in Z
+  ok    rules_missing_a [g++]: error: static assertion failed: B only after A
+  ok    rules_missing_a [clang++]: error: static assertion failed due to requirement 'hapi::query<hapi::SameAs<A>, hapi::Chain<T>>': B only after A
+  ok    rules_order [g++]: error: static assertion failed: B only after A
+  ok    rules_order [clang++]: error: static assertion failed due to requirement 'hapi::query<hapi::SameAs<A>, hapi::Chain<T>>': B only after A
+  ok    rules_via_pack [g++]: error: static assertion failed: B only after A
+  ok    rules_via_pack [clang++]: error: static assertion failed due to requirement 'hapi::query<hapi::SameAs<A>, hapi::Chain<T>>': B only after A
   ok    super_undefined [g++]: error: 'f' is not a member of 'Twice::Part<Empty>::Base' {aka 'Empty'}
   ok    super_undefined [clang++]: error: no member named 'f' in 'Empty'
 
-81 ok, 0 FAIL
+94 ok, 0 FAIL
 exit 0

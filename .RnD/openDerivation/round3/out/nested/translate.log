@@ -56,6 +56,12 @@ src/pos/open_terminal.cpp:6: base  A:B  ->  A::Part<B::Part<od::Nil>>
 src/pos/open_terminal.cpp:6: named Z  (Base + ctors, 0 super)
 src/pos/open_terminal.cpp:7: base  (PP : ... : B)  ->  od::FoldT<od::Nil,PP...,B>
 src/pos/open_terminal.cpp:7: named ZF  (Base + ctors, 0 super)
+src/pos/rules_ok.cpp:6: part  A  (1 super)
+src/pos/rules_ok.cpp:7: part  B  (1 super, rules() kept on the holder)
+src/pos/rules_ok.cpp:15: base  A:B:T  ->  A::Part<B::Part<T>>
+src/pos/rules_ok.cpp:15: named Z  (Base + ctors, 0 super)
+src/pos/rules_ok.cpp:16: base  (OO : ... : T)  ->  od::FoldT<T,OO...>
+src/pos/rules_ok.cpp:16: named ZF  (Base + ctors, 0 super)
 src/pos/self.cpp:5: part  Self  (2 super)
 src/pos/self.cpp:12: base  Self:Term  ->  Self::Part<Term>
 src/pos/self.cpp:12: named X  (Base + ctors, 0 super)

@@ -6,5 +6,5 @@ struct B {template<typename O> struct Part:O {
  using Base=O; using Base::Base; int h() const {return 5;} int g() const {return Base::missing();}};};
 struct A {template<typename O> struct Part:O {
  using Base=O; using Base::Base; int f() const {return 1+Base::h();}};};
-struct Z : hapi::Chain<A,B>::Part<od::Nil> {using Base=hapi::Chain<A,B>::Part<od::Nil>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<A,B>>, "duplicate layer in Z");};
+struct Z : hapi::Chain<A,B>::Part<od::Nil> {using Base=hapi::Chain<A,B>::Part<od::Nil>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<A,B>>, "duplicate layer in Z"); static_assert(hapi::BuildRules<hapi::Chain<>,hapi::Chain<A,B>>::rules(), "HAPI: validation failed in Z");};
 int main() {return Z{}.g();}

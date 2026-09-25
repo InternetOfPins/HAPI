@@ -5,8 +5,8 @@ struct B {template<typename O> struct Part:O {
  using Base=O; using Base::Base; int h() const {return 5;} int g() const {return Base::missing();}};};
 struct A {template<typename O> struct Part:O {
  using Base=O; using Base::Base; int f() const {return 1+Base::h();}};};
-struct Z : A::Part<B::Part<od::Nil>> {using Base=A::Part<B::Part<od::Nil>>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<A,B>>, "duplicate layer in Z");};
-template<typename... PP> struct ZF : od::FoldT<od::Nil,PP...,B> {using Base=typename od::FoldT<od::Nil,PP...,B>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<PP...,B>>, "duplicate layer in ZF");};
+struct Z : A::Part<B::Part<od::Nil>> {using Base=A::Part<B::Part<od::Nil>>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<A,B>>, "duplicate layer in Z"); static_assert(hapi::BuildRules<hapi::Chain<>,hapi::Chain<A,B>>::rules(), "HAPI: validation failed in Z");};
+template<typename... PP> struct ZF : od::FoldT<od::Nil,PP...,B> {using Base=typename od::FoldT<od::Nil,PP...,B>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<PP...,B>>, "duplicate layer in ZF"); static_assert(hapi::BuildRules<hapi::Chain<>,hapi::Chain<PP...,B>>::rules(), "HAPI: validation failed in ZF");};
 int main() {
   Z z; ZF<A> zf; ZF<> ze;
   CHECK(z.f()==6 && zf.f()==6 && ze.h()==5);

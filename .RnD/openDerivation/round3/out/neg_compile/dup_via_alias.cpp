@@ -6,5 +6,5 @@ template<int i> struct Slot {};
 template<typename S> struct WaveOf {template<typename O> struct Part:O {
  using Base=O; using Base::Base; int f() const {return 1+Base::f();}};};
 template<int i> using Wave = WaveOf<Slot<i>>;
-struct Z : hapi::Chain<Wave<0>,WaveOf<Slot<0>>>::Part<T> {using Base=hapi::Chain<Wave<0>,WaveOf<Slot<0>>>::Part<T>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<Wave<0>,WaveOf<Slot<0>>,T>>, "duplicate layer in Z");};
+struct Z : hapi::Chain<Wave<0>,WaveOf<Slot<0>>>::Part<T> {using Base=hapi::Chain<Wave<0>,WaveOf<Slot<0>>>::Part<T>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<Wave<0>,WaveOf<Slot<0>>,T>>, "duplicate layer in Z"); static_assert(hapi::BuildRules<hapi::Chain<>,hapi::Chain<T,Wave<0>,WaveOf<Slot<0>>>>::rules(), "HAPI: validation failed in Z");};
 int main() {return Z{}.f();}

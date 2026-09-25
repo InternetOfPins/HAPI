@@ -7,10 +7,10 @@ struct Inc   {template<typename O> struct Part:O {
 struct Dbl   {template<typename O> struct Part:O {
  using Base=O; using Base::Base; int get() const {return 2*Base::get();}};};
 
-struct Z  : hapi::Chain<Inc,Dbl>::Part<Term> {using Base=hapi::Chain<Inc,Dbl>::Part<Term>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<Inc,Dbl,Term>>, "duplicate layer in Z");};
-struct Z2 : public hapi::Chain<Inc>::Part<Term>, Other {using Base=hapi::Chain<Inc>::Part<Term>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<Inc,Term>>, "duplicate layer in Z2");};
-template<typename... PP> struct ZF : hapi::Chain<PP...>::template Part<Term> {using Base=typename hapi::Chain<PP...>::template Part<Term>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<PP...,Term>>, "duplicate layer in ZF");};
-template<typename... PP> struct ZG : hapi::Chain<PP...,Dbl>::template Part<Term> {using Base=typename hapi::Chain<PP...,Dbl>::template Part<Term>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<PP...,Dbl,Term>>, "duplicate layer in ZG");};
+struct Z  : hapi::Chain<Inc,Dbl>::Part<Term> {using Base=hapi::Chain<Inc,Dbl>::Part<Term>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<Inc,Dbl,Term>>, "duplicate layer in Z"); static_assert(hapi::BuildRules<hapi::Chain<>,hapi::Chain<Term,Inc,Dbl>>::rules(), "HAPI: validation failed in Z");};
+struct Z2 : public hapi::Chain<Inc>::Part<Term>, Other {using Base=hapi::Chain<Inc>::Part<Term>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<Inc,Term>>, "duplicate layer in Z2"); static_assert(hapi::BuildRules<hapi::Chain<>,hapi::Chain<Term,Inc>>::rules(), "HAPI: validation failed in Z2");};
+template<typename... PP> struct ZF : hapi::Chain<PP...>::template Part<Term> {using Base=typename hapi::Chain<PP...>::template Part<Term>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<PP...,Term>>, "duplicate layer in ZF"); static_assert(hapi::BuildRules<hapi::Chain<>,hapi::Chain<Term,PP...>>::rules(), "HAPI: validation failed in ZF");};
+template<typename... PP> struct ZG : hapi::Chain<PP...,Dbl>::template Part<Term> {using Base=typename hapi::Chain<PP...,Dbl>::template Part<Term>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<PP...,Dbl,Term>>, "duplicate layer in ZG"); static_assert(hapi::BuildRules<hapi::Chain<>,hapi::Chain<Term,PP...,Dbl>>::rules(), "HAPI: validation failed in ZG");};
 
 int main() {
   Z z; Z2 z2; ZF<Dbl,Inc> zf; ZF<> ze; ZG<Inc> zg;

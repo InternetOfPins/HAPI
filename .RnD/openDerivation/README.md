@@ -44,7 +44,8 @@ The `[od-ruleN]` tag names the rule of the proposal that the input breaks. `[od-
 | `template<class... OO> struct Z : (OO : ... : P : T) {};` | `struct Z : hapi::Chain<OO...,P>::template Part<T> {using Base=typename hapi::Chain<OO...,P>::template Part<T>; using Base::Base;};` |
 | `super` inside `Z` above | `Base` |
 | `struct Z : A:B {};` with `B` open (names `super`) | `struct Z : hapi::Chain<A,B>::Part<od::Nil> {...};` (no explicit termination; `support/od_nil.h`) |
-| every struct with a `:` base | also gets `static_assert(hapi::Distinct<hapi::Chain<operands...>>, "duplicate layer in Z");` (exact types, at instantiation; HAPI `rules.h`) |
+| every struct with a `:` base | also gets `static_assert(hapi::Distinct<hapi::Chain<operands...>>, "duplicate layer in Z");` (exact types, at instantiation) and `static_assert(hapi::BuildRules<hapi::Chain<>,hapi::Chain<T,operands...>>::rules(), "HAPI: validation failed in Z");` (components' `rules()`, the list `APIOf` validates); both HAPI `rules.h` |
+| `template<class Bf,class Af> static constexpr bool rules() {...}` in an open class | kept on the holder, outside `Part`, where HAPI's rule walk asks for it |
 | `struct Y : A:X {};` where `X` already derives from `A` | a compile error from that `static_assert`, like `struct X : Nil, Nil {};` (no translator check) |
 | `using X = A:B;` | refused: `[od-rule4]` |
 
@@ -85,7 +86,7 @@ that does everything and writes its logs next to it (`log.txt`, and `log/` for r
 | `round1/` | one named composition over one open class and a closed terminal; bare use must not compile; the alias form must be refused | `round1/run.sh` |
 | `round2/` | static_net's `waveCell.h` / `linCell.h` in `:` syntax (`src/`, `Cell` as a struct over the fold), translated (`out/include/`); round trip (diff = the `Cell` lines only); `check/build.sh` unchanged; `compare_emlearn` and `measure/` in simavr; `avr-objdump` of 27 AVR programs, raw and with symbols stripped; the struct `Cell` next to `hapi::APIOf` | `round2/run.sh` (a few minutes) |
 | `round2/variants/` | (a) `hapi::APIOf` written in `:` syntax; (b) EXPERIMENTAL `--lower=nested` through `check/build.sh` | `round2/variants/run.sh` |
-| `round3/` | coverage: base-clause chains and folds, open terminals (`od::Nil`), distinct specializations as layers, named compositions against their plain-C++ equivalent, constructors, rule-1 rebinding, family/statics, nominal identity (incl. across TUs), `super` precedence, dependence, the label hazard; 11 translator refusals; 11 compiler rejections (incl. 6 duplicate layers, via `hapi::Distinct`); positive cases also under `--lower=nested` (experimental) | `round3/run.sh` |
+| `round3/` | coverage: base-clause chains and folds, open terminals (`od::Nil`), distinct specializations as layers, named compositions against their plain-C++ equivalent, constructors, rule-1 rebinding, family/statics, nominal identity (incl. across TUs), `super` precedence, dependence, the label hazard; component `rules()` through the chain; 12 translator refusals; 15 compiler rejections (incl. 6 duplicate layers via `hapi::Distinct`, 4 compositions a component's `rules()` rejects); positive cases also under `--lower=nested` (experimental) | `round3/run.sh` |
 
 Round 2 runs `build.sh` "unchanged" by building two throwaway mirrors of `examples/static_net`: `check/`, `compare_emlearn/`
 and `measure/` are copied, `models/` is linked, and `include/` is copied. In one mirror `include/{waveCell,linCell}.h` are replaced by the translated headers.

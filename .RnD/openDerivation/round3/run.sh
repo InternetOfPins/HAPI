@@ -18,7 +18,7 @@ for mode in chain nested; do
   python3 ../translate.py --lower=$mode --report --outdir "$o" src/pos/* 2> "$o/translate.log" || { bad "translate [$mode]" "$(cat "$o/translate.log")"; continue; }
   D=; [ $mode = nested ] && D=-DOD_NESTED
   for c in $(cxxs); do
-    for f in base_chain named_chain open_terminal distinct_args ctors self family identity user_super dependent label_hazard; do
+    for f in base_chain named_chain open_terminal distinct_args rules_ok ctors self family identity user_super dependent label_hazard; do
       if $c -std=c++17 -Wall -Wno-unused-label $D -I"$H" -I../support -I"$o" "$o/$f.cpp" -o "$W/x" 2>"$W/err"; then
         r=$("$W/x"); [ $? -eq 0 ] && ok "$f [$mode, $c]: $r" || bad "$f [$mode, $c]" "$r"
       else bad "$f [$mode, $c]" "$(grep -m1 -E 'error|static assert' "$W/err")"; fi
