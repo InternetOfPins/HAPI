@@ -16,7 +16,7 @@ echo "== positive"
 o=out/pos; rm -rf out/chain out/nested "$o"; mkdir -p "$o"
 python3 ../translate.py --report --outdir "$o" src/pos/* 2> "$o/translate.log" || bad "translate" "$(cat "$o/translate.log")"
 for c in $(cxxs); do
-  for f in base_chain named_chain component distinct_args rules_ok ctors self family identity user_super dependent label_hazard; do
+  for f in base_chain named_chain component def_expand distinct_args rules_ok ctors self family identity user_super dependent label_hazard; do
     if $c -std=c++17 -Wall -Wno-unused-label -I"$H" -I"$o" "$o/$f.cpp" -o "$W/x" 2>"$W/err"; then
       r=$("$W/x"); [ $? -eq 0 ] && ok "$f [$c]: $r" || bad "$f [$c]" "$r"
     else bad "$f [$c]" "$(grep -m1 -E 'error|static assert' "$W/err")"; fi

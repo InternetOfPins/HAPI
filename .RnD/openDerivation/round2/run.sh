@@ -102,7 +102,7 @@ done <<< "$PROGS"
 echo "== 6. the struct Cell next to hapi::APIOf (cell_vs_apiof.cpp)"
 for c in g++ clang++; do
   $c -std=c++17 -I"$H" -Iout/include -I"$SN/include" cell_vs_apiof.cpp -o "$W/cv" 2>"$W/err" \
-    && ok "cell_vs_apiof [$c]: own type, derived from exactly the APIOf it replaces, same Types (API first)" || bad "cell_vs_apiof [$c]" "$(grep -m1 error "$W/err")"
+    && ok "cell_vs_apiof [$c]: own type, derived from exactly the APIOf it replaces, same Types (API first), same Expand/HasOwnRules" || bad "cell_vs_apiof [$c]" "$(grep -m1 error "$W/err")"
 done
 
 echo; echo "$pass ok, $fail FAIL"; [ $fail -eq 0 ]

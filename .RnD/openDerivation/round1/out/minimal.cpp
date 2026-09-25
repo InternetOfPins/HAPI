@@ -13,7 +13,7 @@ struct Twice {template<typename O> struct Part:O {                              
   int twice_n() const {return 2*Base::n;}
 };};
 
-struct My : hapi::APIOf<Id,Twice> {using Base=hapi::APIOf<Id,Twice>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<Twice,Id>>, "duplicate layer in My");};
+struct My : hapi::APIOf<Id,Twice> {using Base=hapi::APIOf<Id,Twice>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<Twice,Id>>, "duplicate layer in My");}; using My_APIOf=hapi::APIOf<Id,Twice>;  namespace hapi { template<> struct Expand<My> : Expand<My_APIOf> {}; template<> struct HasOwnRules<My> : HasOwnRules<My_APIOf> {}; }
 
 int main() {
   My m;

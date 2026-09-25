@@ -22,7 +22,8 @@ struct Cell : (OO : ... : Bias<k> : final API) {};               // right fold o
 using Y = Twice:final Id;                                        // error [od-rule4]: ':' is only valid in a base clause
 ```
 
-`final T` closes on the terminal API `T`. It is always the last operand, and it becomes `APIOf`'s first parameter. A chain without `final` stays
+A closed struct is an XXXDef, in the IOP style (OneMenu's `ItemDef<OO...>`): derived from `APIOf`, with its own `hapi::Expand` entry,
+which the translator emits next to it. `final T` closes on the terminal API `T`. It is always the last operand, and it becomes `APIOf`'s first parameter. A chain without `final` stays
 open, so it can be used as a layer and closed later. Inside a closed struct, `super` is its base, and the struct inherits that base's constructors:
 `struct A : B:final C {...}` means the same as `struct C {..}; struct B : C {..}; struct A : B {..};`.
 
@@ -47,6 +48,7 @@ The tag names the rule of the proposal that the input breaks.
 | `template<class Bf,class Af> static constexpr bool rules() {...}` in an open class | kept on the holder, outside `Part`, where HAPI's rule walk asks for it |
 | `struct Z : A:B:final T {...};` | `struct Z : hapi::APIOf<T,A,B> {using Base=hapi::APIOf<T,A,B>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<A,B,T>>, "duplicate layer in Z"); ...};` |
 | `super` inside `Z` above | `Base` |
+| after `Z`, in `Z`'s namespace | `using Z_APIOf=hapi::APIOf<T,A,B>;` then, in `namespace hapi`, `Expand<ns::Z> : Expand<ns::Z_APIOf>` and `HasOwnRules<ns::Z> : HasOwnRules<ns::Z_APIOf>`: the XXXDef entries (template Defs get partial specializations, non-type parameters as `auto`) |
 | `struct Z : final T {};` | `struct Z : hapi::APIOf<T> {...};` |
 | `struct W : A:B {};` (no `final`) | `struct W : hapi::Chain<A,B> {static_assert(hapi::Distinct<hapi::Chain<A,B>>, "duplicate layer in W");};`: a component |
 | `struct Z : W:C:final T {};` with `W` a component | `struct Z : hapi::APIOf<T,W,C> {...};` (`W` is spliced by HAPI's walks) |
@@ -92,7 +94,7 @@ that does everything and writes its logs next to it (`log.txt`, and `log/` for r
 | `round1/` | one closed composition over one open class and a terminal; bare use must not compile; the alias form must be refused | `round1/run.sh` |
 | `round2/` | static_net's `waveCell.h` / `linCell.h` in `:` syntax (`src/`, `Cell` closed with `final API`), translated (`out/include/`); round trip (diff = the `Cell` lines only); `check/build.sh` unchanged; `compare_emlearn` and `measure/` in simavr; `avr-objdump` of 27 AVR programs; the struct `Cell` next to `hapi::APIOf` | `round2/run.sh` (a few minutes) |
 | `round2/variants/` | `hapi::APIOf` itself written in `:` syntax | `round2/variants/run.sh` |
-| `round3/` | coverage: components and closing on a user terminal, base-clause chains and folds, named compositions against their plain-C++ equivalent, constructors, rule-1 rebinding, family/statics, nominal identity (incl. across TUs), `super` precedence, dependence, component `rules()`, duplicate layers, the label hazard; 16 translator refusals; 15 compiler rejections | `round3/run.sh` |
+| `round3/` | coverage: components and closing on a user terminal, base-clause chains and folds, named compositions against their plain-C++ equivalent, constructors, rule-1 rebinding, family/statics, nominal identity (incl. across TUs), `super` precedence, dependence, component `rules()`, XXXDef `Expand` entries (a Def nested in an outer rule walk), duplicate layers, the label hazard; 16 translator refusals; 16 compiler rejections | `round3/run.sh` |
 
 Round 2 runs `build.sh` "unchanged" by building two throwaway mirrors of `examples/static_net`: `check/`, `compare_emlearn/`
 and `measure/` are copied, `models/` is linked, and `include/` is copied. In one mirror `include/{waveCell,linCell}.h` are replaced by the translated headers.

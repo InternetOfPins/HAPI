@@ -42,7 +42,7 @@ namespace lin {
     using Base=O; using Base::Base;
     template<typename I> SNET_INLINE static constexpr bool proc(const I& in) {return Base::proc(in)>0;}
   };};
-  template<typename Acc,Acc b,typename... OO> struct CellOf : hapi::APIOf<APIOf<Acc>,OO...,BiasOf<Acc,b>> {using Base=hapi::APIOf<APIOf<Acc>,OO...,BiasOf<Acc,b>>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<OO...,BiasOf<Acc,b>,APIOf<Acc>>>, "duplicate layer in CellOf");};
+  template<typename Acc,Acc b,typename... OO> struct CellOf : hapi::APIOf<APIOf<Acc>,OO...,BiasOf<Acc,b>> {using Base=hapi::APIOf<APIOf<Acc>,OO...,BiasOf<Acc,b>>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<OO...,BiasOf<Acc,b>,APIOf<Acc>>>, "duplicate layer in CellOf");}; template<typename Acc,Acc b,typename... OO> using CellOf_APIOf=hapi::APIOf<APIOf<Acc>,OO...,BiasOf<Acc,b>>; } namespace hapi { template<typename Acc,auto b,typename... OO> struct Expand<lin::CellOf<Acc,b,OO...>> : Expand<lin::CellOf_APIOf<Acc,b,OO...>> {}; template<typename Acc,auto b,typename... OO> struct HasOwnRules<lin::CellOf<Acc,b,OO...>> : HasOwnRules<lin::CellOf_APIOf<Acc,b,OO...>> {}; } namespace lin {
 
   // int16_t-accumulator convenience aliases -- unchanged names/signatures from
   // before this was generalized, so every existing call site keeps compiling.

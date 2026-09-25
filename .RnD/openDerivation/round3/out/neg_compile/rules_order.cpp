@@ -13,4 +13,4 @@ struct B {template<typename O> struct Part:O {                                  
     static_assert(!hapi::query<hapi::SameAs<A>,After>,"A must be before B");
     return true;
   }};
-struct Z : hapi::APIOf<T,B,A> {using Base=hapi::APIOf<T,B,A>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<B,A,T>>, "duplicate layer in Z");};
+struct Z : hapi::APIOf<T,B,A> {using Base=hapi::APIOf<T,B,A>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<B,A,T>>, "duplicate layer in Z");}; using Z_APIOf=hapi::APIOf<T,B,A>;  namespace hapi { template<> struct Expand<Z> : Expand<Z_APIOf> {}; template<> struct HasOwnRules<Z> : HasOwnRules<Z_APIOf> {}; }

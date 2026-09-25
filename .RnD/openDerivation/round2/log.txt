@@ -4,11 +4,13 @@ src/waveCell.h:24: part  WaveOf  (1 super)
 src/waveCell.h:34: part  Threshold  (1 super)
 src/waveCell.h:40: part  Store  (2 super)
 src/waveCell.h:47: base  (OO : ... : Bias<k> : final API)  ->  hapi::APIOf<API,OO...,Bias<k>>
+src/waveCell.h:47: def   Cell  (hapi::Expand / HasOwnRules forward to its APIOf)
 src/waveCell.h:47: named Cell  (closed by APIOf, Base + ctors, 0 super)
 src/linCell.h:18: part  BiasOf  (1 super)
 src/linCell.h:32: part  TermOf  (1 super)
 src/linCell.h:39: part  SignOf  (1 super)
 src/linCell.h:42: base  (OO : ... : BiasOf<Acc,b> : final APIOf<Acc>)  ->  hapi::APIOf<APIOf<Acc>,OO...,BiasOf<Acc,b>>
+src/linCell.h:42: def   CellOf  (hapi::Expand / HasOwnRules forward to its APIOf)
 src/linCell.h:42: named CellOf  (closed by APIOf, Base + ctors, 0 super)
   ok    waveCell.h: byte-identical except the Cell line (alias of hapi::APIOf -> struct closed by APIOf with final API)
   ok    linCell.h: byte-identical except the Cell line (alias of hapi::APIOf -> struct closed by APIOf with final API)
@@ -49,7 +51,7 @@ src/linCell.h:42: named CellOf  (closed by APIOf, Base + ctors, 0 super)
   ok    objdump rr: identical (326 lines, 696 B / 65 B)
   ok    objdump rs: identical (343 lines, 778 B / 65 B)
 == 6. the struct Cell next to hapi::APIOf (cell_vs_apiof.cpp)
-  ok    cell_vs_apiof [g++]: own type, derived from exactly the APIOf it replaces, same Types (API first)
-  ok    cell_vs_apiof [clang++]: own type, derived from exactly the APIOf it replaces, same Types (API first)
+  ok    cell_vs_apiof [g++]: own type, derived from exactly the APIOf it replaces, same Types (API first), same Expand/HasOwnRules
+  ok    cell_vs_apiof [clang++]: own type, derived from exactly the APIOf it replaces, same Types (API first), same Expand/HasOwnRules
 
 37 ok, 0 FAIL

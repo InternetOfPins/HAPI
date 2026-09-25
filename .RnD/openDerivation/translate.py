@@ -6,6 +6,8 @@
     struct W : A:B {};                        a component (no `final`): struct W : hapi::Chain<A,B> {static_assert(hapi::Distinct<...>);};
     struct Z : A:B:final T {...};             closed on the terminal API T: struct Z : hapi::APIOf<T,A,B> {using Base=hapi::APIOf<T,A,B>; using Base::Base;
                                               static_assert(hapi::Distinct<hapi::Chain<A,B,T>>, "duplicate layer in Z"); ...};
+                                              then, in Z's namespace, `using Z_APIOf=hapi::APIOf<T,A,B>;` and in namespace hapi the XXXDef
+                                              entries (as OneMenu's ItemDef): Expand<ns::Z> : Expand<ns::Z_APIOf>, same for HasOwnRules
     struct Z : W:final Nil {};                a component closed later, on the user's own terminal: hapi::APIOf<Nil,W>
     template<class... OO> struct Z : (OO : ... : P : final T) {};   ->  hapi::APIOf<T,OO...,P>
     struct Z : final T {};                    closed on T with no layers: hapi::APIOf<T>
@@ -129,6 +131,7 @@ class Translator:
         self.packs = set()     # parameter packs in scope at the site being lowered
         self._last_operand = None
         self.gap_override = {} # token index -> replacement for the whitespace/comments that follow it
+        self.post = {}         # token index -> text inserted right after the token
         self.log = []
 
     def err(self, i, msg):
@@ -303,11 +306,23 @@ class Translator:
             self.ns_scope[i] = all(kind == "ns" for kind, _ in stack)
             if tk.text == "{" and tk.kind == "punct":
                 if i in self.by_open:
-                    stack.append(("class", self.by_open[i]))
+                    c = self.by_open[i]   # where it lives: the namespaces to close and reopen around a hapi:: entry for it
+                    c["ns_path"] = [rec for kind, rec in stack] if all(kind == "ns" for kind, _ in stack) else None
+                    stack.append(("class", c))
                 elif self._opens_namespace(i):
-                    stack.append(("ns", None))
+                    stack.append(("ns", self._namespace_record(i)))
                 else:
                     stack.append(("block", None))
+
+    def _namespace_record(self, i):
+        """(opener text, qualifier) of the namespace (or extern "C" block) whose '{' is tokens[i]."""
+        j = i - 1
+        while j >= 0 and self.txt(j) not in ("namespace", "extern"):
+            j -= 1
+        if self.txt(j) == "namespace" and j > 0 and self.txt(j - 1) == "inline":
+            j -= 1
+        names = [self.txt(k) for k in range(j, i) if self.t[k].kind == "id" and self.txt(k) not in ("namespace", "inline", "extern")]
+        return self.src[self.t[j].start:self.t[i].end], "::".join(names)
 
     def _opens_namespace(self, i):
         j = i - 1
@@ -758,6 +773,7 @@ class Translator:
                     self.subst[i] = "Base"
             # the rule walk (components' rules<Before,After>()) is APIOf's own static_assert
             line = f"using Base={base_text}; using Base::Base; " + distinct
+            self.def_entries(c, base_text)
         o = c["open"]
         g = self._gap(o, o + 1)
         same_line, nl, rest = g.partition("\n")
@@ -766,6 +782,70 @@ class Translator:
         self.gap_override[o] = ""
         what = "component" if component else f"closed by APIOf, Base + ctors, {len(c['super_uses'])} super"
         self.log.append(f"{self.path}:{t[c['kw']].line}: named {name}  ({what})")
+
+    def def_entries(self, c, base_text):
+        """A closed struct is an XXXDef (derived from APIOf, as OneMenu's ItemDef): HAPI's walks key Expand/HasOwnRules on
+        the exact type, so it gets the documented one-line forwarding to its base's entries (meta.h), right after its
+        definition. The base is named through an alias declared next to the struct (<Name>_APIOf, where the operands'
+        names resolve), not through <Name>::Base, which would instantiate the whole composed class when a walk probes it."""
+        t, name = self.t, c["name"]
+        if c.get("ns_path") is None:
+            print(f"{self.path}:{t[c['kw']].line}: warning: '{name}' is nested in a class or block: no hapi::Expand entry "
+                  f"(HAPI's walks treat it as a leaf)", file=sys.stderr)
+            return
+        semi = c["close"] + 1
+        if semi >= len(t) or self.txt(semi) != ";":
+            return
+        qual = "::".join(q for _, q in c["ns_path"] if q)
+        qual = (qual + "::" if qual else "") + name
+        if c["head"]:
+            lt, gt = c["head"][1], c["head"][2]
+            params, args = [], []
+            for p in self._split_params(lt, gt):
+                words = [self.txt(k) for k in p]
+                if "=" in words:                                   # no default arguments on a partial specialization
+                    p = p[:words.index("=")]
+                    words = words[:words.index("=")]
+                pack = "..." in words
+                nm = next(w for w in reversed(words) if re.fullmatch(r"[A-Za-z_]\w*", w) and w not in KEYWORDS_NOT_NAMES)
+                if words[0] in ("typename", "class", "template"):
+                    params.append(self.render(p[0], p[-1] + 1))
+                else:                                              # a non-type parameter: its type may be a local name
+                    params.append(f"auto{'...' if pack else ''} {nm}")
+                args.append(nm + ("..." if pack else ""))
+            head = f"template<{','.join(params)}> "
+            spec = f"{qual}<{','.join(args)}>"
+            base = f"{qual}_APIOf<{','.join(args)}>"
+            alias = f" {self.src[t[c['head'][0]].start:t[gt].end]} using {name}_APIOf={base_text};"
+        else:
+            head, spec = "template<> ", qual
+            base = f"{qual}_APIOf"
+            alias = f" using {name}_APIOf={base_text};"
+        close = "}" * len(c["ns_path"])
+        reopen = " ".join(opener for opener, _ in c["ns_path"])
+        entry = (f"{alias} {close} namespace hapi {{ {head}struct Expand<{spec}> : Expand<{base}> {{}}; "
+                 f"{head}struct HasOwnRules<{spec}> : HasOwnRules<{base}> {{}}; }} {reopen}").rstrip()
+        self.post[semi] = self.post.get(semi, "") + entry
+        self.log.append(f"{self.path}:{t[c['kw']].line}: def   {name}  (hapi::Expand / HasOwnRules forward to its APIOf)")
+
+    def _split_params(self, lt, gt):
+        """token-index lists of the parameters of template<...> between lt and gt."""
+        out, cur, j = [], [], lt + 1
+        while j < gt:
+            x = self.txt(j)
+            if x == ",":
+                out.append(cur); cur = []
+            elif x in ("(", "[", "{"):
+                cur.extend(range(j, self.match[j] + 1)); j = self.match[j]
+            elif x == "<":
+                e = self.angle_fwd(j, gt) or j
+                cur.extend(range(j, e + 1)); j = e
+            else:
+                cur.append(j)
+            j += 1
+        if cur:
+            out.append(cur)
+        return out
 
     # ---- driver
     def run(self):
@@ -805,6 +885,7 @@ class Translator:
                 continue
             if i not in self.drop:
                 out.append(self.subst.get(i, t[i].text))
+            out.append(self.post.get(i, ""))
             prev_end, last = t[i].end, i
             i += 1
         out.append(self.src[prev_end:])

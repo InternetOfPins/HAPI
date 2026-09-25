@@ -2,6 +2,7 @@
   ok    base_chain [g++]: base_chain OK
   ok    named_chain [g++]: named_chain OK
   ok    component [g++]: component OK
+  ok    def_expand [g++]: def_expand OK
   ok    distinct_args [g++]: distinct_args OK
   ok    rules_ok [g++]: rules_ok OK
   ok    ctors [g++]: ctors OK
@@ -15,6 +16,7 @@
   ok    base_chain [clang++]: base_chain OK
   ok    named_chain [clang++]: named_chain OK
   ok    component [clang++]: component OK
+  ok    def_expand [clang++]: def_expand OK
   ok    distinct_args [clang++]: distinct_args OK
   ok    rules_ok [clang++]: rules_ok OK
   ok    ctors [clang++]: ctors OK
@@ -49,6 +51,8 @@
   ok    bare_use [clang++]: error: no member named 'f' in 'Twice'
   ok    component_super [g++]: error: 'missing' is not a member of 'B::Part<Nil>::Base' {aka 'Nil'}
   ok    component_super [clang++]: error: no member named 'missing' in 'Nil'
+  ok    def_nested_rules [g++]: error: static assertion failed: no D after C
+  ok    def_nested_rules [clang++]: error: static assertion failed due to requirement '!hapi::query<hapi::SameAs<D>, hapi::Chain<D>>': no D after C
   ok    dup_bias_expr [g++]: error: static assertion failed: duplicate layer in Z
   ok    dup_bias_expr [clang++]: error: static assertion failed due to requirement 'hapi::Distinct<hapi::Chain<Bias<1>, Bias<1>, T>>': duplicate layer in Z
   ok    dup_layer [g++]: error: static assertion failed: duplicate layer in Y
@@ -74,5 +78,5 @@
   ok    super_undefined [g++]: error: 'f' is not a member of 'Twice::Part<Empty>::Base' {aka 'Empty'}
   ok    super_undefined [clang++]: error: no member named 'f' in 'Empty'
 
-72 ok, 0 FAIL
+76 ok, 0 FAIL
 exit 0

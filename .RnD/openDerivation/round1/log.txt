@@ -1,5 +1,6 @@
 src/minimal.cpp:10: part  Twice  (2 super)
 src/minimal.cpp:15: base  Twice:final Id  ->  hapi::APIOf<Id,Twice>
+src/minimal.cpp:15: def   My  (hapi::Expand / HasOwnRules forward to its APIOf)
 src/minimal.cpp:15: named My  (closed by APIOf, Base + ctors, 0 super)
 src/bare_use.cpp:4: part  Twice  (1 super)
   ok    alias_form refused: alias_form.cpp:5:12: error: [od-rule4] ':' is only valid in a base clause; name the composition: struct X : A:B {};

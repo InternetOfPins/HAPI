@@ -4,5 +4,5 @@
 struct T {int f() const {return 0;}};
 template<int k> struct Bias {template<typename O> struct Part:O {
  using Base=O; using Base::Base; int f() const {return k+Base::f();}};};
-struct Z : hapi::APIOf<T,Bias<1>,Bias<0+1>> {using Base=hapi::APIOf<T,Bias<1>,Bias<0+1>>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<Bias<1>,Bias<0+1>,T>>, "duplicate layer in Z");};
+struct Z : hapi::APIOf<T,Bias<1>,Bias<0+1>> {using Base=hapi::APIOf<T,Bias<1>,Bias<0+1>>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<Bias<1>,Bias<0+1>,T>>, "duplicate layer in Z");}; using Z_APIOf=hapi::APIOf<T,Bias<1>,Bias<0+1>>;  namespace hapi { template<> struct Expand<Z> : Expand<Z_APIOf> {}; template<> struct HasOwnRules<Z> : HasOwnRules<Z_APIOf> {}; }
 int main() {return Z{}.f();}

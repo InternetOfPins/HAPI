@@ -3,9 +3,11 @@ src/waveCell.h:24: part  WaveOf  (1 super)
 src/waveCell.h:34: part  Threshold  (1 super)
 src/waveCell.h:40: part  Store  (2 super)
 src/waveCell.h:47: base  (OO : ... : Bias<k> : final API)  ->  hapi::APIOf<API,OO...,Bias<k>>
+src/waveCell.h:47: def   Cell  (hapi::Expand / HasOwnRules forward to its APIOf)
 src/waveCell.h:47: named Cell  (closed by APIOf, Base + ctors, 0 super)
 src/linCell.h:18: part  BiasOf  (1 super)
 src/linCell.h:32: part  TermOf  (1 super)
 src/linCell.h:39: part  SignOf  (1 super)
 src/linCell.h:42: base  (OO : ... : BiasOf<Acc,b> : final APIOf<Acc>)  ->  hapi::APIOf<APIOf<Acc>,OO...,BiasOf<Acc,b>>
+src/linCell.h:42: def   CellOf  (hapi::Expand / HasOwnRules forward to its APIOf)
 src/linCell.h:42: named CellOf  (closed by APIOf, Base + ctors, 0 super)

@@ -7,5 +7,5 @@ struct B {template<typename O> struct Part:O {
 struct A {template<typename O> struct Part:O {
  using Base=O; using Base::Base; int f() const {return 1+Base::h();}};};
 struct W : hapi::Chain<A,B> {static_assert(hapi::Distinct<hapi::Chain<A,B>>, "duplicate layer in W");};
-struct Z : hapi::APIOf<Nil,W> {using Base=hapi::APIOf<Nil,W>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<W,Nil>>, "duplicate layer in Z");};
+struct Z : hapi::APIOf<Nil,W> {using Base=hapi::APIOf<Nil,W>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<W,Nil>>, "duplicate layer in Z");}; using Z_APIOf=hapi::APIOf<Nil,W>;  namespace hapi { template<> struct Expand<Z> : Expand<Z_APIOf> {}; template<> struct HasOwnRules<Z> : HasOwnRules<Z_APIOf> {}; }
 int main() {return Z{}.g();}

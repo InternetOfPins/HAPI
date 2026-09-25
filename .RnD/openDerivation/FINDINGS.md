@@ -22,6 +22,8 @@ Logs are in each round's `log.txt` (round 2 also has `log/`).
   - `struct Z : final T {}` is `APIOf<T>`, closed with no layers.
 - **Without `final`, the chain stays open: a component.** `struct W : A:B {};` lowers to `hapi::Chain<A,B>`.
   - A component is reusable as a layer (`struct Z : C:W:final Nil {}`) and is closed where it is used. That is how components are built on the fly.
+- **A closed composition is an XXXDef**, the IOP style (OneMenu's `ItemDef<OO...>`, `NavDef<II...>`): a struct derived from `APIOf`, with
+  `using Base=...; using Base::Base;` and its own `hapi::Expand` entry. The translator emits the entry (§3).
 - **A closed composition's body is the composed object.** `super` names its base, and it inherits that base's constructors (`using Base=...; using Base::Base;` is injected, as `APIOf` itself does).
   - `struct A : B:final C {..}` ⇔ `struct C {..}; struct B : C {..}; struct A : B {..};` *(host, `named_chain.cpp`)*.
 - **Checks are HAPI's, run by the compiler.**
@@ -54,7 +56,7 @@ template<u8 k,typename... OO> struct Cell : hapi::APIOf<API,OO...,Bias<k>> {usin
 
 `lin::CellOf` gets the same treatment (`final APIOf<Acc>`). `lin::Cell=CellOf<acc,b,OO...>` stays a plain alias, which is allowed because it has no `:`.
 `round2/cell_vs_apiof.cpp` pins it on both compilers *(built)*: `wave::Cell<k,OO...>` is its own type, derives from exactly `hapi::APIOf<API,OO...,Bias<k>>`,
-and has the same `Types` (API first). `APIOf`'s rule walk runs as before.
+and has the same `Types` (API first). It also has the same `Expand` children and policy and the same `HasOwnRules` as that `APIOf`. `APIOf`'s rule walk runs as before.
 
 ### Checks that depend on matching `APIOf<...>` by pattern
 No check failed. The places that name `APIOf`, and why each still passes:
@@ -68,17 +70,14 @@ No check failed. The places that name `APIOf`, and why each still passes:
 | `models/roll60/roll_common.h` | `using C=hapi::APIOf<API32,OO...>` | not translated |
 | `refid.h` / `refid_*`, `refq_check`, `net_expand` | `FromTypes<Q>` reads a cell's `Types` | the struct inherits `APIOf`'s `Types`, API first, the same list as before *(host, built)* |
 
-What static_net no longer gets on these two cells, and does not exercise: the `Expand<APIOf>` / `HasOwnRules<APIOf>` specializations. They are keyed on the
-exact type `APIOf<...>`, and the struct is derived from it, so a struct cell nested in another rule-validated container would need
-HAPI's one-line forwarding entry (`template<...> struct Expand<Cell<...>> : Expand<APIOf<...>> {}`).
-A mixed net of struct cells and `APIOf` cells (sugar's rolled cells) works *(host: `sugar_check`, `sugar_roll`)*.
+Nothing that `APIOf` gives is lost: the XXXDef entries (§3) forward `Expand` / `HasOwnRules`, which HAPI keys on the exact type. A mixed net of struct cells and `APIOf` cells (sugar's rolled cells) works *(host: `sugar_check`, `sugar_roll`)*.
 
 ## 2. What worked
 
 - **The restricted grammar is enough for static_net.** It needs open classes (the seven parts of the two engines) plus one closed struct over a pack fold per engine. *(built)*
 - **A small Python script is enough, with no Clang LibTooling.** Edits are spliced onto the original text, so comments and whitespace survive. *(built)*
 - **Round 1, 5/5:** `struct My : Twice:final Id {};` runs on g++ and clang++. Bare use of `Twice` is rejected, and `using My = Twice:final Id;` is refused. *(host, built)*
-- **Round 3, 72/72:** 13 programs on g++ and clang++, 16 translator refusals, and 15 compiler rejections on both compilers. *(host, built)*
+- **Round 3, 76/76:** 14 programs on g++ and clang++, 16 translator refusals, and 16 compiler rejections on both compilers. *(host, built)*
   - **Components (`component.cpp`):**
     - A component (`W : A:B`), a component of a component (`W2 : C:W`), and a component fold (`(PP : ... : B)`) all work.
     - Each is closed where it is used, on the user's own `Nil` or on another terminal: the same `W` is closed twice, as `W:final Nil` and as `W:final T`.
@@ -107,6 +106,23 @@ A mixed net of struct cells and `APIOf` cells (sugar's rolled cells) works *(hos
   - A *closed* composition cannot be a layer (`[od-rule8] 'X' is a closed composition`). Compose the component instead.
   - A closed composition can be the terminal: `struct Y : Any:final X {}`.
   - An open class with an ordinary base, and `(A:B):final C`, are still refused.
+- **XXXDef entries.** HAPI's walks key `Expand` / `HasOwnRules` on the exact type, and a closed struct is derived from `APIOf`, not an `APIOf`. So
+  right after each closed struct the translator emits the one-line forwarding that HAPI's `meta.h` documents for types derived from `APIOf`,
+  as OneMenu's `ItemDef` has. Round 2's `Cell`, as translated:
+  ```c++
+  template<u8 k,typename... OO> using Cell_APIOf=hapi::APIOf<API,OO...,Bias<k>>; } namespace hapi {
+    template<auto k,typename... OO> struct Expand<wave::Cell<k,OO...>> : Expand<wave::Cell_APIOf<k,OO...>> {};
+    template<auto k,typename... OO> struct HasOwnRules<wave::Cell<k,OO...>> : HasOwnRules<wave::Cell_APIOf<k,OO...>> {}; } namespace wave {
+  ```
+  - **Why the `<Name>_APIOf` alias:** it names the base where the operands' names resolve (inside `wave`). Forwarding through `Cell<...>::Base`
+    would instantiate the whole composed class whenever a walk probes it, which `rules.h` avoids on purpose for `APIOf`.
+  - **Non-type parameters become `auto`:** their types may be names local to the struct's namespace (`u8`). The enclosing namespaces are closed and reopened around the entry.
+  - **Where it cannot be emitted:** a closed struct nested in a class or a block gets no entry, with a warning, and stays a leaf for HAPI's walks.
+  - **Round 3 (`def_expand.cpp`, `neg_compile/def_nested_rules.cpp`)** *(host, built)*:
+    - `Z : C:final T` expands as `APIOf<T,C>` does: it validates, and its children are `T,C`.
+    - Nested in an outer rule walk (`BuildRules<Chain<>,Chain<Z,D>>`), `C`'s rule "no D after C" fires.
+    - The same derivation written by hand without the entry (`struct Bare : hapi::APIOf<T,C> {}`) is a leaf, and the rule never sees the `D`.
+  - **Round 2:** avr-gcc 7.3 accepts the entries (every AVR build of `build.sh` includes the headers), and codegen is unchanged: 27/27 identical *(built)*.
 - **Rule 3 (identity) holds trivially:** a composition's identity is its name. The same struct is the same type in every TU (`identity_tu1/2` link) *(host)*.
   - Two structs over the same chain are different types with the same base and behaviour: `struct G : A:(B:final C)` and `struct X : A:B:final C` have `G::Base == X::Base` *(host)*.
 - **Rule 1 (injected-class-name):** inside an open class's body, the class's own name is rewritten to `Part`, the layer. That is a base of the closed struct, not the struct itself (`self.cpp`) *(host)*.
@@ -156,19 +172,16 @@ A mixed net of struct cells and `APIOf` cells (sugar's rolled cells) works *(hos
 3. **Only components compose further.** A closed composition is a terminal, never a layer. Build the component, then close it where it is used.
 4. **The injected-class-name inside a part means the layer,** not the named struct.
 5. **`APIOf`'s extras are kept** (`Types` with the API first, the rule walk, `Part<T>`), because the closed struct *is* an `APIOf` by derivation.
-   The exception is the exact-type `Expand<APIOf>`/`HasOwnRules<APIOf>` specializations (§1).
+   The exact-type `Expand`/`HasOwnRules` entries are forwarded (XXXDef style, §3).
 6. **Generic partial application needs a struct template** (`template<class T> struct AnyOf : Any:final T {};`), not an alias template.
 
 ## 5. Future work
 
-- **Fallback-API sugar.**
-  - The idea: a family declares its terminal API once, so that closing needs no spelled-out terminal.
-    For example, a `final` with no type would close on the family's API.
-  - Where the declaration lives, and how it combines across mixed families, is to be designed.
-  - Closing stays explicit either way (`final`). Only the terminal would be implied.
+- **Fallback-API sugar is the XXXDef itself.** A family fixes its terminal API once in a Def, as OneMenu's `ItemDef<OO...>` fixes `ItemAPI`:
+  `template<class... OO> struct CellDef : (OO : ... : final API) {};` is used as `CellDef<A,B,...>`, and nobody spells the terminal again.
+  No new syntax is needed. static_net's `Cell<k,OO...>` is already such a Def (its bias is a parameter).
 - **`Distinct` inside `APIOf`?** It would give hand-written HAPI compositions the same check. It is not done, because it changes existing HAPI behaviour:
   a composition that repeats a layer on purpose would stop compiling.
-- **`Expand` for closed structs:** a translator-emitted `Expand<Z> : Expand<APIOf<...>>` forwarding line. That line exists in HAPI for types derived from `APIOf`, and a closed struct would then also nest as an `APIOf` does.
 
 ## 6. HAPI core: `hapi::Distinct<L>`
 

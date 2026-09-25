@@ -7,4 +7,4 @@ struct Never {template<typename O> struct Part:O {
   
   int f() const {return Base::f();}
 }; template<typename Before,typename After> static constexpr bool rules() {return false;}};
-struct Z : hapi::APIOf<T,Never> {using Base=hapi::APIOf<T,Never>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<Never,T>>, "duplicate layer in Z");};
+struct Z : hapi::APIOf<T,Never> {using Base=hapi::APIOf<T,Never>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<Never,T>>, "duplicate layer in Z");}; using Z_APIOf=hapi::APIOf<T,Never>;  namespace hapi { template<> struct Expand<Z> : Expand<Z_APIOf> {}; template<> struct HasOwnRules<Z> : HasOwnRules<Z_APIOf> {}; }
