@@ -1,7 +1,7 @@
 // rule 2: A:B is a family member of A, not a subtype; the derivation edge goes to B; every member has its own statics
 #include "common.h"
-struct B {int b=0; void has_B_method() {b=1;}};
-struct C {};
+struct B {int b=0; void has_B_method() {b=1;} template<typename O> struct Part:O {using Base=O; using Base::Base; int b=0; void has_B_method() {b=1;}}; };
+struct C { template<typename O> struct Part:O {using Base=O; using Base::Base; }; };
 struct A {template<typename O> struct Part:O {
  using Base=O; using Base::Base; static inline int n=0; void touch() {++n; Base::has_B_method();}};};
 struct AB : hapi::APIOf<B,A> {using Base=hapi::APIOf<B,A>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<A,B>>, "duplicate layer in AB");}; using AB_APIOf=hapi::APIOf<B,A>;  namespace hapi { template<> struct Expand< ::AB> : Expand< ::AB_APIOf> {}; template<> struct HasOwnRules< ::AB> : HasOwnRules< ::AB_APIOf> {}; }

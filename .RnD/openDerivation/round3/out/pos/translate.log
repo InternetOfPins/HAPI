@@ -12,6 +12,35 @@ src/pos/base_chain.cpp:10: named ZF  (closed by APIOf, Base + ctors, 0 super)
 src/pos/base_chain.cpp:11: base  (PP : ... : Dbl : final Term)  ->  hapi::APIOf<Term,PP...,Dbl>
 src/pos/base_chain.cpp:11: def   ZG  (hapi::Expand / HasOwnRules forward to its APIOf)
 src/pos/base_chain.cpp:11: named ZG  (closed by APIOf, Base + ctors, 0 super)
+src/pos/closed_layer.cpp:7: part  A  (1 super)
+src/pos/closed_layer.cpp:16: base  Tag:A:final T  ->  hapi::APIOf<T,Tag,A>
+src/pos/closed_layer.cpp:16: def   Z  (hapi::Expand / HasOwnRules forward to its APIOf)
+src/pos/closed_layer.cpp:16: named Z  (closed by APIOf, Base + ctors, 0 super)
+src/pos/closed_layer.cpp:17: base  Counter:A:final T  ->  hapi::APIOf<T,Counter,A>
+src/pos/closed_layer.cpp:17: def   Z2  (hapi::Expand / HasOwnRules forward to its APIOf)
+src/pos/closed_layer.cpp:17: named Z2  (closed by APIOf, Base + ctors, 0 super)
+src/pos/closed_layer.cpp:18: base  Counter:Tag:final T  ->  hapi::APIOf<T,Counter,Tag>
+src/pos/closed_layer.cpp:18: def   Z3  (hapi::Expand / HasOwnRules forward to its APIOf)
+src/pos/closed_layer.cpp:18: named Z3  (closed by APIOf, Base + ctors, 0 super)
+src/pos/closed_layer.cpp:19: base  Named:A:final T  ->  hapi::APIOf<T,Named,A>
+src/pos/closed_layer.cpp:19: def   Z4  (hapi::Expand / HasOwnRules forward to its APIOf)
+src/pos/closed_layer.cpp:19: named Z4  (closed by APIOf, Base + ctors, 0 super)
+src/pos/closed_layer.cpp:20: base  A:Tag  ->  hapi::Chain<A,Tag>
+src/pos/closed_layer.cpp:20: named W  (component)
+src/pos/closed_layer.cpp:21: base  W:final T  ->  hapi::APIOf<T,W>
+src/pos/closed_layer.cpp:21: def   Z5  (hapi::Expand / HasOwnRules forward to its APIOf)
+src/pos/closed_layer.cpp:21: named Z5  (closed by APIOf, Base + ctors, 0 super)
+src/pos/closed_layer.cpp:22: base  Ruled:A:final T  ->  hapi::APIOf<T,Ruled,A>
+src/pos/closed_layer.cpp:22: def   Z6  (hapi::Expand / HasOwnRules forward to its APIOf)
+src/pos/closed_layer.cpp:22: named Z6  (closed by APIOf, Base + ctors, 0 super)
+src/pos/closed_layer.cpp:23: base  Mix:K:final T  ->  hapi::APIOf<T,Mix,K>
+src/pos/closed_layer.cpp:23: def   Z7  (hapi::Expand / HasOwnRules forward to its APIOf)
+src/pos/closed_layer.cpp:23: named Z7  (closed by APIOf, Base + ctors, 0 super)
+src/pos/closed_layer.cpp:8: layer Tag  (closed class, used as a layer: kept, plus a Part with the same body)
+src/pos/closed_layer.cpp:9: layer Counter  (closed class, used as a layer: kept, plus a Part with the same body)
+src/pos/closed_layer.cpp:10: layer Named  (closed class, used as a layer: kept, plus a Part with the same body)
+src/pos/closed_layer.cpp:11: layer Ruled  (closed class, used as a layer: kept, plus a Part with the same body)
+src/pos/closed_layer.cpp:15: layer K  (closed class, used as a layer: kept, plus a Part with the same body)
 src/pos/component.cpp:7: part  B  (1 super)
 src/pos/component.cpp:8: part  A  (1 super)
 src/pos/component.cpp:9: part  C  (1 super)
@@ -88,6 +117,8 @@ src/pos/family.cpp:6: named AB  (closed by APIOf, Base + ctors, 0 super)
 src/pos/family.cpp:7: base  A:final C  ->  hapi::APIOf<C,A>
 src/pos/family.cpp:7: def   AC  (hapi::Expand / HasOwnRules forward to its APIOf)
 src/pos/family.cpp:7: named AC  (closed by APIOf, Base + ctors, 0 super)
+src/pos/family.cpp:3: layer B  (closed class, used as a layer: kept, plus a Part with the same body)
+src/pos/family.cpp:4: layer C  (closed class, used as a layer: kept, plus a Part with the same body)
 src/pos/final_layer.cpp:5: part  A  (1 super)
 src/pos/final_layer.cpp:6: part  final  (1 super)
 src/pos/final_layer.cpp:7: base  A:final:final T  ->  hapi::APIOf<T,A,final>
@@ -100,20 +131,26 @@ src/pos/final_layer.cpp:9: def   Y  (hapi::Expand / HasOwnRules forward to its A
 src/pos/final_layer.cpp:9: named Y  (closed by APIOf, Base + ctors, 0 super)
 src/pos/final_type.cpp:7: part  A  (1 super)
 src/pos/final_type.cpp:8: part  B  (1 super)
-src/pos/final_type.cpp:9: base  A:B  ->  hapi::Chain<A,B>
-src/pos/final_type.cpp:9: named W  (component)
-src/pos/final_type.cpp:10: base  A:final final  ->  hapi::APIOf<final,A>
-src/pos/final_type.cpp:10: def   Z1  (hapi::Expand / HasOwnRules forward to its APIOf)
-src/pos/final_type.cpp:10: named Z1  (closed by APIOf, Base + ctors, 0 super)
-src/pos/final_type.cpp:11: base  final final  ->  hapi::APIOf<final>
-src/pos/final_type.cpp:11: def   Z2  (hapi::Expand / HasOwnRules forward to its APIOf)
-src/pos/final_type.cpp:11: named Z2  (closed by APIOf, Base + ctors, 0 super)
-src/pos/final_type.cpp:12: base  W:final final  ->  hapi::APIOf<final,W>
-src/pos/final_type.cpp:12: def   Z3  (hapi::Expand / HasOwnRules forward to its APIOf)
-src/pos/final_type.cpp:12: named Z3  (closed by APIOf, Base + ctors, 0 super)
-src/pos/final_type.cpp:13: base  (OO : ... : B : final final)  ->  hapi::APIOf<final,OO...,B>
-src/pos/final_type.cpp:13: def   Z4  (hapi::Expand / HasOwnRules forward to its APIOf)
-src/pos/final_type.cpp:13: named Z4  (closed by APIOf, Base + ctors, 0 super)
+src/pos/final_type.cpp:10: base  A:B  ->  hapi::Chain<A,B>
+src/pos/final_type.cpp:10: named W  (component)
+src/pos/final_type.cpp:11: base  A:final final  ->  hapi::APIOf<final,A>
+src/pos/final_type.cpp:11: def   Z1  (hapi::Expand / HasOwnRules forward to its APIOf)
+src/pos/final_type.cpp:11: named Z1  (closed by APIOf, Base + ctors, 0 super)
+src/pos/final_type.cpp:12: base  final final  ->  hapi::APIOf<final>
+src/pos/final_type.cpp:12: def   Z2  (hapi::Expand / HasOwnRules forward to its APIOf)
+src/pos/final_type.cpp:12: named Z2  (closed by APIOf, Base + ctors, 0 super)
+src/pos/final_type.cpp:13: base  W:final final  ->  hapi::APIOf<final,W>
+src/pos/final_type.cpp:13: def   Z3  (hapi::Expand / HasOwnRules forward to its APIOf)
+src/pos/final_type.cpp:13: named Z3  (closed by APIOf, Base + ctors, 0 super)
+src/pos/final_type.cpp:14: base  (OO : ... : B : final final)  ->  hapi::APIOf<final,OO...,B>
+src/pos/final_type.cpp:14: def   Z4  (hapi::Expand / HasOwnRules forward to its APIOf)
+src/pos/final_type.cpp:14: named Z4  (closed by APIOf, Base + ctors, 0 super)
+src/pos/final_type.cpp:15: base  A:final  ->  hapi::Chain<A,final>
+src/pos/final_type.cpp:15: named W2  (component)
+src/pos/final_type.cpp:16: base  W2:final Term  ->  hapi::APIOf<Term,W2>
+src/pos/final_type.cpp:16: def   Z5  (hapi::Expand / HasOwnRules forward to its APIOf)
+src/pos/final_type.cpp:16: named Z5  (closed by APIOf, Base + ctors, 0 super)
+src/pos/final_type.cpp:6: layer final  (closed class, used as a layer: kept, plus a Part with the same body)
 src/pos/identity.cpp:4: base  A:(B:final C)  ->  hapi::APIOf<C,A,B>
 src/pos/identity.cpp:4: def   G  (hapi::Expand / HasOwnRules forward to its APIOf)
 src/pos/identity.cpp:4: named G  (closed by APIOf, Base + ctors, 0 super)
@@ -132,7 +169,10 @@ src/pos/identity.h:7: part  Any  (1 super)
 src/pos/identity.h:8: base  A:B:final C  ->  hapi::APIOf<C,A,B>
 src/pos/identity.h:8: def   X  (hapi::Expand / HasOwnRules forward to its APIOf)
 src/pos/identity.h:8: named X  (closed by APIOf, Base + ctors, 0 super)
+src/pos/identity.h:4: layer C  (closed class, used as a layer: kept, plus a Part with the same body)
 src/pos/label_hazard.cpp:5: part  A  (1 super)
+src/pos/label_hazard.cpp:4: layer B  (closed class, used as a layer: kept, plus a Part with the same body)
+src/pos/layer_other.h:4: layer Mix  (closed class, used as a layer: kept, plus a Part with the same body)
 src/pos/named_chain.cpp:5: part  B  (1 super)
 src/pos/named_chain.cpp:6: base  B:final C  ->  hapi::APIOf<C,B>
 src/pos/named_chain.cpp:6: def   A  (hapi::Expand / HasOwnRules forward to its APIOf)
@@ -143,6 +183,8 @@ src/pos/named_chain.cpp:12: named W  (closed by APIOf, Base + ctors, 1 super)
 src/pos/named_chain.cpp:14: base  B:final K  ->  hapi::APIOf<K,B>
 src/pos/named_chain.cpp:14: def   AK  (hapi::Expand / HasOwnRules forward to its APIOf)
 src/pos/named_chain.cpp:14: named AK  (closed by APIOf, Base + ctors, 1 super)
+src/pos/named_chain.cpp:4: layer C  (closed class, used as a layer: kept, plus a Part with the same body)
+src/pos/named_chain.cpp:13: layer K  (closed class, used as a layer: kept, plus a Part with the same body)
 src/pos/rules_ok.cpp:6: part  A  (1 super)
 src/pos/rules_ok.cpp:7: part  B  (1 super, rules() kept on the holder)
 src/pos/rules_ok.cpp:15: base  A:B:final T  ->  hapi::APIOf<T,A,B>

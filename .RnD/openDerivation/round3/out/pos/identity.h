@@ -1,7 +1,7 @@
 #pragma once
 // rule 3, struct-only form: identity is nominal. Included by identity.cpp, identity_tu1.cpp and identity_tu2.cpp
 #include "common.h"
-struct C   {int v=1;};
+struct C   {int v=1; template<typename O> struct Part:O {using Base=O; using Base::Base; int v=1;}; };
 struct A   {template<typename O> struct Part:O {
  using Base=O; using Base::Base; int a() const {return 10*Base::b();}};};
 struct B   {template<typename O> struct Part:O {

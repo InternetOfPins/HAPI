@@ -3,18 +3,21 @@
 // `final<...>` name the type. Here the type named final is a closed terminal API.
 #include "common.h"
 #include <hapi/hapi.h>
-struct final {int f() const {return 7;}};                    // a type named final
+struct final {int f() const {return 7;} template<typename O> struct Part:O {using Base=O; using Base::Base; int f() const {return 7;}}; };                    // a type named final
 struct A {template<typename O> struct Part:O {
  using Base=O; using Base::Base; int f() const {return 1+Base::f();}};};
 struct B {template<typename O> struct Part:O {
  using Base=O; using Base::Base; int f() const {return 10+Base::f();}};};
+struct Term {int f() const {return 0;}};
 struct W  : hapi::Chain<A,B> {static_assert(hapi::Distinct<hapi::Chain<A,B>>, "duplicate layer in W");};                                          // a component
 struct Z1 : hapi::APIOf<final,A> {using Base=hapi::APIOf<final,A>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<A,final>>, "duplicate layer in Z1");}; using Z1_APIOf=hapi::APIOf<final,A>;  namespace hapi { template<> struct Expand< ::Z1> : Expand< ::Z1_APIOf> {}; template<> struct HasOwnRules< ::Z1> : HasOwnRules< ::Z1_APIOf> {}; }                                // closed on the type named final
 struct Z2 : hapi::APIOf<final> {using Base=hapi::APIOf<final>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<final>>, "duplicate layer in Z2");}; using Z2_APIOf=hapi::APIOf<final>;  namespace hapi { template<> struct Expand< ::Z2> : Expand< ::Z2_APIOf> {}; template<> struct HasOwnRules< ::Z2> : HasOwnRules< ::Z2_APIOf> {}; }                                  // closed on it, no layers
 struct Z3 : hapi::APIOf<final,W> {using Base=hapi::APIOf<final,W>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<W,final>>, "duplicate layer in Z3");}; using Z3_APIOf=hapi::APIOf<final,W>;  namespace hapi { template<> struct Expand< ::Z3> : Expand< ::Z3_APIOf> {}; template<> struct HasOwnRules< ::Z3> : HasOwnRules< ::Z3_APIOf> {}; }                                // the component, closed on it
 template<typename... OO> struct Z4 : hapi::APIOf<final,OO...,B> {using Base=hapi::APIOf<final,OO...,B>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<OO...,B,final>>, "duplicate layer in Z4");}; template<typename... OO> using Z4_APIOf=hapi::APIOf<final,OO...,B>;  namespace hapi { template<typename... OO> struct Expand< ::Z4<OO...>> : Expand< ::Z4_APIOf<OO...>> {}; template<typename... OO> struct HasOwnRules< ::Z4<OO...>> : HasOwnRules< ::Z4_APIOf<OO...>> {}; }
+struct W2 : hapi::Chain<A,final> {static_assert(hapi::Distinct<hapi::Chain<A,final>>, "duplicate layer in W2");};                                      // the (closed) type named final as a layer: a component
+struct Z5 : hapi::APIOf<Term,W2> {using Base=hapi::APIOf<Term,W2>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<W2,Term>>, "duplicate layer in Z5");}; using Z5_APIOf=hapi::APIOf<Term,W2>;  namespace hapi { template<> struct Expand< ::Z5> : Expand< ::Z5_APIOf> {}; template<> struct HasOwnRules< ::Z5> : HasOwnRules< ::Z5_APIOf> {}; }
 int main() {
-  CHECK((Z1{}.f()==8 && Z2{}.f()==7 && Z3{}.f()==18 && Z4<A>{}.f()==18));
+  CHECK((Z1{}.f()==8 && Z2{}.f()==7 && Z3{}.f()==18 && Z4<A>{}.f()==18 && Z5{}.f()==8));
   static_assert(std::is_base_of<hapi::APIOf<final,A>,Z1>::value && std::is_base_of<hapi::APIOf<final>,Z2>::value, "APIOf<final,...>");
   DONE("final_type");
 }

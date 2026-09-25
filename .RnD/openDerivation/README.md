@@ -9,8 +9,8 @@ so a class's base is chosen where the class is used. `translate.py` lowers the n
 The output is plain C++17 that avr-gcc 7.3 accepts. For the results, see [FINDINGS.md](FINDINGS.md).
 
 ```c++
-struct Id    { static int f(int x) {return x;} };                // closed: can only be the terminal
-struct Twice { static int f(int x) {return 2*super::f(x);} };   // open: names `super`, usable as a layer
+struct Id    { static int f(int x) {return x;} };                // no super: usable bare, as a layer, or as the terminal
+struct Twice { static int f(int x) {return 2*super::f(x);} };   // names `super`: usable only as a layer
 struct My : Twice:final Id {};                                   // closed on the terminal API Id: My::f(21) == 42
 
 struct W : A:B {};                                               // no `final`: a component, open
@@ -26,6 +26,8 @@ A closed struct is an XXXDef, in the IOP style (OneMenu's `ItemDef<OO...>`): der
 which the translator emits next to it. `final T` closes on the terminal API `T` (in a base clause `final` means "nothing below this", where `struct X final` means "nothing derives from X"; a type named `final` still works: `A:final final`). It is always the last operand, and it becomes `APIOf`'s first parameter. A chain without `final` stays
 open, so it can be used as a layer and closed later. Inside a closed struct, `super` is its base, and the struct inherits that base's constructors:
 `struct A : B:final C {...}` means the same as `struct C {..}; struct B : C {..}; struct A : B {..};`.
+
+FINDINGS.md has the language rules on their own (Part I), apart from this lowering to HAPI (Part II).
 
 ## Usage
 
@@ -45,6 +47,7 @@ The tag names the rule of the proposal that the input breaks.
 |---|---|
 | `struct P { ...super::f()... };` (an *open* class) | `struct P {template<typename O> struct Part:O { using Base=O; using Base::Base; ...Base::f()... };};` |
 | `template<u8 k> struct Bias {...};` | same, with the template head kept on the outer holder |
+| a class that does not name `super`, used as a layer anywhere in the batch | kept as is, plus `template<typename O> struct Part:O {using Base=O; using Base::Base; ...same body...};` appended: bare use still works |
 | `template<class Bf,class Af> static constexpr bool rules() {...}` in an open class | kept on the holder, outside `Part`, where HAPI's rule walk asks for it |
 | `struct Z : A:B:final T {...};` | `struct Z : hapi::APIOf<T,A,B> {using Base=hapi::APIOf<T,A,B>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<A,B,T>>, "duplicate layer in Z"); ...};` |
 | `super` inside `Z` above | `Base` |
@@ -72,9 +75,9 @@ Inside an open class body:
   - Ordinary lookup wins: a member `typedef X super;` / `using super = X;`, or a namespace-scope declaration of `super`, leaves the class alone.
 - **Refused input:**
   - a `:` in an alias-declaration
-  - `final` on any operand but the last, or a closed class as the open end of a component (`[od-final]`)
+  - `final` on any operand but the last (`[od-final]`)
   - a component with a non-empty body (`[od-component]`)
-  - a closed class or a closed composition as a layer
+  - a closed composition (one ending on `final`) as a layer
   - rebasing: an open class with an ordinary base, or `(A:B):final C`
   - two `:` bases in one class
   - out-of-line members of an open class
@@ -94,7 +97,7 @@ that does everything and writes its logs next to it (`log.txt`, and `log/` for r
 | `round1/` | one closed composition over one open class and a terminal; bare use must not compile; the alias form must be refused | `round1/run.sh` |
 | `round2/` | static_net's `waveCell.h` / `linCell.h` in `:` syntax (`src/`, `Cell` closed with `final API`), translated (`out/include/`); round trip (diff = the `Cell` lines only); `check/build.sh` unchanged; `compare_emlearn` and `measure/` in simavr; `avr-objdump` of 27 AVR programs; the struct `Cell` next to `hapi::APIOf` | `round2/run.sh` (a few minutes) |
 | `round2/variants/` | `hapi::APIOf` itself written in `:` syntax | `round2/variants/run.sh` |
-| `round3/` | coverage: components and closing on a user terminal, base-clause chains and folds, named compositions against their plain-C++ equivalent, constructors, rule-1 rebinding, family/statics, nominal identity (incl. across TUs), `super` precedence, dependence, component `rules()`, XXXDef `Expand` entries (a Def nested in an outer rule walk; Defs in the global, `a::b`, inline and anonymous namespaces; the nested-class warning), a type named `final` as terminal and as layer, duplicate layers, the label hazard; 17 translator refusals; 16 compiler rejections | `round3/run.sh` |
+| `round3/` | coverage: components and closing on a user terminal, base-clause chains and folds, named compositions against their plain-C++ equivalent, constructors, rule-1 rebinding, family/statics, nominal identity (incl. across TUs), `super` precedence, dependence, component `rules()`, XXXDef `Expand` entries (a Def nested in an outer rule walk; Defs in the global, `a::b`, inline and anonymous namespaces; the nested-class warning), a type named `final` as terminal and as layer, duplicate layers, the label hazard, closed classes as layers (a data-only mixin, statics per family member, bare use still working); 15 translator refusals; 16 compiler rejections | `round3/run.sh` |
 
 Round 2 runs `build.sh` "unchanged" by building two throwaway mirrors of `examples/static_net`: `check/`, `compare_emlearn/`
 and `measure/` are copied, `models/` is linked, and `include/` is copied. In one mirror `include/{waveCell,linCell}.h` are replaced by the translated headers.

@@ -120,8 +120,10 @@ def lex(src, path):
 
 # ---------------------------------------------------------------- translator
 class Translator:
-    def __init__(self, src, path="<input>", report=False):
+    def __init__(self, src, path="<input>", report=False, layer_names=None):
         self.src, self.path, self.report = src, path, report
+        self.layer_names = set(layer_names or ())   # names used as a layer anywhere in the batch (see collect_layers)
+        self.collecting = False
         self.t = lex(src, path)
         self.match = self._match_groups()
         self.subst = {}        # token index -> replacement text
@@ -516,7 +518,7 @@ class Translator:
                     j = (e + 1) if e is not None else j
                 if j + 1 < len(t) and t[j].text == "::" and (t[j + 1].kind == "id" or t[j + 1].text == "~"):
                     if not self._in_using(i):
-                        raise self.err(i, f"[od-scope] member of open class '{name}' defined out of line: "
+                        raise self.err(i, f"[od-scope] member of layer class '{name}' defined out of line: "
                                           f"classes with out-of-line members are out of scope for this translator")
 
     def _in_using(self, i):
@@ -540,7 +542,7 @@ class Translator:
             if self.txt(k) == "(" and n > 0:
                 prev = self.txt(stmt[n - 1])
                 if self.t[stmt[n - 1]].kind == "id" and prev not in ("decltype", "alignas", "noexcept", "sizeof"):
-                    raise self.err(stmt[0], f"[od-scope] member '{prev}' of open class '{c['name']}' is declared "
+                    raise self.err(stmt[0], f"[od-scope] member '{prev}' of layer class '{c['name']}' is declared "
                                             f"but not defined in the class: out-of-line members (.cpp) are out of scope")
                 return
 
@@ -676,18 +678,16 @@ class Translator:
         if rest != 0 and not (t[k + 1].text == "<" and self.angle_fwd(k + 1, e) == e - 1):
             return
         defs = [c for c in self.classes if c["name"] == nm]
-        if defs and not any(c["is_open"] or c.get("is_component") for c in defs):
+        if self.collecting:
+            return
+        if defs and not any(c["is_open"] or c.get("is_component") or c.get("dual") for c in defs):
             c = defs[0]
             if c.get("chain_bases"):
                 raise self.err(s, f"[od-rule8] '{nm}' is a closed composition (it ends on `final ...`): only a component "
                                   f"(a chain with no `final`) can be a layer")
             if c["base_i"] is not None:
                 raise self.err(s, f"[od-rule8] '{nm}' already has a base: rebasing it ({nm}:X) is rejected")
-            if closing_hint:
-                raise self.err(s, f"[od-final] '{nm}' is closed (its body never names `super`): close the composition "
-                                  f"on it with `final {nm}`, or end the chain on an open layer (a component)")
-            raise self.err(s, f"[od-rule7] '{nm}' is closed (its body never names `super`): only the terminal "
-                              f"(`final {nm}`) may be closed")
+            raise self.err(s, f"'{nm}' cannot be a layer here")
 
     def render(self, s, e):
         out = []
@@ -854,12 +854,87 @@ class Translator:
             out.append(cur)
         return out
 
+    def collect_layers(self):
+        self.collecting = True
+        names = set()
+        try:
+            self.scan_classes()
+            self.classify()
+        except ODError:
+            return names
+        for kind, a, b, ap, pk, c in self.find_sites():
+            if kind != "base":
+                continue
+            self.packs = pk | {p for k in self.classes if k["open"] < a < k["close"] for p in k["packs"]}
+            try:
+                res = self.parse_chain(a, b)
+            except ODError:
+                continue
+            if res is None:
+                continue
+            items, terminal = res
+            for x in items + ([] if self._closing else [terminal]):
+                m = re.fullmatch(r"(?:\w+::)*(\w+)(<.*>)?", self._norm(x))
+                if m:
+                    names.add(m.group(1))
+        return names
+
+    # ---- a closed class used as a layer: its definition stays, plus a Part carrying the same body
+    def mark_dual(self):
+        for c in self.classes:
+            if (c["name"] in self.layer_names and not c["is_open"] and not c.get("chain_bases")
+                    and c["base_i"] is None and self.txt(c["kw"]) != "union" and not c["user_super"]):
+                name = c["name"]
+                if name in ("O", "Base", "Part") or any(p in ("O", "Base", "Part") for p in c["params"]):
+                    raise self.err(c["name_i"], f"'{name}' collides with the names the Part lowering introduces")
+                for i in range(c["open"] + 1, c["close"]):
+                    if self.t[i].kind == "id" and self.txt(i) in ("Base", "Part") and self.unqualified(i):
+                        raise self.err(i, f"'{self.txt(i)}' inside '{name}' would be captured by its Part (it is used as a layer)")
+                self.check_out_of_line(c)
+                c["dual"] = True
+
+    def dual_part(self, c):
+        """the Part appended to a closed class used as a layer: its own body, the class's name rebound to Part, rules() left
+        on the class itself (where HAPI's rule walk asks for it). The body names no `super`, so it is valid over any base."""
+        t, name = self.t, c["name"]
+        rename = {i: "Part" for i in range(c["open"] + 1, c["close"])
+                  if t[i].kind == "id" and t[i].text == name and self.unqualified(i)
+                  and not (i + 1 < len(t) and t[i + 1].text == "<")}
+        skip = set()
+        for a, b in self.rules_ranges(c):
+            skip.update(range(a, b + 1))
+        body = self.emit_range(c["open"] + 1, c["close"], rename, skip)
+        sep = "" if body[:1].isspace() else " "
+        return f" template<typename O> struct Part:O {{using Base=O; using Base::Base;{sep}{body}}}; "
+
+    def rules_ranges(self, c):
+        """token ranges (start, end) of the members named `rules` defined in the body of c."""
+        t, out = self.t, []
+        i, start = c["open"] + 1, c["open"] + 1
+        while i < c["close"]:
+            x = t[i].text
+            if x in ("(", "["):
+                i = self.match[i] + 1
+                continue
+            if x == ";" or (x == ":" and t[i - 1].text in ("public", "private", "protected")):
+                start = i + 1
+            elif x == "{":
+                end = self.match[i]
+                if any(t[k].text == "rules" and k + 1 < i and t[k + 1].text == "(" for k in range(start, i)):
+                    out.append((start, end))
+                i = end + 1
+                start = i
+                continue
+            i += 1
+        return out
+
     # ---- driver
     def run(self):
         self.scan_classes()
         self.classify()
         sites = self.find_sites()
         self.mark_chain_bases(sites)
+        self.mark_dual()
         for c in self.classes:
             if c["is_open"]:
                 self.lower_part(c)
@@ -871,17 +946,20 @@ class Translator:
                 self.lower_chain_based(c, *r)
         return self.emit()
 
-    def emit(self):
-        out = []
-        t = self.t
-        prev_end = 0
-        gap_over = self.gap_override
-        i = 0
-        last = -1
-        while i < len(t):
+    def emit_range(self, a, b, rename=None, skip=()):
+        """the translated text of tokens [a,b), with the gaps before each token (the gap after tokens[a-1] included)."""
+        out, t = [], self.t
+        rename = rename or {}
+        i, last = a, a - 1
+        prev_end = t[a - 1].end if a > 0 else 0
+        while i < b:
+            if i in skip:
+                prev_end, last = t[i].end, i
+                i += 1
+                continue
             gap = self.src[prev_end:t[i].start]
-            if last in gap_over:
-                gap = gap_over[last]
+            if last in self.gap_override:
+                gap = self.gap_override[last]
             out.append(gap)
             if i in self.pre:
                 out.append(self.pre[i])
@@ -891,16 +969,37 @@ class Translator:
                 prev_end, last, i = t[e].end, e, e + 1
                 continue
             if i not in self.drop:
-                out.append(self.subst.get(i, t[i].text))
+                out.append(rename.get(i, self.subst.get(i, t[i].text)))
             out.append(self.post.get(i, ""))
             prev_end, last = t[i].end, i
             i += 1
-        out.append(self.src[prev_end:])
+        if b < len(t):   # the gap before tokens[b]
+            out.append(self.gap_override[last] if last in self.gap_override else self.src[prev_end:t[b].start])
         return "".join(out)
 
+    def emit(self):
+        for c in self.classes:
+            if c.get("dual"):
+                self.pre[c["close"]] = self.pre.get(c["close"], "") + self.dual_part(c)
+                self.log.append(f"{self.path}:{self.t[c['kw']].line}: layer {c['name']}  (closed class, used as a layer: "
+                                f"kept, plus a Part with the same body)")
+        t = self.t
+        if not t:
+            return self.src
+        # the whole file: leading text, every token, trailing text
+        return self.emit_range(0, len(t)) + self.src[t[-1].end:]
 
-def translate(src, path="<input>", report=False):
-    tr = Translator(src, path, report)
+
+def collect_layers(src, path):
+    """first pass: simple names of the classes this file uses as layers (every operand without `final`)."""
+    tr = Translator(src, path)
+    return tr.collect_layers()
+
+
+def translate(src, path="<input>", report=False, layer_names=None):
+    if layer_names is None:
+        layer_names = collect_layers(src, path)
+    tr = Translator(src, path, report, layer_names)
     out = tr.run()
     if report:
         for line in tr.log:
@@ -918,11 +1017,19 @@ def main(argv=None):
     if a.output and len(a.inputs) != 1:
         ap.error("-o takes one input; use --outdir for several")
     status = 0
+    # a closed class defined in one input may be a layer in another: collect the layer names of the whole batch first
+    layers = set()
+    for p in a.inputs:
+        try:
+            with open(p) as f:
+                layers |= collect_layers(f.read(), p)
+        except ODError:
+            pass                                   # reported by the translation pass below
     for p in a.inputs:
         try:
             with open(p) as f:
                 src = f.read()
-            out = translate(src, p, a.report)
+            out = translate(src, p, a.report, layers)
         except ODError as e:
             print(e, file=sys.stderr)
             status = 1

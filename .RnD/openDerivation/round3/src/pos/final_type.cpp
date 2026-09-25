@@ -6,13 +6,16 @@
 struct final {int f() const {return 7;}};                    // a type named final
 struct A {int f() const {return 1+super::f();}};
 struct B {int f() const {return 10+super::f();}};
+struct Term {int f() const {return 0;}};
 struct W  : A:B {};                                          // a component
 struct Z1 : A:final final {};                                // closed on the type named final
 struct Z2 : final final {};                                  // closed on it, no layers
 struct Z3 : W:final final {};                                // the component, closed on it
 template<typename... OO> struct Z4 : (OO : ... : B : final final) {};
+struct W2 : A:final {};                                      // the (closed) type named final as a layer: a component
+struct Z5 : W2:final Term {};
 int main() {
-  CHECK((Z1{}.f()==8 && Z2{}.f()==7 && Z3{}.f()==18 && Z4<A>{}.f()==18));
+  CHECK((Z1{}.f()==8 && Z2{}.f()==7 && Z3{}.f()==18 && Z4<A>{}.f()==18 && Z5{}.f()==8));
   static_assert(std::is_base_of<hapi::APIOf<final,A>,Z1>::value && std::is_base_of<hapi::APIOf<final>,Z2>::value, "APIOf<final,...>");
   DONE("final_type");
 }

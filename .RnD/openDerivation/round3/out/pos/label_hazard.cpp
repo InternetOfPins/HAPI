@@ -1,7 +1,7 @@
 // rule 4: ':' is only derivation in an alias RHS and a base clause. Written as a declaration in a block, `A:B x;` is
 // already valid C++ with another meaning (label A, then `B x;`), so the translator leaves it alone and it compiles.
 #include "common.h"
-struct B {int b=7;};
+struct B {int b=7; template<typename O> struct Part:O {using Base=O; using Base::Base; int b=7;}; };
 struct A {template<typename O> struct Part:O {
  using Base=O; using Base::Base;  };};
 int main() {

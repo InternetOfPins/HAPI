@@ -3,6 +3,7 @@
   ok    base_chain [g++]: base_chain OK
   ok    named_chain [g++]: named_chain OK
   ok    component [g++]: component OK
+  ok    closed_layer [g++]: closed_layer OK
   ok    def_expand [g++]: def_expand OK
   ok    def_namespaces [g++]: def_namespaces OK
   ok    final_type [g++]: final_type OK
@@ -20,6 +21,7 @@
   ok    base_chain [clang++]: base_chain OK
   ok    named_chain [clang++]: named_chain OK
   ok    component [clang++]: component OK
+  ok    closed_layer [clang++]: closed_layer OK
   ok    def_expand [clang++]: def_expand OK
   ok    def_namespaces [clang++]: def_namespaces OK
   ok    final_type [clang++]: final_type OK
@@ -37,15 +39,13 @@
 == the translator must refuse
   ok    alias_form: neg_translate/alias_form.cpp:4:11: error: [od-rule4] ':' is only valid in a base clause; name the composition: struct X : A:B {};
   ok    closed_as_layer: neg_translate/closed_as_layer.cpp:5:14: error: [od-rule8] 'X' is a closed composition (it ends on `final ...`): only a component (a chain with no `final`) can be a layer
-  ok    closed_left: neg_translate/closed_left.cpp:4:12: error: [od-rule7] 'K' is closed (its body never names `super`): only the terminal (`final K`) may be closed
-  ok    closed_open_end: neg_translate/closed_open_end.cpp:4:14: error: [od-final] 'K' is closed (its body never names `super`): close the composition on it with `final K`, or end the chain on an open layer (a component)
   ok    component_body: neg_translate/component_body.cpp:4:17: error: [od-component] 'W' is a component (its chain ends open): members in its body would not be part of the composed object; put them in a layer, or close it where it is used (struct X : W:final Terminal {})
   ok    final_not_last: neg_translate/final_not_last.cpp:3:14: error: [od-final] `final` marks the terminal: only the last operand of ':' can be `final T`
-  ok    final_type_open_end: neg_translate/final_type_open_end.cpp:5:14: error: [od-final] 'final' is closed (its body never names `super`): close the composition on it with `final final`, or end the chain on an open layer (a component)
   ok    fold_left: neg_translate/fold_left.cpp:3:38: error: [od-rule9] only the right fold (PP : ... : T) / (PP : ... : P : T) is supported: a left fold (T : ... : PP)
   ok    fold_unparenthesized: neg_translate/fold_unparenthesized.cpp:3:37: error: [od-rule9] a pack fold over ':' must be parenthesized: (PP : ... : T)
-  ok    out_of_line_decl: neg_translate/out_of_line_decl.cpp:2:11: error: [od-scope] member 'f' of open class 'A' is declared but not defined in the class: out-of-line members (.cpp) are out of scope
-  ok    out_of_line_def: neg_translate/out_of_line_def.cpp:3:5: error: [od-scope] member of open class 'A' defined out of line: classes with out-of-line members are out of scope for this translator
+  ok    out_of_line_closed_layer: neg_translate/out_of_line_closed_layer.cpp:4:11: error: [od-scope] member 'k' of layer class 'K' is declared but not defined in the class: out-of-line members (.cpp) are out of scope
+  ok    out_of_line_decl: neg_translate/out_of_line_decl.cpp:2:11: error: [od-scope] member 'f' of layer class 'A' is declared but not defined in the class: out-of-line members (.cpp) are out of scope
+  ok    out_of_line_def: neg_translate/out_of_line_def.cpp:3:5: error: [od-scope] member of layer class 'A' defined out of line: classes with out-of-line members are out of scope for this translator
   ok    rebase_closed: neg_translate/rebase_closed.cpp:4:12: error: [od-rule8] 'K' already has a base: rebasing it (K:X) is rejected
   ok    rebase_composed: neg_translate/rebase_composed.cpp:5:12: error: [od-rule8] a composed class as a left operand ((A:B):C) is a rebase of A:B, rejected
   ok    rebase_open: neg_translate/rebase_open.cpp:3:10: error: [od-rule8] 'A' already has a base and uses `super`: rebasing a class that has a base is rejected (A:E with `class A : Y`)
