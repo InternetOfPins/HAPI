@@ -45,7 +45,7 @@ The `[od-ruleN]` tag names the rule of the proposal that the input breaks. `[od-
 | `super` inside `Z` above | `Base` |
 | `struct Z : A:B {};` with `B` open (names `super`) | `struct Z : hapi::Chain<A,B>::Part<od::Nil> {...};` (no explicit termination; `support/od_nil.h`) |
 | every struct with a `:` base | also gets `static_assert(hapi::Distinct<hapi::Chain<operands...>>, "duplicate layer in Z");` (exact types, at instantiation; HAPI `rules.h`) |
-| `struct Y : A:X {};` where `X` already derives from `A` | refused early by the translator when both are in the file: `[od-dup]`; otherwise by `hapi::Distinct` at compile time |
+| `struct Y : A:X {};` where `X` already derives from `A` | a compile error from that `static_assert`, like `struct X : Nil, Nil {};` (no translator check) |
 | `using X = A:B;` | refused: `[od-rule4]` |
 
 Inside an open class body:
@@ -65,8 +65,6 @@ In a template, `typename`/`::template` are added when an operand names a templat
   - a closed class as a left operand
   - rebasing: an open class with an ordinary base, a class with a base as a left operand, or `(A:B):C`
   - two `:` bases in one class
-  - a duplicate layer visible in the file (`A:X` with `A` already in `X` or its bases, as spelled). The rest (packs, aliases,
-    `Bias<1>` vs `Bias<0+1>`, other headers) is rejected by `hapi::Distinct` when compiled
   - out-of-line members of an open class
   - left or unparenthesized folds
   - `super` outside a class
@@ -87,7 +85,7 @@ that does everything and writes its logs next to it (`log.txt`, and `log/` for r
 | `round1/` | one named composition over one open class and a closed terminal; bare use must not compile; the alias form must be refused | `round1/run.sh` |
 | `round2/` | static_net's `waveCell.h` / `linCell.h` in `:` syntax (`src/`, `Cell` as a struct over the fold), translated (`out/include/`); round trip (diff = the `Cell` lines only); `check/build.sh` unchanged; `compare_emlearn` and `measure/` in simavr; `avr-objdump` of 27 AVR programs, raw and with symbols stripped; the struct `Cell` next to `hapi::APIOf` | `round2/run.sh` (a few minutes) |
 | `round2/variants/` | (a) `hapi::APIOf` written in `:` syntax; (b) EXPERIMENTAL `--lower=nested` through `check/build.sh` | `round2/variants/run.sh` |
-| `round3/` | coverage: base-clause chains and folds, open terminals (`od::Nil`), distinct specializations as layers, named compositions against their plain-C++ equivalent, constructors, rule-1 rebinding, family/statics, nominal identity (incl. across TUs), `super` precedence, dependence, the label hazard; 13 translator refusals (incl. duplicate layers); 9 compiler rejections (incl. 4 duplicates only `hapi::Distinct` sees); positive cases also under `--lower=nested` (experimental) | `round3/run.sh` |
+| `round3/` | coverage: base-clause chains and folds, open terminals (`od::Nil`), distinct specializations as layers, named compositions against their plain-C++ equivalent, constructors, rule-1 rebinding, family/statics, nominal identity (incl. across TUs), `super` precedence, dependence, the label hazard; 11 translator refusals; 11 compiler rejections (incl. 6 duplicate layers, via `hapi::Distinct`); positive cases also under `--lower=nested` (experimental) | `round3/run.sh` |
 
 Round 2 runs `build.sh` "unchanged" by building two throwaway mirrors of `examples/static_net`: `check/`, `compare_emlearn/`
 and `measure/` are copied, `models/` is linked, and `include/` is copied. In one mirror `include/{waveCell,linCell}.h` are replaced by the translated headers.

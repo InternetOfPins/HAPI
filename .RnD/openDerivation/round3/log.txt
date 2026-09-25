@@ -51,8 +51,6 @@
 == the translator must refuse
   ok    alias_form: neg_translate/alias_form.cpp:4:11: error: [od-rule4] ':' is only valid in a base clause; name the composition: struct X : A:B {};
   ok    closed_left: neg_translate/closed_left.cpp:4:12: error: [od-rule7] 'K' is closed (its body never names `super`): only the last operand of ':' may be closed
-  ok    dup_layer: neg_translate/dup_layer.cpp:6:12: error: [od-dup] duplicate layer: 'A' is composed over 'X', which already derives from 'A' (via 'X')
-  ok    dup_layer_chain: neg_translate/dup_layer_chain.cpp:5:12: error: [od-dup] duplicate layer: 'Self' occurs twice in the composition
   ok    fold_left: neg_translate/fold_left.cpp:3:38: error: [od-rule9] only the right fold (PP : ... : T) / (PP : ... : P : T) is supported: a left fold (T : ... : PP)
   ok    fold_unparenthesized: neg_translate/fold_unparenthesized.cpp:3:37: error: [od-rule9] a pack fold over ':' must be parenthesized: (PP : ... : T)
   ok    out_of_line_decl: neg_translate/out_of_line_decl.cpp:2:11: error: [od-scope] member 'f' of open class 'A' is declared but not defined in the class: out-of-line members (.cpp) are out of scope
@@ -69,6 +67,10 @@
   ok    bare_use [clang++]: error: no member named 'f' in 'Twice'
   ok    dup_bias_expr [g++]: error: static assertion failed: duplicate layer in Z
   ok    dup_bias_expr [clang++]: error: static assertion failed due to requirement 'hapi::Distinct<hapi::Chain<Bias<1>, Bias<1>, T>>': duplicate layer in Z
+  ok    dup_layer [g++]: error: static assertion failed: duplicate layer in Y
+  ok    dup_layer [clang++]: error: static assertion failed due to requirement 'hapi::Distinct<hapi::Chain<A, X>>': duplicate layer in Y
+  ok    dup_layer_chain [g++]: error: static assertion failed: duplicate layer in Y
+  ok    dup_layer_chain [clang++]: error: static assertion failed due to requirement 'hapi::Distinct<hapi::Chain<Self, Self, Term>>': duplicate layer in Y
   ok    dup_other_header [g++]: error: static assertion failed: duplicate layer in Y
   ok    dup_other_header [clang++]: error: static assertion failed due to requirement 'hapi::Distinct<hapi::Chain<A, X>>': duplicate layer in Y
   ok    dup_via_alias [g++]: error: static assertion failed: duplicate layer in Z
@@ -82,5 +84,5 @@
   ok    super_undefined [g++]: error: 'f' is not a member of 'Twice::Part<Empty>::Base' {aka 'Empty'}
   ok    super_undefined [clang++]: error: no member named 'f' in 'Empty'
 
-79 ok, 0 FAIL
+81 ok, 0 FAIL
 exit 0
