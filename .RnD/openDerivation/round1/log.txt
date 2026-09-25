@@ -1,0 +1,9 @@
+src/bare_use.cpp:4: part  Twice  (1 super)
+src/minimal.cpp:10: part  Twice  (2 super)
+src/minimal.cpp:15: alias Twice:Id  ->  hapi::Chain<Twice>::Part<Id>
+  ok    minimal [g++]: f=42 n=14
+  ok    bare_use [g++]: rejected: error: 'f' is not a member of 'Twice'
+  ok    minimal [clang++]: f=42 n=14
+  ok    bare_use [clang++]: rejected: error: no member named 'f' in 'Twice'; did you mean 'Id::f'?
+
+4 ok, 0 FAIL

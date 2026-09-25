@@ -1,0 +1,30 @@
+src/pos/base_chain.cpp:5: part  Inc  (1 super)
+src/pos/base_chain.cpp:6: part  Dbl  (1 super)
+src/pos/base_chain.cpp:8: base  Inc:Dbl:Term  ->  Inc::Part<Dbl::Part<Term>>
+src/pos/base_chain.cpp:9: base  Inc:Term  ->  Inc::Part<Term>
+src/pos/base_chain.cpp:10: base  (PP : ... : Term)  ->  od::FoldT<Term,PP...>
+src/pos/base_chain.cpp:11: base  (PP : ... : Dbl : Term)  ->  od::FoldT<Term,PP...,Dbl>
+src/pos/ctors.cpp:4: part  Pass  (1 super)
+src/pos/ctors.cpp:5: part  Pass2  (1 super)
+src/pos/ctors.cpp:6: part  Offset  (2 super)
+src/pos/ctors.cpp:7: part  Explicit  (2 super)
+src/pos/ctors.cpp:9: alias Pass:Pass2:Term  ->  Pass::Part<Pass2::Part<Term>>
+src/pos/ctors.cpp:10: alias Offset:Pass2:Term  ->  Offset::Part<Pass2::Part<Term>>
+src/pos/ctors.cpp:11: alias Explicit:Term  ->  Explicit::Part<Term>
+src/pos/dependent.cpp:4: part  Uses  (2 super)
+src/pos/dependent.cpp:8: alias Uses:Only  ->  Uses::Part<Only>
+src/pos/family.cpp:5: part  A  (1 super)
+src/pos/family.cpp:6: alias A:B  ->  A::Part<B>
+src/pos/family.cpp:7: alias A:C  ->  A::Part<C>
+src/pos/identity.cpp:4: alias A:(B:C)  ->  A::Part<B::Part<C>>
+src/pos/identity.cpp:5: alias Any:X  ->  Any::Part<X>
+src/pos/identity.cpp:6: alias Any:A:B:C  ->  Any::Part<A::Part<B::Part<C>>>
+src/pos/identity.cpp:7: alias (PP : ... : C)  ->  od::FoldT<C,PP...>
+src/pos/identity.h:5: part  A  (1 super)
+src/pos/identity.h:6: part  B  (1 super)
+src/pos/identity.h:7: part  Any  (1 super)
+src/pos/identity.h:8: alias A:B:C  ->  A::Part<B::Part<C>>
+src/pos/label_hazard.cpp:5: part  A  (1 super)
+src/pos/self.cpp:4: part  Self  (2 super)
+src/pos/self.cpp:11: alias Self:Term  ->  Self::Part<Term>
+src/pos/self.cpp:12: alias Self:Self:Term  ->  Self::Part<Self::Part<Term>>

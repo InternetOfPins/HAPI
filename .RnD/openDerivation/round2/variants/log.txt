@@ -1,0 +1,41 @@
+== (a) APIOf in ':' syntax
+apiof/apiof_od.cpp:11: part  P1  (1 super)
+apiof/apiof_od.cpp:12: part  P2  (1 super)
+apiof/apiof_od.cpp:14: alias (P1 : P2 : Api)  ->  hapi::Chain<P1,P2>::Part<Api>
+apiof/apiof_od.cpp:7: base  (OO : ... : API)  ->  hapi::Chain<OO...>::template Part<API>
+  ok    apiof [g++]: static_asserts hold
+  ok    apiof [clang++]: static_asserts hold
+== (b) Cell = (OO : ... : Bias<k> : API), CellOf likewise
+cell_fold/waveCell.h:18: part  Bias  (1 super)
+cell_fold/waveCell.h:24: part  WaveOf  (1 super)
+cell_fold/waveCell.h:34: part  Threshold  (1 super)
+cell_fold/waveCell.h:40: part  Store  (2 super)
+cell_fold/waveCell.h:47: alias (OO : ... : Bias<k> : API)  ->  typename hapi::Chain<OO...,Bias<k>>::template Part<API>
+cell_fold/linCell.h:18: part  BiasOf  (1 super)
+cell_fold/linCell.h:32: part  TermOf  (1 super)
+cell_fold/linCell.h:39: part  SignOf  (1 super)
+cell_fold/linCell.h:42: alias (OO : ... : BiasOf<Acc,b> : APIOf<Acc>)  ->  typename hapi::Chain<OO...,BiasOf<Acc,b>>::template Part<APIOf<Acc>>
+61 ok, 0 FAIL, 0 note(s)
+== (b') codegen: bare fold vs hapi::APIOf, check/ AVR programs and the compare_emlearn rows
+  9/9 identical disassembly (bare fold vs APIOf)
+  APIOf: | wave4 | 44 | 0 | 274/274 | 25 / 25.0 / 25 | 100.00 / 99.27 |
+  APIOf: | lin4 | 112 | 0 | 273/274 | 62 / 62.0 / 62 | 99.64 / 99.13 |
+  fold: | wave4 | 44 | 0 | 274/274 | 25 / 25.0 / 25 | 100.00 / 99.27 |
+  fold: | lin4 | 112 | 0 | 273/274 | 62 / 62.0 / 62 | 99.64 / 99.13 |
+== (c) the same bare-fold Cell, --lower=nested (od::FoldT: no Chain wrapper, so no Types), through check/build.sh
+  FAIL  refid_check [g++]: does not compile: ../include/refid.h:33:27: error: static assertion failed: snet::RefQ<Q>: no cell in the net matches Q (for RefId<id>: no cell carries Tag<id>)
+  FAIL  refid_check [clang++]: does not compile: ../include/refid.h:33:19: error: static assertion failed due to requirement 'detail::never<hapi::SameAs<hapi::Tag<10>>>': snet::RefQ<Q>: no cell in the net matches Q (for RefId<id>: no cell carries Tag<id>)
+  FAIL  refid_order [g++]: does not compile: ../include/refid.h:33:27: error: static assertion failed: snet::RefQ<Q>: no cell in the net matches Q (for RefId<id>: no cell carries Tag<id>)
+  FAIL  refid_order [clang++]: does not compile: ../include/refid.h:33:19: error: static assertion failed due to requirement 'detail::never<hapi::SameAs<hapi::Tag<99>>>': snet::RefQ<Q>: no cell in the net matches Q (for RefId<id>: no cell carries Tag<id>)
+  FAIL  refq_check [g++]: does not compile: refq_check.cpp:22:74: error: static assertion failed: the net really has two DUP cells
+  FAIL  refq_check [clang++]: does not compile: refq_check.cpp:22:15: error: static assertion failed due to requirement 'snet::Chain<>::size == 2': the net really has two DUP cells
+  FAIL  refid_ids [g++]: refid_ids.cpp:14:70: error: static assertion failed: the matching cell comes back whole
+  FAIL  refid_ids [clang++]: refid_ids.cpp:14:17: error: static assertion failed due to requirement 'std::is_same<hapi::Chain<>, hapi::Chain<hapi::Tag<20>::Part<lin::SignOf<short>::Part<lin::TermOf<short, short, snet::Slot<0>, 2>::Part<lin::BiasOf<short, -1>::Part<lin::APIOf<short>>>>>>>::value': the matching cell comes back whole
+  FAIL  refid_ids [avr-g++]: refid_ids.cpp:14:3: error: static assertion failed: the matching cell comes back whole
+  FAIL  net_expand [g++]: net_expand.cpp:39:100: error: static assertion failed: the whole-object match refid relies on works through a Net too
+  FAIL  net_expand [clang++]: net_expand.cpp:39:17: error: static assertion failed due to requirement 'std::is_same<hapi::Chain<>, hapi::Chain<hapi::Tag<3>::Part<wave::Threshold::Part<wave::WaveOf<snet::Slot<1>, false, 6, '\x00', '\xff'>::Part<wave::Bias<'\x80'>::Part<wave::API>>>>>>::value': the whole-object match refid relies on works through a Net too
+  FAIL  net_expand [avr-g++]: net_expand.cpp:39:3: error: static assertion failed: the whole-object match refid relies on works through a Net too
+  FAIL  refid_cycle [clang++]: rejected, but not with "in-place reference must point to a lower net index": ../include/refid.h:33:19: error: static assertion failed due to requirement 'detail::never<hapi::SameAs<hapi::Tag<1>>>': snet::RefQ<Q>: no cell in the net matches Q (for RefId<id>: no cell carries Tag<id>)
+  FAIL  refid_avr [avr]: ../include/refid.h:33:5: error: static assertion failed: snet::RefQ<Q>: no cell in the net matches Q (for RefId<id>: no cell carries Tag<id>)
+  FAIL  by id == by index: mixed_avr_size and refid_avr differ
+46 ok, 15 FAIL, 0 note(s)
