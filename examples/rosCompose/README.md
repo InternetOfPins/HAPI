@@ -45,7 +45,7 @@ runs one `doubler` service round trip, and drives one goal through
 topics). Transport `Cap`s are wired loopback here.
 
 ```
-Flash: 1412 bytes
+Flash: 1408 bytes
 RAM:   69 bytes .data + 10 bytes .bss
 ```
 

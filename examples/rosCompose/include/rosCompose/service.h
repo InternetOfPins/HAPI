@@ -36,15 +36,17 @@ namespace rosCompose {
   };
 
   /// Send request one way, receive one correlated response the other.
-  /// N = max requests in flight.
+  /// N = max requests in flight. call() returns false, sending nothing, when all N are in flight.
   template<typename Req, typename Resp, int N>
   struct Client : Cap<Wrapped<Resp>> {
     Cap<Wrapped<Req>>* linkOut = nullptr;
     PendingTable<Resp, N> table;
 
-    void call(const Req& req, typename PendingTable<Resp, N>::Cb cb) {
+    bool call(const Req& req, typename PendingTable<Resp, N>::Cb cb) {
       int token = table.alloc(cb);
+      if (token < 0) return false;
       if (linkOut) linkOut->deliver(Wrapped<Req>{token, req});
+      return true;
     }
     void deliver(const Wrapped<Resp>& w) override { table.resolve(w.token, w.payload); }
   };
