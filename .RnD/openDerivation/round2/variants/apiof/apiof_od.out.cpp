@@ -4,7 +4,7 @@
 #include <type_traits>
 
 namespace od_view {
-  template<typename API, typename... OO> struct APIOf : hapi::Chain<OO...>::template Part<API> {using Base=typename hapi::Chain<OO...>::template Part<API>; using Base::Base;};
+  template<typename API, typename... OO> struct APIOf : hapi::Chain<OO...>::template Part<API> {using Base=typename hapi::Chain<OO...>::template Part<API>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<OO...,API>>, "duplicate layer in APIOf");};
 }
 
 struct Api {static constexpr int f() {return 0;}};

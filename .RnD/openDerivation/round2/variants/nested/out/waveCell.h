@@ -49,7 +49,7 @@ namespace wave {
     }
   };};
 
-  template<u8 k,typename... OO> struct Cell : od::FoldT<API,OO...,Bias<k>> {using Base=typename od::FoldT<API,OO...,Bias<k>>; using Base::Base;};
+  template<u8 k,typename... OO> struct Cell : od::FoldT<API,OO...,Bias<k>> {using Base=typename od::FoldT<API,OO...,Bias<k>>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<OO...,Bias<k>,API>>, "duplicate layer in Cell");};
 
   // input state passed by value/reference, no global reads (CSE-eligible)
   template<size_t N> struct Features {

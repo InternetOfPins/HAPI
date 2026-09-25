@@ -5,8 +5,8 @@ struct B {template<typename O> struct Part:O {
  using Base=O; using Base::Base; int h() const {return 5;} int g() const {return Base::missing();}};};
 struct A {template<typename O> struct Part:O {
  using Base=O; using Base::Base; int f() const {return 1+Base::h();}};};
-struct Z : hapi::Chain<A,B>::Part<od::Nil> {using Base=hapi::Chain<A,B>::Part<od::Nil>; using Base::Base;};
-template<typename... PP> struct ZF : hapi::Chain<PP...,B>::template Part<od::Nil> {using Base=typename hapi::Chain<PP...,B>::template Part<od::Nil>; using Base::Base;};
+struct Z : hapi::Chain<A,B>::Part<od::Nil> {using Base=hapi::Chain<A,B>::Part<od::Nil>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<A,B>>, "duplicate layer in Z");};
+template<typename... PP> struct ZF : hapi::Chain<PP...,B>::template Part<od::Nil> {using Base=typename hapi::Chain<PP...,B>::template Part<od::Nil>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<PP...,B>>, "duplicate layer in ZF");};
 int main() {
   Z z; ZF<A> zf; ZF<> ze;
   CHECK(z.f()==6 && zf.f()==6 && ze.h()==5);

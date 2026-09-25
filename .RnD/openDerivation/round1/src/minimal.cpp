@@ -1,5 +1,5 @@
 // round 1: one open class (names `super`), one closed terminal, one named composition (struct-only form)
-#include <hapi/chain.h>
+#include <hapi/rules.h>
 #include <cstdio>
 
 struct Id {                                   // closed: the last operand

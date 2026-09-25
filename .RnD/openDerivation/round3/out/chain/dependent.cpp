@@ -6,5 +6,5 @@ struct Uses {template<typename O> struct Part:O {
   int f() const {return 1+Base::f();}
   int g() const {return Base::missing();}   // no base has missing(): fine until g() is used
 };};
-struct U : hapi::Chain<Uses>::Part<Only> {using Base=hapi::Chain<Uses>::Part<Only>; using Base::Base;};
+struct U : hapi::Chain<Uses>::Part<Only> {using Base=hapi::Chain<Uses>::Part<Only>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<Uses,Only>>, "duplicate layer in U");};
 int main() { U u; CHECK(u.f()==2); DONE("dependent"); }

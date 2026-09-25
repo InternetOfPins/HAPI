@@ -8,5 +8,5 @@ struct B   {template<typename O> struct Part:O {
  using Base=O; using Base::Base; int b() const {return 2+Base::v;}};};
 struct Any {template<typename O> struct Part:O {
  using Base=O; using Base::Base; int any() const {return 1+Base::a();}};};
-struct X : hapi::Chain<A,B>::Part<C> {using Base=hapi::Chain<A,B>::Part<C>; using Base::Base;};
+struct X : hapi::Chain<A,B>::Part<C> {using Base=hapi::Chain<A,B>::Part<C>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<A,B,C>>, "duplicate layer in X");};
 int use(X& x);     // defined in identity_tu2.cpp, called from identity_tu1.cpp

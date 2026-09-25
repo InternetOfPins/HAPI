@@ -67,6 +67,14 @@
   ok    bare_has_no_B [clang++]: error: no member named 'has_B_method' in 'A'
   ok    bare_use [g++]: error: 'f' is not a member of 'Twice'
   ok    bare_use [clang++]: error: no member named 'f' in 'Twice'
+  ok    dup_bias_expr [g++]: error: static assertion failed: duplicate layer in Z
+  ok    dup_bias_expr [clang++]: error: static assertion failed due to requirement 'hapi::Distinct<hapi::Chain<Bias<1>, Bias<1>, T>>': duplicate layer in Z
+  ok    dup_other_header [g++]: error: static assertion failed: duplicate layer in Y
+  ok    dup_other_header [clang++]: error: static assertion failed due to requirement 'hapi::Distinct<hapi::Chain<A, X>>': duplicate layer in Y
+  ok    dup_via_alias [g++]: error: static assertion failed: duplicate layer in Z
+  ok    dup_via_alias [clang++]: error: static assertion failed due to requirement 'hapi::Distinct<hapi::Chain<WaveOf<Slot<0>>, WaveOf<Slot<0>>, T>>': duplicate layer in Z
+  ok    dup_via_pack [g++]: error: static assertion failed: duplicate layer in Z
+  ok    dup_via_pack [clang++]: error: static assertion failed due to requirement 'hapi::Distinct<hapi::Chain<A, A, T>>': duplicate layer in Z
   ok    not_a_subtype2 [g++]: error: invalid initialization of reference of type 'A&' from expression of type 'AB'
   ok    not_a_subtype2 [clang++]: error: non-const lvalue reference to type 'A' cannot bind to a value of unrelated type 'AB'
   ok    open_terminal_super [g++]: error: 'missing' is not a member of 'B::Part<od::Nil>::Base' {aka 'od::Nil'}
@@ -74,5 +82,5 @@
   ok    super_undefined [g++]: error: 'f' is not a member of 'Twice::Part<Empty>::Base' {aka 'Empty'}
   ok    super_undefined [clang++]: error: no member named 'f' in 'Empty'
 
-71 ok, 0 FAIL
+79 ok, 0 FAIL
 exit 0

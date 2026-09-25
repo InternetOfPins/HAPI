@@ -2,7 +2,8 @@
 """translate.py -- Open Derivation prototype: lower `A:B` (late derivation) into today's HAPI Part form.
 
     struct P { ...super::f()... };            ->  struct P {template<typename O> struct Part:O { using Base=O; using Base::Base; ...Base::f()... };};
-    struct Z : A:B:C {};                      ->  struct Z : hapi::Chain<A,B>::Part<C> {using Base=hapi::Chain<A,B>::Part<C>; using Base::Base;};
+    struct Z : A:B:C {};                      ->  struct Z : hapi::Chain<A,B>::Part<C> {using Base=hapi::Chain<A,B>::Part<C>; using Base::Base;
+                                                    static_assert(hapi::Distinct<hapi::Chain<A,B,C>>, "duplicate layer in Z");};
     struct Z : (OO : ... : P : T) {};         ->  struct Z : hapi::Chain<OO...,P>::template Part<T> {using Base=typename ...; using Base::Base;};
     inside such a struct, `super` names that base (-> Base)
     using X = A:B;                            ->  error [od-rule4]: ':' is only valid in a base clause
@@ -664,7 +665,8 @@ class Translator:
                     text = f"{tn if outer else tn_inner}{x}::{tp}Part<{text}>"
         self.span[a] = (b - 1, text)
         self.log.append(f"{self.path}:{self.t[a].line}: {kind:5} {self.render(a, b)}  ->  {text}")
-        return text, dep
+        operands = items + ([] if terminal == "od::Nil" else [terminal])
+        return text, dep, operands
 
     @staticmethod
     def _norm(x):
@@ -737,7 +739,7 @@ class Translator:
                         raise self.err(i, f"'Base' inside '{c['name']}' would be captured by the implicit "
                                           f"`using Base=...; using Base::Base;` (write `super` for the base)")
 
-    def lower_chain_based(self, c, base_text, dep):
+    def lower_chain_based(self, c, base_text, dep, operands):
         t = self.t
         for i in c["super_uses"]:
             if (t[i - 1].text == "using" and i + 3 < len(t) and t[i + 1].text == "::"
@@ -747,7 +749,9 @@ class Translator:
                 continue
             if i not in self.drop:
                 self.subst[i] = "Base"
-        line = f"using Base={'typename ' if dep else ''}{base_text}; using Base::Base;"
+        # duplicate layers, on exact types at instantiation (the text check in check_duplicate_layers is the early one)
+        line = (f"using Base={'typename ' if dep else ''}{base_text}; using Base::Base; "
+                f"static_assert(hapi::Distinct<hapi::Chain<{','.join(operands)}>>, \"duplicate layer in {c['name']}\");")
         o = c["open"]
         g = self._gap(o, o + 1)
         same_line, nl, rest = g.partition("\n")

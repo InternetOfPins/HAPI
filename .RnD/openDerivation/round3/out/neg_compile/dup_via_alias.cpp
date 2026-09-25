@@ -1,0 +1,10 @@
+// expect: duplicate layer in Z
+// Distinct: the same layer under two names (an alias, as static_net's Wave<i,...> = WaveOf<Slot<i>,...>)
+#include <hapi/rules.h>
+struct T {int f() const {return 0;}};
+template<int i> struct Slot {};
+template<typename S> struct WaveOf {template<typename O> struct Part:O {
+ using Base=O; using Base::Base; int f() const {return 1+Base::f();}};};
+template<int i> using Wave = WaveOf<Slot<i>>;
+struct Z : hapi::Chain<Wave<0>,WaveOf<Slot<0>>>::Part<T> {using Base=hapi::Chain<Wave<0>,WaveOf<Slot<0>>>::Part<T>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<Wave<0>,WaveOf<Slot<0>>,T>>, "duplicate layer in Z");};
+int main() {return Z{}.f();}

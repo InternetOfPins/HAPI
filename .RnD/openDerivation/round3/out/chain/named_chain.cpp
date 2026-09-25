@@ -4,15 +4,15 @@
 struct C  {int v=1; int get() const {return v;}};
 struct B  {template<typename O> struct Part:O {
  using Base=O; using Base::Base; int get() const {return 2*Base::get();}};};
-struct A  : hapi::Chain<B>::Part<C> {using Base=hapi::Chain<B>::Part<C>; using Base::Base;int get() const {return 1+Base::get();}};
+struct A  : hapi::Chain<B>::Part<C> {using Base=hapi::Chain<B>::Part<C>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<B,C>>, "duplicate layer in A");int get() const {return 1+Base::get();}};
 
 struct C2 {int v=1; int get() const {return v;}};         // the same, in plain C++
 struct B2 : C2 {int get() const {return 2*C2::get();}};
 struct A2 : B2 {int get() const {return 1+B2::get();}};
 
-template<typename T> struct W : hapi::Chain<B>::template Part<T> {using Base=typename hapi::Chain<B>::template Part<T>; using Base::Base;int get() const {return 100+Base::get();}};   // dependent base
+template<typename T> struct W : hapi::Chain<B>::template Part<T> {using Base=typename hapi::Chain<B>::template Part<T>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<B,T>>, "duplicate layer in W");int get() const {return 100+Base::get();}};   // dependent base
 struct K  {int v; K(int x):v(x) {} int get() const {return v;}};
-struct AK : hapi::Chain<B>::Part<K> {using Base=hapi::Chain<B>::Part<K>; using Base::Base;int get() const {return 1+Base::get();}};                          // K(int) reaches AK
+struct AK : hapi::Chain<B>::Part<K> {using Base=hapi::Chain<B>::Part<K>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<B,K>>, "duplicate layer in AK");int get() const {return 1+Base::get();}};                          // K(int) reaches AK
 
 int main() {
   A a; A2 a2;

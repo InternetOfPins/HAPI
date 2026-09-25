@@ -11,9 +11,9 @@ struct Offset {template<typename O> struct Part:O {
 struct Explicit {template<typename O> struct Part:O {
  using Base=O; using Base::Base;   int get() const {return Base::v;}};};   // writing rule 6 out is allowed, and redundant
 
-struct X : hapi::Chain<Pass,Pass2>::Part<Term> {using Base=hapi::Chain<Pass,Pass2>::Part<Term>; using Base::Base;};
-struct Y : hapi::Chain<Offset,Pass2>::Part<Term> {using Base=hapi::Chain<Offset,Pass2>::Part<Term>; using Base::Base;};
-struct E : hapi::Chain<Explicit>::Part<Term> {using Base=hapi::Chain<Explicit>::Part<Term>; using Base::Base;};
+struct X : hapi::Chain<Pass,Pass2>::Part<Term> {using Base=hapi::Chain<Pass,Pass2>::Part<Term>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<Pass,Pass2,Term>>, "duplicate layer in X");};
+struct Y : hapi::Chain<Offset,Pass2>::Part<Term> {using Base=hapi::Chain<Offset,Pass2>::Part<Term>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<Offset,Pass2,Term>>, "duplicate layer in Y");};
+struct E : hapi::Chain<Explicit>::Part<Term> {using Base=hapi::Chain<Explicit>::Part<Term>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<Explicit,Term>>, "duplicate layer in E");};
 
 int main() {
   X a(5), b(3,4);     CHECK(a.get()==5 && a.twice()==10 && b.get()==12);

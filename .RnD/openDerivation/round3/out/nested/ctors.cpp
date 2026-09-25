@@ -11,9 +11,9 @@ struct Offset {template<typename O> struct Part:O {
 struct Explicit {template<typename O> struct Part:O {
  using Base=O; using Base::Base;   int get() const {return Base::v;}};};   // writing rule 6 out is allowed, and redundant
 
-struct X : Pass::Part<Pass2::Part<Term>> {using Base=Pass::Part<Pass2::Part<Term>>; using Base::Base;};
-struct Y : Offset::Part<Pass2::Part<Term>> {using Base=Offset::Part<Pass2::Part<Term>>; using Base::Base;};
-struct E : Explicit::Part<Term> {using Base=Explicit::Part<Term>; using Base::Base;};
+struct X : Pass::Part<Pass2::Part<Term>> {using Base=Pass::Part<Pass2::Part<Term>>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<Pass,Pass2,Term>>, "duplicate layer in X");};
+struct Y : Offset::Part<Pass2::Part<Term>> {using Base=Offset::Part<Pass2::Part<Term>>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<Offset,Pass2,Term>>, "duplicate layer in Y");};
+struct E : Explicit::Part<Term> {using Base=Explicit::Part<Term>; using Base::Base; static_assert(hapi::Distinct<hapi::Chain<Explicit,Term>>, "duplicate layer in E");};
 
 int main() {
   X a(5), b(3,4);     CHECK(a.get()==5 && a.twice()==10 && b.get()==12);

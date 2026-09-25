@@ -2,7 +2,8 @@
 # Round 3: coverage, struct-only form (':' only in base clauses). Every program in src/pos is translated with the default
 # chain lowering (HAPI's form) and, as an EXPERIMENTAL extra, --lower=nested;
 # built with g++ and clang++ (-std=c++17 -Wall) and run; src/neg_translate must be refused by the translator with the
-# diagnostic on its `// expect:` line; src/neg_compile must translate, then be rejected by both compilers (expect = regex).
+# diagnostic on its `// expect:` line; src/neg_compile must translate, then be rejected by both compilers (expect = regex):
+# among them the duplicate layers only hapi::Distinct sees (pack, alias, Bias<1>/Bias<0+1>, another header).
 cd "$(dirname "$0")"
 H=${HAPI:-../../../include}
 W=$(mktemp -d); trap 'rm -rf "$W"' EXIT
@@ -37,6 +38,7 @@ done
 
 echo "== the compilers must reject (after translation; any compiler error is accepted)"
 rm -rf out/neg_compile; mkdir -p out/neg_compile
+for h in src/neg_compile/*.h; do python3 ../translate.py "$h" -o out/neg_compile/$(basename "$h") || bad "$h" "translation failed"; done
 for f in src/neg_compile/*.cpp; do n=$(basename "$f" .cpp); e=$(head -1 "$f" | sed 's|^// expect: ||')
   python3 ../translate.py "$f" -o out/neg_compile/$n.cpp || { bad "$n" "translation failed"; continue; }
   for c in $(cxxs); do
