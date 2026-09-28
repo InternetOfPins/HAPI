@@ -2,10 +2,14 @@
 
 > **Status: Demonstrated (structurally).** A local scouting exercise read
 > ROS 2 (`rclcpp`, `rcl`, `rcl_action`, `tf2`) from source and mapped its
-> composition surface onto HAPI's primitive set. The buildable result is
-> [`examples/rosCompose/`](../examples/rosCompose/). No live DDS / socket
-> round trip was verified — this is a claim about how the *types* compose
-> and what the generated code contains, not about ROS interoperability.
+> composition surface onto HAPI's primitive set. The buildable result
+> (`transport.h`/`qos.h`/`service.h`/`action.h`) has moved to its own
+> library, [OneMachine](https://github.com/InternetOfPins/OneMachine)
+> (`include/oneMachine/rosCompose/`) — no longer a HAPI example, so it
+> can carry its own examples and tests without living inside this repo.
+> No live DDS / socket round trip was verified — this is a claim about
+> how the *types* compose and what the generated code contains, not
+> about ROS interoperability.
 
 ROS was used as a **reference oracle only** — a well-specified, widely
 understood example of "typed multi-endpoint device structure with a
