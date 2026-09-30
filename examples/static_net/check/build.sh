@@ -84,7 +84,7 @@ avr sugar_roll_avr_off   sugar_roll_avr.cpp     "1006 B / 62 B" -DSUGAR_ROLL_AT=
 avr sugar_unroll_hand_avr sugar_unroll_hand_avr.cpp "1006 B / 62 B";     same "SUGAR_ROLL_AT huge == the unrolled cell by hand" sugar_roll_avr_off sugar_unroll_hand_avr
 avr registers_avr        registers_avr.cpp      "220 B / 4 B"
 avr registers_avr_flat   registers_avr.cpp      "220 B / 4 B" -DFLAT             # the hand-indexed twin that reads before it writes: same size
-avr banknote_avr_check   banknote_avr_check.cpp "2346 B / 26 B"     # the Banknote cell on a board: it reports over UART
+avr banknote_avr_check   banknote_avr_check.cpp "2344 B / 26 B"     # the Banknote cell on a board: it reports over UART
 if have simavr && have python3; then
 echo "== AVR: the same rows through the same function, simulated ATmega328p against the host, row by row"
   avr-g++ -std=c++17 -Os -mmcu=atmega328p -DSIM_ONCE "${INC[@]}" sonar_rows_avr.cpp -o "$W/rows.elf" 2>"$W/err" || bad sonar_rows_avr "$(grep -m1 error "$W/err")"

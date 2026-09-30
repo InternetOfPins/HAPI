@@ -123,13 +123,16 @@ What this shows, and what it does not:
 
   ```c++
   const u8 x=inv(u8(Src::get(in)));
-  if constexpr (s>=0) return u8((((x<<s)+p)&m)+Base::proc(in));
+  if constexpr (s>=0) return u8(u8(u8(u8(x<<s)+p)&m)+Base::proc(in));
   else return u8((((x>>(-s))+p)&m)+Base::proc(in));
   ```
 
-  the HAPI cell is 27 instructions, byte for byte `wave4_c.c`. It gives the same result as the current `proc` for every
-  `n`, `s` in −7..7, `p`, `m` and input byte (host check, 3.0e9 cases). This is not applied here: it changes
-  `examples/static_net/include/waveCell.h`, and with it static_net's measured figures.
+  the HAPI cell is 27 instructions, byte for byte `wave4_c.c`. It gives the same result as the earlier `proc` for every
+  `n`, `s` in −7..7, `p`, `m` and input byte (host check, 3.0e9 cases). Left shifts keep the early `u8`: without it
+  gcc 7.3 does them in 16 bits (static_net's `mixed_avr_size` grows by 30 B). This is now what
+  `examples/static_net/include/waveCell.h` does; static_net's `wave4` went from 44 B / 25 cycles to 42 B / 24 cycles, and
+  every other program of its `check/build.sh` kept its size. The sources here stay pinned to `3b0c466` and keep the
+  earlier spelling.
 - **A current gcc folds it anyway.** With AVR gcc 16.1 on Compiler Explorer, the HAPI cell and `wave4_c.c` compile to
   the same 24 instructions, with no `mov` and a shorter readout (`sbrc`/`inc` for `x[3]`, `cpi`/`sbc`/`neg` for the
   threshold). The one-instruction gap is specific to gcc 7.3, the toolchain static_net measures with.
@@ -172,8 +175,9 @@ To compare two of them, open one source pane per file, each with its own compile
 
 - `wave4_apiof.cpp` and `wave4_od.cpp` give the same `wave4()`, 28 instructions, 56 B (the translator check).
 - That `wave4()` is instruction for instruction the `bnc_predict` static_net builds from `include/` for `compare_emlearn`.
-  The 44 B figure static_net reports is this function minus the null model's `bnc_predict` (12 B, a single compare), the floor
-  `compare_emlearn/run.sh` subtracts: 56 − 12 = 44. For plain C the same subtraction gives 54 − 12 = 42.
+  The 44 B figure static_net reported at that commit is this function minus the null model's `bnc_predict` (12 B, a single
+  compare), the floor `compare_emlearn/run.sh` subtracts: 56 − 12 = 44. For plain C the same subtraction gives
+  54 − 12 = 42, which is static_net's figure since `WaveOf` was respelled.
 - `wave4_c.c` compiles as C++ and as C to the same 27 instructions, 54 B, and differs from the HAPI cell by the instructions
   listed above.
 - `wave4_c.c` and the HAPI cell give the same answer on all 2^32 inputs.

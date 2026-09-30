@@ -8,6 +8,10 @@ count here is a count on the chip.
 sum of cycles over 274 rows). The timed code has no interrupts, no caches and no wait states on an ATmega328p, so exact agreement is what a cycle-accurate simulator should give; this
 confirms it on the chip rather than assuming it.
 
+These are the ELFs of that date. `waveCell.h`'s `WaveOf` has since been respelled (one register copy less on avr-gcc 7.3): the `compare_emlearn`
+`wave4` program now runs 43 cycles per call in simavr (`wave4.min`/`max`, 24 net of the null program) and `measure/`'s `bn_wave` is unchanged at 23;
+the new ELF has not been run on the chip.
+
 | target | number | simavr | silicon | diff |
 |---|---|---|---|---|
 | bn_wave | wave4 | 23 | 23 | +0 |

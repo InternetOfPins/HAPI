@@ -4,7 +4,7 @@ Static networks: dry, typed descriptions of dataflow nets.
 
 A **net** is a typelist of parts, wired by index, by id or by a query. It carries no data of its own: the values it reads live in a **state** of tag-addressed slots (`hapi::Slot`, see HAPI's README), and the net is evaluated over that state.
 Because the whole structure is a type, the compiler resolves it at compile time: the forms below compile to the same disassembly as the hand-written equivalents (*What the composition costs*).
-The running example is a 4-input classifier on an 8-bit AVR: 44 B and 25 cycles on an ATmega328p.
+The running example is a 4-input classifier on an 8-bit AVR: 42 B and 24 cycles on an ATmega328p.
 
 Parts agree on a small **contract** (a static, pure `proc(in)`); they do not inherit from a framework, and HAPI's `Chain<>` / `APIOf<>` / `Expand<>` do the
 composing. Neural-net cells are the running example, not the point: any static dataflow of pure stages fits (a filter chain, a control loop, a sensor fusion), and other contracts can sit
@@ -19,7 +19,7 @@ using BanknoteNet = wave::Cell<WAVE_K,
   wave::Wave<Curtosis,WAVE_CURTOSIS_N,WAVE_CURTOSIS_S,WAVE_CURTOSIS_P,WAVE_CURTOSIS_M>,  wave::Wave<Entropy,WAVE_ENTROPY_N,WAVE_ENTROPY_S,WAVE_ENTROPY_P,WAVE_ENTROPY_M>>;
 
 BanknoteState features = banknote({variance, skewness, curtosis, entropy});   // the state: four input bytes, the only runtime data
-bool y = BanknoteNet::proc(features);        // a few shifts, masks and adds; 44 B of flash, 25 cycles on an ATmega328p
+bool y = BanknoteNet::proc(features);        // a few shifts, masks and adds; 42 B of flash, 24 cycles on an ATmega328p
 ```
 
 Not the same result as [`ml_interpreter_cost`](../ml_interpreter_cost): that example is *dispatch removal* (a layered net on ARM without TFLite-Micro's interpreter), which a plain template network
@@ -78,7 +78,7 @@ One build setup, one harness, flash and RAM net of a no-model program, cycles pe
 
 | model | flash (B) | RAM (B) | cycles | accuracy fold 1 / 5-fold mean (%) |
 |---|---|---|---|---|
-| **`wave4`** (this example's cell) | **44** | **0** | **25** | 100.00 / 99.27 |
+| **`wave4`** (this example's cell) | **42** | **0** | **24** | 100.00 / 99.27 |
 | `lin4` (quantized perceptron, int8 weights) | 112 | 0 | 62 | 99.64 / 99.13 |
 | `table4` (same weights, a loop over a PROGMEM table) | 86 | 2 | 127 | 99.64 / 99.13 |
 | emlearn tree, depth 2, uint8 features | 232 | 10 | 177 | 92.70 / 90.67 |
@@ -87,8 +87,8 @@ One build setup, one harness, flash and RAM net of a no-model program, cycles pe
 | emlearn MLP 4-4-1 (`eml_net`, float) | 4262 | 180 | 12562 | 99.64 / 99.49 |
 | emlearn MLP 4-16-1 | 4550 | 564 | 33961 | 99.64 / 99.71 |
 
-At a size near `wave4` there is no emlearn model (the smallest is 5x larger, at 90.7% mean accuracy); trees need depth 8 to reach 98.5%, at about 11x the flash and 7.6x the cycles of `wave4` for 0.7 pp
-less accuracy; the MLP is the only model more accurate (+0.15 to +0.44 pp at 4-16 hidden units), at about 97x the flash and 500x the cycles for the 4-hidden-unit net, more for larger ones (soft float on a chip without an FPU).
+At a size near `wave4` there is no emlearn model (the smallest is 5.5x larger, at 90.7% mean accuracy); trees need depth 8 to reach 98.5%, at about 11x the flash and 7.9x the cycles of `wave4` for 0.7 pp
+less accuracy; the MLP is the only model more accurate (+0.15 to +0.44 pp at 4-16 hidden units), at about 100x the flash and 520x the cycles for the 4-hidden-unit net, more for larger ones (soft float on a chip without an FPU).
 Cycles of the cells are constant; the trees vary with the path (`compare_emlearn/results.md` has min / mean / max for every model and all depths). **Read with care:** Banknote is nearly separable and says
 nothing about a harder task; one dataset; emlearn 0.23.2 as documented (the `dtype='uint8_t'` option for the best-case trees, its float MLP with the 1/255 input scaling folded into layer 0, best of 5 restarts);
 emlearn's fixed-point MLP is an unfinished feature upstream and its MLP `inline` method silently emits the loadable code, so no fixed-point MLP was measured (`compare_emlearn/emlearn_repro.py`).
