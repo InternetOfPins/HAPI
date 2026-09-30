@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.8.0 (not yet tagged)
+## 0.8.0
 
 ### Added
 - **`hapi/slots.h`: slots, state composed along a chain and addressed by tag.** `Slot<Tag,S,Contract>` is a component that adds one value of type S to the
