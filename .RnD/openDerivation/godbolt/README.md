@@ -94,11 +94,20 @@ What this shows, and what it does not:
   plain C loads it straight into `r24`. That is 2 B of flash and 1 cycle. The rest differs only in order: HAPI starts from
   `x[3]` because its layers nest with `Wave<3>` innermost (next to `Bias`), and plain C adds in the order it is written.
 - **It is register allocation, not HAPI and not `:`.** At `-Os` this gcc's register choice is sensitive to how the
-  expression is spelled. Code with no HAPI in it gets the same 28 instructions, with the same `mov`: a hand-rolled
-  template mixin chain (`Th<Wave<0,..,Wave<3,..,Bias<175,API>>>>>`, plain inheritance), the plain C++ statements with
-  `WaveOf`'s casts, plain C++ with a small helper lambda for the four inputs, and `wave4_c.c` with a `(uint8_t)` cast
-  before each mask (28 as C++, 27 as C). Only the direct plain C spellings reach 27. Changing `WaveOf`'s casts (dropping
-  the inner ones, doing the arithmetic in `int`) leaves the HAPI cell at 28.
+  expression is spelled, and code with no HAPI in it lands on either side:
+
+  | spelling (no HAPI) | as C | as C++ |
+  |---|---|---|
+  | `wave4_c.c`: four `s +=` statements | 27 | 27 |
+  | the same, with a `(uint8_t)` cast before each mask | 27 | 28 |
+  | four `static inline` functions nested like the layers (`w0` calls `w1` ... calls the bias) | 27 | 27 |
+  | the same, with `WaveOf`'s casts | 27 | 28 |
+  | one `static inline` helper called for each input | 28 | 28 |
+  | a hand-rolled template mixin chain, `Th<Wave<0,..,Wave<3,..,Bias<175,API>>>>>` | n/a | 28 |
+
+  So neither C++ nor nesting forces the `mov` by itself. The HAPI cell stays at 28 through every change to `WaveOf` tried
+  (dropping its inner casts, doing the arithmetic in `int`, dropping `inv`/`shf`, adding the running sum first); no
+  spelling of the cell that reaches 27 has been found.
 - **Reordering does not change it.** Plain C gives 27 instructions in every order of the four `s +=` lines tried
   (0123, 3210, 3012, 2301, 1032, and nested like HAPI). HAPI with the `Wave` layers reversed in `net.h` still gives 28:
   the `mov` just moves to whichever input comes first (`x[2]` instead of `x[3]`).
