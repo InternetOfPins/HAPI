@@ -4,7 +4,7 @@
 
 ### Added
 - **`hapi/slots.h`: slots, state composed along a chain and addressed by tag.** `Slot<Tag,S,Contract>` is a component that adds one value of type S to the
-  state the components after it built; the state is one object of static size, no heap, and an empty slot adds nothing. `slot<Tag>(state)` reaches a slot by
+  state the components after it built; the state is one object of static size, no heap, and an empty slot adds nothing on GCC and Clang (2 bytes on MSVC, measured in CI). `slot<Tag>(state)` reaches a slot by
   its tag, `HasSlot<Tag,R>` asks, `each(visitor)` walks the slots in chain order, `SlotApi`/`SlotRoot` end the chain. The same tag twice, also across nested `Chain`
   and `APIOf`, and a tag that is not in the state are compile errors with their own messages. Nothing about what the state means, how it evolves or how it is sent
   is decided: the third parameter, a `Contract`, is how a user adds members to the state's type. `hapi.h` includes it; it costs nothing unless used. Measured: the same AVR

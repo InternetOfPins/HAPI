@@ -367,8 +367,8 @@ using Counting = APIOf<SlotApi, Slot<Pos, PosSlot, Counted>>::Res;
 
 * **`each(visitor)`** walks the slots in chain order (the last-listed first): `visitor.layer(Tag::name())`, then `S::each(slot, visitor)`, which the slot's type defines. `Tag::name()` and
   `S::each` are only looked at when `each` is used, and what `name()` returns is the visitor's business.
-* **Cost:** the same AVR program as a hand-indexed array (`tests/slots/run.sh` compares the flashed bytes); an empty slot and a nested composition add no size with GCC and Clang (MSVC lays
-  out several empty bases differently unless `__declspec(empty_bases)` is used; `tests/slots_tests.cpp` prints the sizes there). A chain of 256 slots takes 1.5 s to compile with g++ (`-fsyntax-only`), against
+* **Cost:** the same AVR program as a hand-indexed array (`tests/slots/run.sh` compares the flashed bytes); a nested composition adds no size on GCC, Clang or MSVC; an empty slot adds none on GCC and Clang, but on MSVC it cost 2 bytes in CI (a state of 6 bytes became 8: its layout
+  of several empty bases; `__declspec(empty_bases)` was not tried). A chain of 256 slots takes 1.5 s to compile with g++ (`-fsyntax-only`), against
   0.9 s for 256 plain Parts.
 
 The reference is in [`docs/REFERENCE.md`](docs/REFERENCE.md).

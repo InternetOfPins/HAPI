@@ -82,7 +82,7 @@ int main() {
     check("nested-twice", reachable(t));
     check("nested-walk-as-flat", same_walk(a) && same_walk(b) && same_walk(t)); }
 
-  // sizes: an empty slot and nesting cost nothing where the compiler removes empty bases (GCC, Clang); MSVC needs __declspec(empty_bases) for that
+  // sizes: an empty slot and nesting cost nothing on GCC and Clang; on MSVC nesting still costs nothing but an empty slot costs 2 bytes (measured in CI), so only the sizes are printed there
   {
     using Without = APIOf<SlotApi, Slot<A,SlotA>, Slot<B,SlotB>>::Res;
 #ifdef _MSC_VER

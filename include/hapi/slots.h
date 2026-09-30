@@ -3,7 +3,8 @@
  * @brief Slots: state composed along a chain and addressed by tag.
  *
  * hapi::Slot<Tag, S> is a component that adds one slot, a value of type S, to the state the components after it built.
- * The state is one object of static size with no heap; a slot whose S is empty adds nothing.
+ * The state is one object of static size with no heap; a slot whose S is empty adds nothing on GCC and Clang (on MSVC it cost 2 bytes in CI:
+ * its layout of several empty bases differs; `__declspec(empty_bases)` was not tried).
  *
  *   using State = hapi::APIOf<hapi::SlotApi, hapi::Slot<A, SlotA>, hapi::Slot<B, SlotB>>::Res;
  *   hapi::slot<A>(state).x = 1;       // by tag; a tag that is not in the state is a compile error
