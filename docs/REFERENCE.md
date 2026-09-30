@@ -83,6 +83,7 @@ State composed along a chain, addressed by tag. `hapi.h` includes it; nothing is
 | `SlotBase<Below, R>` | the default `Contract`: derives from `Below`, adds nothing |
 | `state.each(v)` | `v.layer(Tag::name())`, then `S::each(slot, v)`, for every slot in chain order (the last-listed first); `Tag::name()` and `S::each` are only required when `each` is used |
 | `state.me()` (inside a Contract, as `R::me()`) | the slot of this Part |
+| `HAPI_EMPTY_BASES` | macro: `__declspec(empty_bases)` on MSVC (not clang-cl), empty elsewhere; it keeps an empty slot at zero size on MSVC, which removes an empty base from one base only |
 | `HAPI_SLOT_EACH_INLINE` | macro, empty by default: an attribute (e.g. `[[gnu::always_inline]]`) for `each`, a size policy |
 
 The same tag twice in one state is a compile error (`hapi::Slot: two Parts claim the same tag`), also when the second is inside a nested `Chain` or `APIOf`; a nested composition gives the

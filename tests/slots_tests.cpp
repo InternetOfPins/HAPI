@@ -82,15 +82,11 @@ int main() {
     check("nested-twice", reachable(t));
     check("nested-walk-as-flat", same_walk(a) && same_walk(b) && same_walk(t)); }
 
-  // sizes: an empty slot and nesting cost nothing on GCC and Clang; on MSVC nesting still costs nothing but an empty slot costs 2 bytes (measured in CI), so only the sizes are printed there
+  // sizes: an empty slot and nesting cost nothing (MSVC needs __declspec(empty_bases), which slots.h applies)
   {
     using Without = APIOf<SlotApi, Slot<A,SlotA>, Slot<B,SlotB>>::Res;
-#ifdef _MSC_VER
-    printf("note: MSVC sizeof: with an empty slot %zu, without %zu; nested %zu, flat %zu\n", sizeof(State), sizeof(Without), sizeof(WithApiOf), sizeof(Flat));
-#else
     check("empty-costs-nothing", sizeof(State) == sizeof(Without));
     check("nesting-costs-nothing", sizeof(WithApiOf) == sizeof(Flat) && sizeof(WithChain) == sizeof(Flat) && sizeof(Twice) == sizeof(Flat));
-#endif
   }
   printf("%d failed\n", failures);
   return failures;
