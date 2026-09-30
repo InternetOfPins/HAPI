@@ -93,9 +93,12 @@ What this shows, and what it does not:
 - **Not identical: HAPI is one instruction longer.** HAPI loads `x[3]` into `r25` and copies it to `r24` (`mov r24, r25`);
   plain C loads it straight into `r24`. That is 2 B of flash and 1 cycle. The rest differs only in order: HAPI starts from
   `x[3]` because its layers nest with `Wave<3>` innermost (next to `Bias`), and plain C adds in the order it is written.
-- **It is register allocation, not overhead.** At `-Os` this gcc's register choice is sensitive to how the expression is
-  spelled, in plain C too: the same C, written with a `(uint8_t)` cast before each mask, also comes out at 28
-  instructions when compiled as C++ (27 as C). So the one `mov` is a spelling effect that plain code can also hit.
+- **It is register allocation, not HAPI and not `:`.** At `-Os` this gcc's register choice is sensitive to how the
+  expression is spelled. Code with no HAPI in it gets the same 28 instructions, with the same `mov`: a hand-rolled
+  template mixin chain (`Th<Wave<0,..,Wave<3,..,Bias<175,API>>>>>`, plain inheritance), the plain C++ statements with
+  `WaveOf`'s casts, plain C++ with a small helper lambda for the four inputs, and `wave4_c.c` with a `(uint8_t)` cast
+  before each mask (28 as C++, 27 as C). Only the direct plain C spellings reach 27. Changing `WaveOf`'s casts (dropping
+  the inner ones, doing the arithmetic in `int`) leaves the HAPI cell at 28.
 - **Reordering does not change it.** Plain C gives 27 instructions in every order of the four `s +=` lines tried
   (0123, 3210, 3012, 2301, 1032, and nested like HAPI). HAPI with the `Wave` layers reversed in `net.h` still gives 28:
   the `mov` just moves to whichever input comes first (`x[2]` instead of `x[3]`).
