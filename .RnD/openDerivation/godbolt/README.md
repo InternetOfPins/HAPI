@@ -105,9 +105,18 @@ What this shows, and what it does not:
   | one `static inline` helper called for each input | 28 | 28 |
   | a hand-rolled template mixin chain, `Th<Wave<0,..,Wave<3,..,Bias<175,API>>>>>` | n/a | 28 |
 
-  So neither C++ nor nesting forces the `mov` by itself. The HAPI cell stays at 28 through every change to `WaveOf` tried
-  (dropping its inner casts, doing the arithmetic in `int`, dropping `inv`/`shf`, adding the running sum first); no
-  spelling of the cell that reaches 27 has been found.
+  So neither C++ nor nesting forces the `mov` by itself, and neither do `WaveOf`'s casts: the HAPI cell stays at 28 with
+  them removed, with the arithmetic in `int`, without `inv`/`shf`, and with the running sum added first.
+
+  **Where it comes from: the input is read through a function.** In `WaveOf::proc` the byte arrives as
+  `Src::get(in)` (`Slot::get` → `Ctx::get` → `Features::get`), not as `x[i]`. `-fdump-tree-optimized` shows the
+  difference: in `wave4_c.c`, gcc does `(x[2] >> 2) & 0x3f` and `(x[3] >> 7) & 1` as 8-bit shifts (the mask lets it
+  narrow them while it still sees the array read), while in the HAPI cell both stay `(int)x >> k` followed by a
+  narrowing, and that is where register allocation adds the copy. Plain C++ shows the same when it reads through an
+  accessor: `wave4_c.c` with `x[i]` replaced by an always-inline `g(x, i)` gets the same `ldd`/`mov` on `x[2]`/`x[3]`
+  (and, without casts, does `x[0]`/`x[1]` in 16 bits: 39 instructions; with `WaveOf`'s casts, 28). Returning a
+  `const u8&` from `Features::get` does not change it. It is a gcc 7.3 folding limit on code reached through
+  inlined calls, which any accessor-based design meets; a newer AVR gcc may fold it, not checked here.
 - **Reordering does not change it.** Plain C gives 27 instructions in every order of the four `s +=` lines tried
   (0123, 3210, 3012, 2301, 1032, and nested like HAPI). HAPI with the `Wave` layers reversed in `net.h` still gives 28:
   the `mov` just moves to whichever input comes first (`x[2]` instead of `x[3]`).
