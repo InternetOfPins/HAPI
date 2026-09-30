@@ -96,6 +96,9 @@ What this shows, and what it does not:
 - **It is register allocation, not overhead.** At `-Os` this gcc's register choice is sensitive to how the expression is
   spelled, in plain C too: the same C, written with a `(uint8_t)` cast before each mask, also comes out at 28
   instructions when compiled as C++ (27 as C). So the one `mov` is a spelling effect that plain code can also hit.
+- **Reordering does not change it.** Plain C gives 27 instructions in every order of the four `s +=` lines tried
+  (0123, 3210, 3012, 2301, 1032, and nested like HAPI). HAPI with the `Wave` layers reversed in `net.h` still gives 28:
+  the `mov` just moves to whichever input comes first (`x[2]` instead of `x[3]`).
 - **Same answers.** `verify.sh` runs both on all 2^32 inputs (host g++) and gets the same class for every one.
 - **C or C++ does not matter here.** `wave4_c.c` built as C (`avr-gcc -std=c99`) gives the same 27 instructions.
 
