@@ -115,8 +115,24 @@ What this shows, and what it does not:
   narrowing, and that is where register allocation adds the copy. Plain C++ shows the same when it reads through an
   accessor: `wave4_c.c` with `x[i]` replaced by an always-inline `g(x, i)` gets the same `ldd`/`mov` on `x[2]`/`x[3]`
   (and, without casts, does `x[0]`/`x[1]` in 16 bits: 39 instructions; with `WaveOf`'s casts, 28). Returning a
-  `const u8&` from `Features::get` does not change it. It is a gcc 7.3 folding limit on code reached through
-  inlined calls, which any accessor-based design meets; a newer AVR gcc may fold it, not checked here.
+  `const u8&` from `Features::get` does not change it, and neither does moving the input into static data on the
+  terminal (`API`): that adds two `sts` for the pointer and keeps the `mov` (30 instructions).
+
+  What does remove it is binding the source to a local before the arithmetic and not narrowing between the shift and
+  the mask. With `WaveOf::proc` written as
+
+  ```c++
+  const u8 x=inv(u8(Src::get(in)));
+  if constexpr (s>=0) return u8((((x<<s)+p)&m)+Base::proc(in));
+  else return u8((((x>>(-s))+p)&m)+Base::proc(in));
+  ```
+
+  the HAPI cell is 27 instructions, byte for byte `wave4_c.c`. It gives the same result as the current `proc` for every
+  `n`, `s` in −7..7, `p`, `m` and input byte (host check, 3.0e9 cases). This is not applied here: it changes
+  `examples/static_net/include/waveCell.h`, and with it static_net's measured figures.
+- **A current gcc folds it anyway.** With AVR gcc 16.1 on Compiler Explorer, the HAPI cell and `wave4_c.c` compile to
+  the same 24 instructions, with no `mov` and a shorter readout (`sbrc`/`inc` for `x[3]`, `cpi`/`sbc`/`neg` for the
+  threshold). The one-instruction gap is specific to gcc 7.3, the toolchain static_net measures with.
 - **Reordering does not change it.** Plain C gives 27 instructions in every order of the four `s +=` lines tried
   (0123, 3210, 3012, 2301, 1032, and nested like HAPI). HAPI with the `Wave` layers reversed in `net.h` still gives 28:
   the `mov` just moves to whichever input comes first (`x[2]` instead of `x[3]`).
