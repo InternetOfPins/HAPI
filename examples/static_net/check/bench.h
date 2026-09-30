@@ -13,6 +13,7 @@
 #pragma once
 #include <stdint.h>
 #include "waveCell.h"
+#include "inputs.h"
 // the rows live in RAM/flash as plain data unless the platform says otherwise (AVR: SONAR_LIN_VEC_ATTR PROGMEM and BENCH_VEC with pgm_read_byte)
 #ifndef SONAR_LIN_VEC_ATTR
   #define SONAR_LIN_VEC_ATTR
@@ -36,13 +37,13 @@ void bench_irq_on();
 static inline void bench_start(){ DEMCR|=(1ul<<24); DWT_CYCCNT=0; DWT_CTRL|=1u; }
 
 // out of line, so the generated code of each cell can be read from the ELF on its own (arm-none-eabi-objdump -d)
-__attribute__((noinline)) bool runNarrow(const wave::Features<60>& f){ return SonarLinFold0::proc(f); }
-__attribute__((noinline)) bool runWide  (const wave::Features<60>& f){ return SonarLinFold0Wide::proc(f); }
+__attribute__((noinline)) bool runNarrow(const inp::Bytes60& f){ return SonarLinFold0::proc(f); }
+__attribute__((noinline)) bool runWide  (const inp::Bytes60& f){ return SonarLinFold0Wide::proc(f); }
 
-static wave::Features<60> benchRow(uint16_t r){ wave::Features<60> f; for(int j=0;j<60;j++) f.v[j]=BENCH_VEC(r,j); return f; }
+static inp::Bytes60 benchRow(uint16_t r){ inp::Bytes60 f; for(int j=0;j<60;j++) inp::band(f)[j]=BENCH_VEC(r,j); return f; }
 
 enum { REPS=25 };
-[[maybe_unused]] static uint32_t benchCycles(bool (*fn)(const wave::Features<60>&), const wave::Features<60>& f){
+[[maybe_unused]] static uint32_t benchCycles(bool (*fn)(const inp::Bytes60&), const inp::Bytes60& f){
   uint32_t best=0xFFFFFFFFu, all[REPS];
   for(int i=0;i<REPS;i++){
     bench_irq_off();
@@ -61,8 +62,8 @@ static void bench_correctness(){
   uint16_t okN=0,agN=0,okW=0,agW=0;
   char rowsN[SONAR_LIN_FOLD0_NVEC+1], rowsW[SONAR_LIN_FOLD0_NVEC+1];
   for(uint16_t r=0;r<SONAR_LIN_FOLD0_NVEC;r++){
-    wave::Features<60> f=benchRow(r);
-    bool truth=BENCH_VEC(r,60), flt=BENCH_VEC(r,61);
+    inp::Bytes60 f=benchRow(r);
+    bool truth=BENCH_VEC(r,SONAR_COL_LABEL), flt=BENCH_VEC(r,SONAR_COL_FLOAT);
     bool n=runNarrow(f), w=runWide(f);
     okN+=(n==truth); agN+=(n==flt); okW+=(w==truth); agW+=(w==flt);
     rowsN[r]=n?'1':'0'; rowsW[r]=w?'1':'0';
@@ -77,7 +78,7 @@ static void bench_correctness(){
 }
 
 static void bench_cycles(){
-  wave::Features<60> f=benchRow(0);
+  inp::Bytes60 f=benchRow(0);
   bench_str("cycles narrow: "); benchCycles(runNarrow,f); bench_str("\r\n");
   bench_str("cycles wide  : "); benchCycles(runWide,f);   bench_str("\r\n");
 }

@@ -4,7 +4,7 @@
 #include <stdint.h>
 
 namespace lin {
-  using snet::Net; using snet::Slot; using snet::Ref;
+  using snet::Net; using snet::Ref;
 
   // accumulator width is a template parameter: fan-in x max|input| x max|weight|
   // must fit, same constraint that limited the u8 wave cell on Sonar one level
@@ -13,7 +13,6 @@ namespace lin {
   template<typename Acc>
   struct APIOf {
     template<typename I> SNET_INLINE static constexpr Acc proc(const I&) {return 0;}
-    template<typename I> SNET_INLINE static constexpr void update(I&) {}
   };
   template<typename Acc,Acc b> struct BiasOf {template<typename O> struct Part:O {
     using Base=O; using Base::Base;
@@ -36,7 +35,7 @@ namespace lin {
       return Acc(Acc(Prod(w)*Prod(Src::get(in)))+Base::proc(in));
     }
   };};
-  template<typename Acc,typename Prod,size_t i,Acc w> using InOf=TermOf<Acc,Prod,Slot<i>,w>;
+  template<typename Acc,typename Prod,typename Src,Acc w> using InOf=TermOf<Acc,Prod,Src,w>;      // Src: a Field or Elem of the state
   template<typename Acc,typename Prod,size_t j,Acc w> using RefInOf=TermOf<Acc,Prod,Ref<j>,w>;
   template<typename Acc> struct SignOf {template<typename O> struct Part:O {
     using Base=O; using Base::Base;
@@ -52,7 +51,7 @@ namespace lin {
   using API=APIOf<acc>;
   template<acc b> using Bias=BiasOf<acc,b>;
   template<typename Src,acc w> using Term=TermOf<acc,acc,Src,w>;
-  template<size_t i,acc w> using In=InOf<acc,acc,i,w>;
+  template<typename Src,acc w> using In=InOf<acc,acc,Src,w>;
   template<size_t j,acc w> using RefIn=RefInOf<acc,acc,j,w>;
   using Sign=SignOf<acc>;
   template<acc b,typename... OO> using Cell=CellOf<acc,b,OO...>;

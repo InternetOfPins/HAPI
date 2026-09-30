@@ -7,19 +7,19 @@ W="-93,18,89,78,68,-111,-62,-97,-1,67,-12,-7,39,-30,74,-74,-103,-3,-120,101,86,-
 gen(){ python3 - "$1" "$2" "$3" "$W" <<'PY'
 import sys
 N=int(sys.argv[1]); form=sys.argv[2]; kind=sys.argv[3]; W=[int(v) for v in sys.argv[4].split(",")]
-if form=='u': net="snet::Net<lin::Cell<-2000,lin::Sign,%s>>"%",".join("lin::In<%d,%d>"%(i,W[i]) for i in range(N))
-else:         net="snet::Net<hapi::APIOf<lin::API,lin::Sign,snet::Roll<%s>,lin::Bias<-2000>>>"%",".join("snet::T<%d,%d>"%(i,W[i]) for i in range(N))
-hdr='#include "waveCell.h"\n#include "linCell.h"\n#include "roll.h"\n'
+if form=='u': net="snet::Net<lin::Cell<-2000,lin::Sign,%s>>"%",".join("lin::In<inp::Band<%d>,%d>"%(i,W[i]) for i in range(N))
+else:         net="snet::Net<hapi::APIOf<lin::API,lin::Sign,snet::Roll<%s>,lin::Bias<-2000>>>"%",".join("snet::T<inp::Band<%d>,%d>"%(i,W[i]) for i in range(N))
+hdr='#include "waveCell.h"\n#include "linCell.h"\n#include "roll.h"\n#include "inputs.h"\n'
 if kind=='cyc':
     print('#include "harness.h"\n'+hdr+"using NetT=%s;"%net)
     print("volatile uint8_t x[%d]; volatile uint8_t out_;"%N)
-    print("__attribute__((noinline)) bool cls(wave::Features<%d>& f){ return NetT::proc<0>(f); }"%N)
-    print("int main(){ uinit(); wave::Features<%d> f; for(int i=0;i<%d;i++) f.v[i]=x[i]^(i*37);"%(N,N))
+    print("__attribute__((noinline)) bool cls(inp::Bytes60& f){ return NetT::proc<0>(f); }")
+    print("int main(){ uinit(); inp::Bytes60 f; for(int i=0;i<%d;i++) inp::band(f)[i]=x[i]^(i*37);"%N)
     print('  MEASURE("%s:", out_=cls(f)); done(); }'%form)
 else:
     print(hdr+"using NetT=%s;"%net)
     print("volatile uint8_t in_[%d]; volatile uint8_t out_;"%N)
-    print("int main(){ for(;;){ wave::Features<%d> f; for(int i=0;i<%d;i++) f.v[i]=in_[i]; out_=NetT::proc<0>(f);} }"%(N,N))
+    print("int main(){ for(;;){ inp::Bytes60 f; for(int i=0;i<%d;i++) inp::band(f)[i]=in_[i]; out_=NetT::proc<0>(f);} }"%N)
 PY
 }
 D=$(mktemp -d); trap 'rm -rf "$D"' EXIT

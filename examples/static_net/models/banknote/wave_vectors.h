@@ -1,5 +1,11 @@
-// fold-1 held-out rows, quantized with fold-1 train min/max: {q0,q1,q2,q3,label,expected_model_out}
+// fold-1 held-out rows, quantized with fold-1 train min/max: {variance,skewness,curtosis,entropy,label,expected_model_out}
 #pragma once
+#define WAVE_COL_VARIANCE 0
+#define WAVE_COL_SKEWNESS 1
+#define WAVE_COL_CURTOSIS 2
+#define WAVE_COL_ENTROPY 3
+#define WAVE_COL_LABEL 4
+#define WAVE_COL_MODEL 5
 #define WAVE_NVEC 274
 static const unsigned char WAVE_VEC[274][6] WAVE_VEC_ATTR={
  {122,132,57,193,1,1},

@@ -17,7 +17,7 @@
 - `Distinct<L>` (`rules.h`): no layer twice in one composition, checked on exact types at instantiation (packs, aliases, equal types spelled
   differently, types from other headers). Named compositions (anything with `::Types`) are spliced recursively; closed operands are also
   compared by `is_base_of`. Covered in `tests/compile_tests.cpp`. Used by the `.RnD/openDerivation` translator in every composed struct.
-- Example `examples/static_net`: static networks (a typelist of parts wired by index, id or query, no runtime data), tinyML on an 8-bit AVR as the running example, with checks, timing
+- Example `examples/static_net`: static networks (a typelist of parts wired by index, id or query; the values a net reads are the slots of a state, `hapi/slots.h`, and a register is a layer of it), tinyML on an 8-bit AVR as the running example, with checks, timing
   (simavr, confirmed on a real chip), and a comparison against a table loop and against emlearn. Uses `Expand` and `Drop<n>`; GCC/Clang only, not built by CI.
 
 ## 0.7.0

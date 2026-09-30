@@ -6,7 +6,7 @@
 
 namespace sugar {
   template<typename Src> struct X {};                       // a source: input slot or another cell
-  template<size_t i> constexpr X<snet::Slot<i>> x{};
+  template<typename Src> constexpr X<Src> x{};                  // Src: a Field or Elem of the state
   template<int v> struct W {};
   template<int v> constexpr W<v> w{};
 
@@ -58,17 +58,17 @@ namespace sugar {
   inline constexpr size_t rollAt=SUGAR_ROLL_AT;
 
   namespace detail {
-    // a term the rolled form can hold: an input slot (Roll reads the raw slot bytes), an index that fits a byte and an int8 weight
+    // a term the rolled form can hold: an element of an array field, an index that fits a byte and an int8 weight
     // (Roll stores both as bytes; a wider weight would be truncated silently, so such a cell stays unrolled)
-    template<typename T> struct RollTerm {static constexpr bool ok=false;};
-    template<typename Acc,typename Prod,size_t i,Acc w> struct RollTerm<lin::TermOf<Acc,Prod,snet::Slot<i>,w>> {
+    template<typename T> struct RollTerm {static constexpr bool ok=false; using source=void;};
+    template<typename Acc,typename Prod,typename Tag,auto M,size_t i,Acc w> struct RollTerm<lin::TermOf<Acc,Prod,snet::Elem<Tag,M,i>,w>> {
       static constexpr bool ok=(i<256)&&(w>=-128)&&(w<=127);
-      using type=snet::T<i,int(w)>;
+      using type=snet::T<snet::Elem<Tag,M,i>,int(w)>; using source=snet::Elem<Tag,M,i>;
     };
   }
 
   template<int b,typename R,typename... TT> constexpr auto cell(R,TT...) {
-    if constexpr (sizeof...(TT)>=rollAt && (detail::RollTerm<TT>::ok && ...))
+    if constexpr (sizeof...(TT)>=rollAt && (detail::RollTerm<TT>::ok && ...) && snet::SameArray<typename detail::RollTerm<TT>::source...>::value)
       return hapi::APIOf<lin::API,R,snet::Roll<typename detail::RollTerm<TT>::type...>,lin::Bias<b>>{};
     else
       return lin::Cell<b,R,TT...>{};

@@ -601,7 +601,7 @@ confirmed by eye.
 
 [`examples/static_net`](examples/static_net) is a different kind of composition: **static networks**,
 dry, typed, zero-runtime descriptions of dataflow nets (a typelist of parts, wired by index, id or query;
-no runtime data but the input view), with tinyML as the running example: a 4-input classifier in 44 B and
+the values a net reads are the slots of a state, `hapi/slots.h`, and a register is a layer of it), with tinyML as the running example: a 4-input classifier in 44 B and
 25 cycles on an 8-bit ATmega328p. It is measured against a table loop and against emlearn on the same
 folds, in one build setup; the cycle counts come from simavr and were confirmed on a real Arduino Nano
 (100 numbers, no difference), and the realization of a cell (unrolled or as a table and a loop) is a

@@ -25,10 +25,10 @@ struct Report { int agree, correct; };
 static Report classify() {
   Report rep{0, 0};
   for (int r = 0; r < WAVE_NVEC; r++) {
-    wave::Features<4> f{{ROW(r,0), ROW(r,1), ROW(r,2), ROW(r,3)}};       // the state: four input bytes, the only runtime data
+    BanknoteState f = banknote({ROW(r,WAVE_COL_VARIANCE), ROW(r,WAVE_COL_SKEWNESS), ROW(r,WAVE_COL_CURTOSIS), ROW(r,WAVE_COL_ENTROPY)});   // the state: four input bytes, the only runtime data
     const bool y = BanknoteNet::proc(f);                                    // the net, evaluated
-    rep.agree   += (y == bool(ROW(r,5)));                                   // the reference model's output for this row
-    rep.correct += (y == bool(ROW(r,4)));                                   // the row's label
+    rep.agree   += (y == bool(ROW(r,WAVE_COL_MODEL)));                                   // the reference model's output for this row
+    rep.correct += (y == bool(ROW(r,WAVE_COL_LABEL)));                                   // the row's label
   }
   return rep;
 }

@@ -4,8 +4,11 @@
 #ifndef SONAR_LIN_VEC_ATTR
 #define SONAR_LIN_VEC_ATTR
 #endif
+// the two columns after the 60 bands (band k is column k)
+#define SONAR_COL_LABEL 60
+#define SONAR_COL_FLOAT 61
 
-// row = {60 quantized features, true label, float model's own prediction}
+// row = {60 quantized features (band k in column k), true label, float model's own prediction}
 #define SONAR_LIN_FOLD0_NVEC 42
 static const uint8_t SONAR_LIN_FOLD0_VEC[42][62] SONAR_LIN_VEC_ATTR = {
  {45,87,41,11,107,255,255,198,127,76,85,109,198,175,202,181,84,43,59,99,128,85,23,136,159,191,170,203,205,209,200,133,26,69,127,121,27,51,64,102,75,36,56,43,33,35,33,17,15,49,27,96,64,51,22,89,24,25,56,27,0,0},
@@ -52,7 +55,7 @@ static const uint8_t SONAR_LIN_FOLD0_VEC[42][62] SONAR_LIN_VEC_ATTR = {
  {146,76,28,97,82,11,57,147,211,237,170,84,54,107,115,115,80,96,130,228,253,90,12,0,54,86,48,130,175,209,98,96,146,212,202,182,187,206,194,164,123,152,148,122,170,166,45,127,100,154,62,164,255,212,116,194,112,48,17,55,1,1},
 };
 
-// row = {60 quantized features, true label, float model's own prediction}
+// row = {60 quantized features (band k in column k), true label, float model's own prediction}
 #define SONAR_LIN_FOLD1_NVEC 42
 static const uint8_t SONAR_LIN_FOLD1_VEC[42][62] SONAR_LIN_VEC_ATTR = {
  {41,23,12,28,44,70,79,94,113,113,96,84,85,40,34,69,87,93,60,43,30,29,39,93,145,181,210,217,230,255,255,218,159,158,172,198,216,186,159,155,120,103,125,163,159,84,52,126,120,70,54,76,97,54,27,12,39,29,18,9,1,0},
@@ -99,7 +102,7 @@ static const uint8_t SONAR_LIN_FOLD1_VEC[42][62] SONAR_LIN_VEC_ATTR = {
  {31,15,0,5,23,25,15,39,50,34,22,16,30,21,7,22,33,87,68,64,43,49,40,53,13,13,88,160,202,187,140,53,112,117,54,81,115,137,165,145,63,69,59,30,19,13,46,73,41,44,19,77,166,101,130,24,11,26,61,47,0,0},
 };
 
-// row = {60 quantized features, true label, float model's own prediction}
+// row = {60 quantized features (band k in column k), true label, float model's own prediction}
 #define SONAR_LIN_FOLD2_NVEC 41
 static const uint8_t SONAR_LIN_FOLD2_VEC[41][62] SONAR_LIN_VEC_ATTR = {
  {80,51,3,32,14,39,113,81,41,38,30,80,67,60,28,49,56,167,211,207,202,228,246,216,167,65,42,141,144,116,196,206,126,106,139,140,27,91,114,117,65,44,115,87,37,48,62,32,93,197,53,71,138,95,28,45,53,60,41,58,0,1},
@@ -145,7 +148,7 @@ static const uint8_t SONAR_LIN_FOLD2_VEC[41][62] SONAR_LIN_VEC_ATTR = {
  {108,132,105,87,89,31,55,35,59,78,106,150,184,149,151,183,230,231,221,192,183,130,68,77,53,20,34,41,49,29,64,77,78,114,126,68,37,60,76,50,17,12,26,24,16,19,50,87,99,82,55,117,68,60,88,77,23,57,159,69,1,1},
 };
 
-// row = {60 quantized features, true label, float model's own prediction}
+// row = {60 quantized features (band k in column k), true label, float model's own prediction}
 #define SONAR_LIN_FOLD3_NVEC 42
 static const uint8_t SONAR_LIN_FOLD3_VEC[42][62] SONAR_LIN_VEC_ATTR = {
  {62,17,23,41,54,74,114,82,47,110,80,81,84,30,89,82,52,48,54,93,71,151,143,82,53,131,205,172,177,218,151,93,168,229,199,192,152,121,24,168,243,184,116,80,86,120,106,53,31,145,108,123,101,107,60,28,67,7,51,36,0,0},
@@ -192,7 +195,7 @@ static const uint8_t SONAR_LIN_FOLD3_VEC[42][62] SONAR_LIN_VEC_ATTR = {
  {65,62,39,24,60,85,78,32,0,15,23,93,47,23,30,39,28,24,37,11,42,0,50,60,0,28,114,174,173,156,183,142,164,230,242,245,205,179,163,186,198,159,129,101,55,28,37,57,80,54,15,30,103,112,43,42,96,37,54,37,0,0},
 };
 
-// row = {60 quantized features, true label, float model's own prediction}
+// row = {60 quantized features (band k in column k), true label, float model's own prediction}
 #define SONAR_LIN_FOLD4_NVEC 41
 static const uint8_t SONAR_LIN_FOLD4_VEC[41][62] SONAR_LIN_VEC_ATTR = {
  {42,40,2,19,25,93,150,64,25,55,87,117,141,109,153,188,206,233,255,239,231,238,187,128,101,71,174,221,228,201,108,21,33,57,74,57,28,44,57,74,37,0,6,30,47,9,32,46,37,73,27,20,11,83,84,34,17,14,103,178,0,0},

@@ -2,21 +2,23 @@
 
 Static networks: dry, typed descriptions of dataflow nets.
 
-A **net** is a typelist of parts, wired by index, by id or by a query. It carries no data of its own; the only runtime state is the input view it is evaluated on.
+A **net** is a typelist of parts, wired by index, by id or by a query. It carries no data of its own: the values it reads live in a **state** of tag-addressed slots (`hapi::Slot`, see HAPI's README), and the net is evaluated over that state.
 Because the whole structure is a type, the compiler resolves it at compile time: the forms below compile to the same disassembly as the hand-written equivalents (*What the composition costs*).
 The running example is a 4-input classifier on an 8-bit AVR: 44 B and 25 cycles on an ATmega328p.
 
-Parts agree on a small **contract** (a static, pure `proc(in)`, optionally `update(in)`); they do not inherit from a framework, and HAPI's `Chain<>` / `APIOf<>` / `Expand<>` do the
+Parts agree on a small **contract** (a static, pure `proc(in)`); they do not inherit from a framework, and HAPI's `Chain<>` / `APIOf<>` / `Expand<>` do the
 composing. Neural-net cells are the running example, not the point: any static dataflow of pure stages fits (a filter chain, a control loop, a sensor fusion), and other contracts can sit
 beside `proc(in)`. Two inference engines are provided as parts, `wave` (no multiplies: shifts, masks and adds) and `lin` (plain integer linear, multiplies by design), and they mix freely in one net.
 
 ```cpp
-// models/banknote/net.h -- the trained classifier is a TYPE. Its parameters are template arguments: no table, no state, no interpreter.
+// models/banknote/net.h -- the trained classifier is a TYPE. Its parameters are template arguments: no table, no interpreter.
+// Its four inputs are the four fields of one slot of the state, read by name (Variance is snet::Field<BanknoteTag,&BanknoteIn::variance>).
 using BanknoteNet = wave::Cell<WAVE_K,
   wave::Threshold,
-  wave::Wave<0,WAVE_F0_N,WAVE_F0_S,WAVE_F0_P,WAVE_F0_M>,  wave::Wave<1,WAVE_F1_N,WAVE_F1_S,WAVE_F1_P,WAVE_F1_M>,
-  wave::Wave<2,WAVE_F2_N,WAVE_F2_S,WAVE_F2_P,WAVE_F2_M>,  wave::Wave<3,WAVE_F3_N,WAVE_F3_S,WAVE_F3_P,WAVE_F3_M>>;
+  wave::Wave<Variance,WAVE_VARIANCE_N,WAVE_VARIANCE_S,WAVE_VARIANCE_P,WAVE_VARIANCE_M>,  wave::Wave<Skewness,WAVE_SKEWNESS_N,WAVE_SKEWNESS_S,WAVE_SKEWNESS_P,WAVE_SKEWNESS_M>,
+  wave::Wave<Curtosis,WAVE_CURTOSIS_N,WAVE_CURTOSIS_S,WAVE_CURTOSIS_P,WAVE_CURTOSIS_M>,  wave::Wave<Entropy,WAVE_ENTROPY_N,WAVE_ENTROPY_S,WAVE_ENTROPY_P,WAVE_ENTROPY_M>>;
 
+BanknoteState features = banknote({variance, skewness, curtosis, entropy});   // the state: four input bytes, the only runtime data
 bool y = BanknoteNet::proc(features);        // a few shifts, masks and adds; 44 B of flash, 25 cycles on an ATmega328p
 ```
 
@@ -39,7 +41,7 @@ The headers use GNU attributes (`[[gnu::always_inline]]`) and the timing harness
 
 ```cpp
 // sugar.h: the net as constexpr values whose TYPES are the net (values carry no data). 274 B on an ATmega328p, identical to the same net written by hand.
-constexpr auto orr  = cell<-1>(sign, w<2>*a,  w<2>*b);              // a = x<0>, b = x<1>: input slots
+constexpr auto orr  = cell<-1>(sign, w<2>*a,  w<2>*b);              // a = x<inp::A>, b = x<inp::B>: fields of the input state (inputs.h)
 constexpr auto nand = cell< 3>(sign, w<-2>*a, w<-2>*b);
 constexpr auto xr   = cell<-3>(sign, w<2>*ref(orr), w<2>*ref(nand));   // a cell reads another cell, in place, same pass
 using Net = decltype(net(orr, nand, xr));                             // sizeof(Net) == 1
@@ -47,17 +49,19 @@ using Net = decltype(net(orr, nand, xr));                             // sizeof(
 // refid.h: wiring by id or by a query. Cells carry a hapi::Tag<id>; a cell reads another by id, whatever the position and the engine
 //   (RW<id,..> is wave::WaveOf<snet::RefId<id>,..>): here a wave cell XORs a wave cell and a lin cell
 using ById = snet::Net<
-  wave::Cell<0,   hapi::Tag<NAND>, wave::Threshold, wave::Wave<0,0,6,0,0xff>, wave::Wave<1,0,6,0,0xff>>,
-  lin::Cell<-1,   hapi::Tag<OR>,   lin::Sign, lin::In<0,2>, lin::In<1,2>>,
+  wave::Cell<0,   hapi::Tag<NAND>, wave::Threshold, wave::Wave<inp::A,0,6,0,0xff>, wave::Wave<inp::B,0,6,0,0xff>>,
+  lin::Cell<-1,   hapi::Tag<OR>,   lin::Sign, lin::In<inp::A,2>, lin::In<inp::B,2>>,
   wave::Cell<128, hapi::Tag<XOR>,  wave::Threshold, RW<NAND,0,6,0,0xff>, RW<OR,0,6,0,0xff>>>;
 // RefId<id> is RefQ<SameAs<Tag<id>>>: any HAPI predicate over a cell's components works, e.g. RefQ<SameAs<lin::Sign>> is "the cell that has lin::Sign"; the first match wins
 ```
 
-- **A cycle is a compile error**, not a runtime surprise: `snet::Ref<j>: in-place reference must point to a lower net index; a cycle needs a register (Slot<i> + Store<i>)`.
+- **A cycle is a compile error**, not a runtime surprise: `snet::Ref<j>: in-place reference must point to a lower net index; a cycle needs a register (a typed layer that evaluates the cell on prev)`.
   The check is a `static_assert` in the net's own library code (`include/staticNet.h`), not something a user of the net writes or can forget: a net with a combinational cycle cannot be evaluated, `proc` does not compile (`check/cycle_reject_*.cpp` name the net and call `proc`).
   A reference to a cell that is not in the net says so in words (`no cell in the net matches Q`, `no cell of that type in the net`) (`check/`: `cycle_reject_*`, `refid_missing`, `sugar_missing`).
 - **The realization is a compile-time choice.** `cell<bias>(sign, terms...)` returns the unrolled `lin::Cell` (one inline multiply-add per term) or, from `SUGAR_ROLL_AT` = 6 terms, the same
-  terms as a table and a loop (`snet::Roll`); the result is identical, the code is not (see *Realizations* below). `SUGAR_ROLL_AT` is a **size policy**, not a fact: set it huge to never roll.
+  terms as a table and a loop (`snet::Roll`; it applies to terms that read elements of one array field, such as a 60-band input); the result is identical, the code is not (see *Realizations* below). `SUGAR_ROLL_AT` is a **size policy**, not a fact: set it huge to never roll.
+- **A value that survives a pass is a register** (`registers.h`): a layer of the state whose step evaluates cells on the previous state and stores the result. Cells stay pure `proc(in)`; two registers that read each other
+  (`(a,b)' = (b, a+b)`) are right because both new values come from the previous state (`check/registers_check.cpp`; `registers_avr.cpp` is the same step as a hand-indexed array: same size).
 - Cells of identical type collapse in `ref()` (identical pure cells compute the same value: deduplication, pinned by `check/sugar_twins.cpp`).
 
 ## What was measured
@@ -141,13 +145,13 @@ The result also depends on `SNET_INLINE` (`[[gnu::always_inline]]`): avr-gcc 7.3
 
 | | |
 |---|---|
-| `include/` | the headers: `staticNet.h` (the net, `Ctx`, `Ref`, `Slot`; namespace `snet`), `waveCell.h`, `linCell.h` (the engines), `refid.h` (wiring by id / query), `sugar.h`, `roll.h` |
+| `include/` | the headers: `staticNet.h` (the net, `Ctx`, `Ref`, and the sources `Field` / `Elem` that read a slot of the state; namespace `snet`), `waveCell.h`, `linCell.h` (the engines), `refid.h` (wiring by id / query), `sugar.h`, `roll.h`, `registers.h` (registers as layers of the state), `inputs.h` (stock input states) |
 | `models/` | the trained cells: `banknote/` (the running example's cell and its 274 held-out rows), `sonar/` (the 60-input cells of 5 folds), `roll60/` (60-term nets for the size and speed comparisons) |
 | `src/main.cpp` | the running example (host and AVR) |
 | `check/` | `build.sh` runs everything: host tests (g++, clang++), programs that must not compile, AVR sizes and identical-disassembly checks, the simulated row-by-row check (`bitexact.py`) |
 | `measure/` | the timing harness (Timer1, UART) and programs: `run.sh` (simavr), `roll_sweep.sh`, `silicon.py` (flash a real ATmega328p and compare with simavr), `silicon_results.md` |
 | `compare_emlearn/` | the Banknote comparison: `run.sh` builds and measures every model in one setup; `results.md`; generated models, the fold data and the emlearn headers it compiles against (MIT, unchanged) |
-| `train/` | how the trained parameters came about, on a PC: `bn2x.c` (masked-wave search and float perceptron per fold, UCI Banknote), `sonar_lin_train.c` + `gen_lin_sonar.py` (Sonar, quantized to int8 constants) |
+| `train/` | how the trained parameters came about, on a PC: `bn2x.c` (masked-wave search and float perceptron per fold, UCI Banknote; it writes the features and columns by name), `sonar_lin_train.c` + `gen_lin_sonar.py` (Sonar, quantized to int8 constants) |
 
 ## Scope
 
