@@ -69,6 +69,31 @@ template<typename... II>
 struct Expand<Box<II...>> : Expansion<Chain<II...>, /*queried*/true, /*selected*/true> {};
 ```
 
+### Slots: `hapi/slots.h`
+
+State composed along a chain, addressed by tag. `hapi.h` includes it; nothing is instantiated unless used.
+
+| name | what |
+|---|---|
+| `Slot<Tag, S, Contract = SlotBase>` | a component that adds one slot of type `S`; `APIOf<SlotApi, Slot<A,SA>, Slot<B,SB>>::Res` is the state |
+| `slot<Tag>(state)` | the slot of `Tag`, `const` or not; a tag that is not in the state is a compile error (`hapi::slot<Tag>: no slot with that tag ...`) |
+| `HasSlot<Tag, R>` | whether the state type `R` has a slot for `Tag` |
+| `SlotApi`, `SlotRoot` | the end of the chain; `SlotApi::Res` is `SlotRoot`. A contract brings its own terminal API whose `Res` derives from `SlotRoot` |
+| `SlotOf<Tag, S>` | the slot as a base class of the state; `slot_<Tag>(...)` converts to it |
+| `SlotBase<Below, R>` | the default `Contract`: derives from `Below`, adds nothing |
+| `state.each(v)` | `v.layer(Tag::name())`, then `S::each(slot, v)`, for every slot in chain order (the last-listed first); `Tag::name()` and `S::each` are only required when `each` is used |
+| `state.me()` (inside a Contract, as `R::me()`) | the slot of this Part |
+| `HAPI_SLOT_EACH_INLINE` | macro, empty by default: an attribute (e.g. `[[gnu::always_inline]]`) for `each`, a size policy |
+
+The same tag twice in one state is a compile error (`hapi::Slot: two Parts claim the same tag`), also when the second is inside a nested `Chain` or `APIOf`; a nested composition gives the
+same state, size and walk order as the flat one. A Part sees its own slot and the slots of the Parts after it (`Below`), like every Part in a chain.
+
+A `Contract<Below, R>` is a class template: the state derives from `Contract<Below, R>` (first) and `SlotOf<Tag, S>`, so a contract adds members (a `step`, a serializer, a name policy) without adding an
+inheritance level: the state stays one aggregate, whatever the contract (a state of one slot: `State{{}, {slot}}`). What a slot means, how it is named and how the state evolves or is sent are the contract's, not HAPI's.
+
+Measured: typed slot access is the same flashed AVR program as a hand-indexed array (`tests/slots/run.sh`); a chain of 256 slots takes 1.5 s to compile with g++ (`-fsyntax-only`, 0.9 s for 256 plain Parts);
+with the default template depth (g++ 900, clang 1024) a chain of about 450 Parts stops, slots or not.
+
 ## Predicates
 
 Predicates are plain types with three members, so `Traverse` can plug them in generically:

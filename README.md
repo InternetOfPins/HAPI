@@ -336,6 +336,45 @@ Detecting a leaf costs one class template instantiation per element visited (mea
 
 ---
 
+## Composing state: slots
+
+A chain composes data as well as behaviour. `hapi::Slot<Tag, S>` is a component that adds one value of type `S` to the state the components after it built. The state is
+one object of static size, with no heap, and a slot is reached by its **tag**, not by a name or a position, so two slots may have fields of the same name.
+
+```cpp
+#include <hapi/hapi.h>
+using namespace hapi;
+
+struct Pos {};  struct Speed {};                                      // tags: any distinct types
+struct PosSlot   { int16_t x, y; };
+struct SpeedSlot { int16_t x; };                                      // a field named like PosSlot's: no clash
+
+using State = APIOf<SlotApi, Slot<Pos, PosSlot>, Slot<Speed, SpeedSlot>>::Res;
+
+State s{};
+slot<Pos>(s).x = 1;  slot<Speed>(s).x = 2;
+```
+
+* **Compile errors, with their own messages:** a tag that is not in the state (`hapi::slot<Tag>: no slot with that tag in this state`), and the same tag twice, also across a nested
+  `Chain` or `APIOf` (`hapi::Slot: two Parts claim the same tag`). A nested composition is the same state, the same size and the same walk order as the flat one.
+* **Nothing about what the slots mean is decided.** `Slot<Tag, S, Contract>` takes a third parameter, a template `Contract<Below, R>` whose base carries the state below and the
+  state's own type `R` (`R::me()` is this slot). It is how a user adds members to the state's type, for instance a `step()`:
+
+```cpp
+template<class Below, class R> struct Counted : Below { unsigned steps = 0; void step() { ++steps; } };
+using Counting = APIOf<SlotApi, Slot<Pos, PosSlot, Counted>>::Res;
+```
+
+* **`each(visitor)`** walks the slots in chain order (the last-listed first): `visitor.layer(Tag::name())`, then `S::each(slot, visitor)`, which the slot's type defines. `Tag::name()` and
+  `S::each` are only looked at when `each` is used, and what `name()` returns is the visitor's business.
+* **Cost:** the same AVR program as a hand-indexed array (`tests/slots/run.sh` compares the flashed bytes); an empty slot and a nested composition add no size with GCC and Clang (MSVC lays
+  out several empty bases differently unless `__declspec(empty_bases)` is used; `tests/slots_tests.cpp` prints the sizes there). A chain of 256 slots takes 1.5 s to compile with g++ (`-fsyntax-only`), against
+  0.9 s for 256 plain Parts.
+
+The reference is in [`docs/REFERENCE.md`](docs/REFERENCE.md).
+
+---
+
 ## Runtime resolution
 
 HAPI also provides `find<Q>(object)`.

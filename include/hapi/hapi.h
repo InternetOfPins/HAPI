@@ -7,6 +7,7 @@
 #pragma once
 #include "hapi/rules.h"
 #include "hapi/meta.h"
+#include "hapi/slots.h"
 
 namespace hapi {
   // ====================== APIOf ======================--
