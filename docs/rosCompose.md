@@ -58,16 +58,20 @@ type would be a shared name over two different data structures. Each was
 built and confirmed against a real non-ROS consumer before being called
 general.
 
-**Home: OneHLS.** Both synthesize to clean RTL under Bambu (from-source
+**In hardware.** Both synthesize to clean RTL under Bambu (from-source
 `dev/panda`, `xc7z020`, 10 ns): BRAM-backed, **0 DSPs**, `& (N-1)` ring
 mask lowers without a modulo, ~100 MHz. `TimeBuffer`'s raw `(num,den)`
 `lookup` overload keeps it division-free in hardware (the `double`
 convenience form pulls a 64-bit divide). That places them with
 [`OneHLS/examples/hls_streaming_buffers`](https://github.com/InternetOfPins/OneHLS)'s
 `Fifo` / skid-buffer family — bounded reorder and time-indexed history
-are streaming-datapath primitives of the same kind. Until promoted they
-live, genericity- and synthesis-confirmed, in `HAPI/.RnD/rosCompose/`
-(`elasticBuffers.h`, `hls/`).
+are streaming-datapath primitives of the same kind. They were confirmed
+for genericity and synthesis in a local R&D round and are **not yet
+published** in any InternetOfPins repository. When promoted, they are
+meant to land as storage layers under the same store contract as
+OneMachine's `fail::Latest` / `fail::Buffer`
+([`include/oneMachine/fail/delivery.h`](https://github.com/InternetOfPins/OneMachine/blob/main/include/oneMachine/fail/delivery.h)),
+so the drop, retry and recover policies compose over them unchanged.
 
 ## Per-surface reduction
 
