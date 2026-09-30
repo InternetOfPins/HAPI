@@ -29,6 +29,13 @@ both() { local n=$1 dis=$2; shift 2
   if cmp -s "$W/include.dis" "$W/single.dis"; then ok "$n: identical disassembly ($(wc -l < "$W/single.dis") lines)"; return 0
   else bad "$n" "disassembly differs"; return 1; fi; }
 
+echo "== host: tests/slots_tests.cpp (hapi/slots.h reaches the single header through hapi.h)"
+for cxx in g++ clang++; do have $cxx || continue
+  if both "slots_tests [$cxx]" objdump $cxx -std=c++17 -O2 -I\"\$HAPI_INC\" tests/slots_tests.cpp; then
+    [ "$("$W/include.elf" 2>&1)" = "$("$W/single.elf" 2>&1)" ] && ok "slots_tests [$cxx]: same output" || bad "slots_tests [$cxx]" "outputs differ"
+  fi
+done
+
 echo "== host examples"
 for cxx in g++ clang++; do have $cxx || continue
   for ex in rules std crtp free virt; do
