@@ -5,6 +5,7 @@
 // accuracy -- two models can each be ~75% accurate while disagreeing on
 // different rows).
 #include "waveCell.h"
+#include "inputs.h"
 #include "sonar_lin_params.h"
 #include "sonar_lin_vectors.h"
 #include <cstdio>
@@ -13,8 +14,8 @@ template<typename Cell,size_t NVEC>
 void check(const char* name,const uint8_t (&vec)[NVEC][62],double floatTrain,double floatTest){
   int correct=0, agree=0;
   for(size_t i=0;i<NVEC;i++){
-    wave::Features<60> f; for(int j=0;j<60;j++) f.v[j]=vec[i][j];
-    bool trueLabel=vec[i][60], floatPred=vec[i][61];
+    inp::Bytes60 f; for(int j=0;j<60;j++) inp::band(f)[j]=vec[i][j];
+    bool trueLabel=vec[i][SONAR_COL_LABEL], floatPred=vec[i][SONAR_COL_FLOAT];
     bool intPred=Cell::proc(f);
     correct+=(intPred==trueLabel);
     agree+=(intPred==floatPred);

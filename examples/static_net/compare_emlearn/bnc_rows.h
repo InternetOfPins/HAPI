@@ -3,6 +3,10 @@
 #include <avr/pgmspace.h>
 #include <stdint.h>
 #define BNC_N 274
+#define BNC_COL_VARIANCE 0
+#define BNC_COL_SKEWNESS 1
+#define BNC_COL_CURTOSIS 2
+#define BNC_COL_ENTROPY 3
 static const uint8_t BNC_X[BNC_N][4] PROGMEM = {
  {122,132,57,193},
  {112,71,120,228},

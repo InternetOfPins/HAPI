@@ -60,6 +60,8 @@ run sugar_twins          sugar_twins.cpp        "twins OK"
 run sugar_roll           sugar_roll.cpp         "dense 20000/20000, gapped 20000/20000"
 run roll_host            roll_host.cpp          "rolled==unrolled 10000/10000, sparse-order rolled==unrolled 10000/10000"
 run roll_gaps            roll_gaps.cpp          "gapped rolled==unrolled 20000/20000"
+echo "== registers: a value that survives a pass is a typed layer (registers.h), the cells unchanged"
+run registers_check      registers_check.cpp    "0 of 30 passes wrong, output cell wrong 0 times"
 echo "== the trained models on the host"
 run banknote_host_check  banknote_host_check.cpp "274/274"
 run sonar_lin_check      sonar_lin_check.cpp    "agreement 100.00"
@@ -80,6 +82,8 @@ avr sugar_roll_avr       sugar_roll_avr.cpp     "322 B / 62 B"
 avr sugar_roll_hand_avr  sugar_roll_hand_avr.cpp "322 B / 62 B";         same "sugar picks the rolled form a person would write" sugar_roll_avr sugar_roll_hand_avr
 avr sugar_roll_avr_off   sugar_roll_avr.cpp     "1006 B / 62 B" -DSUGAR_ROLL_AT=1000
 avr sugar_unroll_hand_avr sugar_unroll_hand_avr.cpp "1006 B / 62 B";     same "SUGAR_ROLL_AT huge == the unrolled cell by hand" sugar_roll_avr_off sugar_unroll_hand_avr
+avr registers_avr        registers_avr.cpp      "220 B / 4 B"
+avr registers_avr_flat   registers_avr.cpp      "220 B / 4 B" -DFLAT             # the hand-indexed twin that reads before it writes: same size
 avr banknote_avr_check   banknote_avr_check.cpp "2346 B / 26 B"     # the Banknote cell on a board: it reports over UART
 if have simavr && have python3; then
 echo "== AVR: the same rows through the same function, simulated ATmega328p against the host, row by row"

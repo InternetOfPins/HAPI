@@ -4,4 +4,4 @@ volatile uint8_t in_[60]; volatile uint8_t out_;
 #ifndef USE
 #define USE Rolled
 #endif
-int main(){ for(;;){ wave::Features<60> f; for(int i=0;i<60;i++) f.v[i]=in_[i]; out_=USE::proc<0>(f);} }
+int main(){ for(;;){ inp::Bytes60 f; for(int i=0;i<60;i++) inp::band(f)[i]=in_[i]; out_=USE::proc<0>(f);} }

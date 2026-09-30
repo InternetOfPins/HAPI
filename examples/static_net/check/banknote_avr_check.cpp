@@ -29,10 +29,10 @@ int main(){
   uart_init();
   uint16_t a=0,c=0;
   for(uint16_t r=0;r<WAVE_NVEC;r++){
-    wave::Features<4> f{{pgm_read_byte(&WAVE_VEC[r][0]),pgm_read_byte(&WAVE_VEC[r][1]),
-                         pgm_read_byte(&WAVE_VEC[r][2]),pgm_read_byte(&WAVE_VEC[r][3])}};
+    BanknoteState f=banknote({pgm_read_byte(&WAVE_VEC[r][WAVE_COL_VARIANCE]),pgm_read_byte(&WAVE_VEC[r][WAVE_COL_SKEWNESS]),
+                             pgm_read_byte(&WAVE_VEC[r][WAVE_COL_CURTOSIS]),pgm_read_byte(&WAVE_VEC[r][WAVE_COL_ENTROPY])});
     bool o=BanknoteNet::proc(f);
-    a+=o==pgm_read_byte(&WAVE_VEC[r][5]); c+=o==pgm_read_byte(&WAVE_VEC[r][4]);
+    a+=o==pgm_read_byte(&WAVE_VEC[r][WAVE_COL_MODEL]); c+=o==pgm_read_byte(&WAVE_VEC[r][WAVE_COL_LABEL]);
   }
   agree_=a; correct_=c;
   for(;;){

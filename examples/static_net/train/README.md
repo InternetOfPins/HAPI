@@ -10,6 +10,8 @@ Training happens on a PC and produces constants; the net is then generated as a 
 
 `bn2x.c` reproduces the committed `models/banknote/wave_params.h` and `wave_vectors.h` exactly, and the Sonar pipeline reproduces `models/sonar/` exactly.
 
+The exports name what they export, so no consumer maps a feature to a position by hand: `bn2x.c` writes the parameters as `WAVE_<FEATURE>_N/S/P/M` and the row columns as `WAVE_COL_<FEATURE>`, `WAVE_COL_LABEL`, `WAVE_COL_MODEL`, from one list of the four feature names (the column order of `bn.csv`, written down once in `bn2x.c`); `gen_lin_sonar.py` writes each term's source as `inp::Band<k>` (element k of the 60-element input field) and the two trailing row columns as `SONAR_COL_LABEL`, `SONAR_COL_FLOAT`. A name the net expects and the generator no longer emits is a compile error.
+
 Data, unmodified copies from the UCI Machine Learning Repository, cite them if you reuse them:
 * `bn.csv`: *Banknote Authentication* (Volker Lohweg, 2012), 1372 rows, 4 features from wavelet transforms of banknote images, https://archive.ics.uci.edu/dataset/267/banknote+authentication
 * `sonar.csv`: *Connectionist Bench (Sonar, Mines vs. Rocks)* (R. Paul Gorman and Terrence J. Sejnowski, 1988), 208 rows, 60 features, https://archive.ics.uci.edu/dataset/151/connectionist+bench+sonar+mines+vs+rocks

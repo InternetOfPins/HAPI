@@ -4,15 +4,16 @@
 // The cells themselves stay whole: a cell is an APIOf, a leaf for queries and Filter/Map (plan D3), so what a walk
 // sees inside a Net is cells, never a cell's own components. refid keeps FromTypes for exactly that reason.
 #include "waveCell.h"
+#include "inputs.h"
 #include "linCell.h"
 #include "refid.h"
 using namespace hapi;
 
 namespace {
   enum : int { A=1, B=2, C=3 };
-  using CellA = wave::Cell<0,  Tag<A>, wave::Threshold, wave::Wave<0,0,6,0,0xff>>;
-  using CellB = lin::Cell<-1,  Tag<B>, lin::Sign, lin::In<0,2>>;
-  using CellC = wave::Cell<128,Tag<C>, wave::Threshold, wave::Wave<1,0,6,0,0xff>>;
+  using CellA = wave::Cell<0,  Tag<A>, wave::Threshold, wave::Wave<inp::A,0,6,0,0xff>>;
+  using CellB = lin::Cell<-1,  Tag<B>, lin::Sign, lin::In<inp::A,2>>;
+  using CellC = wave::Cell<128,Tag<C>, wave::Threshold, wave::Wave<inp::B,0,6,0,0xff>>;
   using N  = snet::Net<CellA,CellB,CellC>;
   using N0 = snet::Net<>;
 
