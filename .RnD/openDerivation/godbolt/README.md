@@ -15,75 +15,38 @@ it is not a comparison with anything outside HAPI.
 
 Both compiled as C++ with AVR gcc 7.3.0, `-std=c++17 -Os -mmcu=atmega328p`. `verify.sh` produced these listings (`verify.log`).
 
-<table>
-<tr><th>HAPI (<code>wave4_apiof.cpp</code>): 28 instructions, 56 B</th><th>plain C (<code>wave4_c.c</code>): 27 instructions, 54 B</th></tr>
-<tr><td>
-
-```asm
-movw r30, r24
-ldd  r25, Z+3     ; x[3]
-mov  r24, r25     ; <- the extra instruction
-adc  r24, r24
-eor  r24, r24
-adc  r24, r24     ; x[3] >> 7
-ldd  r25, Z+2     ; x[2]
-lsr  r25
+```text
+HAPI (wave4_apiof.cpp): 28 instructions, 56 B    plain C (wave4_c.c): 27 instructions, 54 B
+---------------------------------------------    ------------------------------------------
+movw r30, r24                                    movw r30, r24
+ldd  r25, Z+3     ; x[3]                         ldd  r25, Z+2     ; x[2]
+mov  r24, r25     ; <- the extra instruction     lsr  r25
+adc  r24, r24                                    lsr  r25          ; x[2] >> 2
+eor  r24, r24                                    ldd  r24, Z+3     ; x[3]
+adc  r24, r24     ; x[3] >> 7                    adc  r24, r24
+ldd  r25, Z+2     ; x[2]                         eor  r24, r24
+lsr  r25                                         adc  r24, r24     ; x[3] >> 7
 lsr  r25          ; x[2] >> 2
-add  r25, r24
-subi r25, 0x51    ; + 175
-ld   r18, Z       ; x[0]
-lsr  r18
-lsr  r18
-subi r18, 0x92    ; + 110
-andi r18, 0xBA
-add  r25, r18
-ldd  r24, Z+1     ; x[1]
-lsr  r24
-lsr  r24
-subi r24, 0xB0    ; + 80
-andi r24, 0xBF
-add  r24, r25
-com  r24
-adc  r24, r24
-eor  r24, r24
-adc  r24, r24     ; sum < 128
-ret
+add  r25, r24                                    add  r25, r24
+subi r25, 0x51    ; + 175                        subi r25, 0x51    ; + 175
+ld   r18, Z       ; x[0]                         ld   r18, Z       ; x[0]
+lsr  r18                                         lsr  r18
+lsr  r18                                         lsr  r18
+subi r18, 0x92    ; + 110                        subi r18, 0x92    ; + 110
+andi r18, 0xBA                                   andi r18, 0xBA
+add  r25, r18                                    add  r25, r18
+ldd  r24, Z+1     ; x[1]                         ldd  r24, Z+1     ; x[1]
+lsr  r24                                         lsr  r24
+lsr  r24                                         lsr  r24
+subi r24, 0xB0    ; + 80                         subi r24, 0xB0    ; + 80
+andi r24, 0xBF                                   andi r24, 0xBF
+add  r24, r25                                    add  r24, r25
+com  r24                                         com  r24
+adc  r24, r24                                    adc  r24, r24
+eor  r24, r24                                    eor  r24, r24
+adc  r24, r24     ; sum < 128                    adc  r24, r24     ; sum < 128
+ret                                              ret
 ```
-
-</td><td>
-
-```asm
-movw r30, r24
-ldd  r25, Z+2     ; x[2]
-lsr  r25
-lsr  r25          ; x[2] >> 2
-ldd  r24, Z+3     ; x[3]
-adc  r24, r24
-eor  r24, r24
-adc  r24, r24     ; x[3] >> 7
-add  r25, r24
-subi r25, 0x51    ; + 175
-ld   r18, Z       ; x[0]
-lsr  r18
-lsr  r18
-subi r18, 0x92    ; + 110
-andi r18, 0xBA
-add  r25, r18
-ldd  r24, Z+1     ; x[1]
-lsr  r24
-lsr  r24
-subi r24, 0xB0    ; + 80
-andi r24, 0xBF
-add  r24, r25
-com  r24
-adc  r24, r24
-eor  r24, r24
-adc  r24, r24     ; sum < 128
-ret
-```
-
-</td></tr>
-</table>
 
 What this shows, and what it does not:
 
