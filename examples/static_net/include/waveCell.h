@@ -24,9 +24,14 @@ namespace wave {
   struct WaveOf {template<typename O> struct Part:O {
     using Base=O; using Base::Base;
     static constexpr u8 inv(u8 x) {return n?u8(~x):x;}
-    static constexpr u8 shf(u8 x) {return s>=0?u8(x<<s):u8(x>>(-s));}
-    template<typename I> SNET_INLINE static constexpr u8 proc(const I& in)
-      {return u8(u8(u8(shf(inv(u8(Src::get(in))))+p)&m)+Base::proc(in));}
+    // avr-gcc 7.3 -Os (measured): a right shift is done in 8 bits only when it reads a variable and nothing narrows it before
+    // the mask; read as a call inside the expression, or cast to u8 first, it costs a register copy (.RnD/openDerivation/godbolt/).
+    // A left shift is the other way round: without the early u8 it widens to 16 bits (mixed_avr_size: +30 B)
+    template<typename I> SNET_INLINE static constexpr u8 proc(const I& in) {
+      const u8 x=inv(u8(Src::get(in)));
+      if constexpr (s>=0) return u8(u8(u8(u8(x<<s)+p)&m)+Base::proc(in));
+      else return u8((((x>>(-s))+p)&m)+Base::proc(in));
+    }
   };};
   template<typename Src,bool n,int s,u8 p,u8 m> using Wave=WaveOf<Src,n,s,p,m>;               // Src: a Field or Elem of the state
   template<size_t j,bool n,int s,u8 p,u8 m> using RefWave=WaveOf<Ref<j>,n,s,p,m>;
