@@ -23,6 +23,13 @@
 #pragma once
 #include "hapi/base.h"
 
+#ifndef HAPI_EMPTY_BASES
+  #if defined(_MSC_VER) && !defined(__clang__)
+    #define HAPI_EMPTY_BASES __declspec(empty_bases)   // MSVC removes an empty base from one base only, unless asked
+  #else
+    #define HAPI_EMPTY_BASES
+  #endif
+#endif
 #ifndef HAPI_SLOT_EACH_INLINE
   #define HAPI_SLOT_EACH_INLINE   // e.g. [[gnu::always_inline]]: a size policy for walks over the state
 #endif
@@ -56,7 +63,7 @@ namespace hapi {
   struct Slot {
     template<class O> struct Part : O {
       static_assert(!HasSlot<Tag, typename O::Res>::value, "hapi::Slot: two Parts claim the same tag");
-      struct Res : Contract<typename O::Res, Res>, SlotOf<Tag,S> {
+      struct HAPI_EMPTY_BASES Res : Contract<typename O::Res, Res>, SlotOf<Tag,S> {
         constexpr S& me() { return slot_<Tag>(*this); }
         constexpr const S& me() const { return slot_<Tag>(*this); }
         template<class V> HAPI_SLOT_EACH_INLINE constexpr void each(V& v) { O::Res::each(v); v.layer(Tag::name()); S::each(me(), v); }
