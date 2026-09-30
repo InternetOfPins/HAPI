@@ -3,7 +3,9 @@
 # exact single/hapi.h their #include URL serves, and check:
 #   1. wave4_od.cpp and wave4_apiof.cpp give the same wave4() (disassembly)
 #   2. that wave4() is the one static_net builds as bnc_predict for compare_emlearn (examples/static_net, include/ headers)
-# Needs avr-g++, avr-objdump, avr-nm; fetches the URL with curl, or uses ../../../single/hapi.h if it is byte-identical to the pin.
+#   3. wave4_c.c, the same cell in plain C, against it: the size of each, the instructions that differ, and (with a host g++)
+#      the same answer as the HAPI cell on all 2^32 inputs
+# Needs avr-g++, avr-gcc, avr-objdump, avr-nm (and g++ for the exhaustive check); fetches the URL with curl, or uses ../../../single/hapi.h if it is byte-identical to the pin.
 cd "$(dirname "$0")"
 R=$(cd ../../.. && pwd); W=$(mktemp -d); trap 'rm -rf "$W"' EXIT
 pass=0; fail=0
@@ -28,4 +30,24 @@ SN=$R/examples/static_net
     -DBNC_NAME='"wave4"' -DBNC_MODEL='"bnc_wave.h"' -c bnc.cpp -o "$W/bnc.o" ) 2>"$W/err" || bad "bnc.cpp" "$(grep -m1 error "$W/err")"
 dis "$W/bnc.o" "$(avr-nm "$W/bnc.o" | awk '$3 ~ /bnc_predict/{print $3}')" > "$W/bnc.dis"
 cmp -s "$W/od.dis" "$W/bnc.dis" && ok "wave4() == static_net's bnc_predict (compare_emlearn, include/ headers)" || { bad "vs bnc_predict" "differs"; diff "$W/od.dis" "$W/bnc.dis" | head; }
+# plain C: compiled as C++ exactly like the other two, and as C
+avr-g++ $FLAGS -x c++ -c wave4_c.c -o "$W/c.o" 2>"$W/err" && ok "wave4_c.c compiles as C++ (avr-g++ $FLAGS)" || bad "wave4_c.c" "$(grep -m1 error "$W/err")"
+avr-gcc -std=c99 -Os -mmcu=atmega328p -c wave4_c.c -o "$W/cc.o" 2>"$W/err" && ok "wave4_c.c compiles as C (avr-gcc -std=c99 -Os -mmcu=atmega328p)" || bad "wave4_c.c as C" "$(grep -m1 error "$W/err")"
+dis "$W/c.o" "$(avr-nm "$W/c.o" | awk '$3 ~ /wave4/{print $3}')" > "$W/c.dis"
+dis "$W/cc.o" wave4 > "$W/cc.dis"
+size() { echo $((16#$(avr-nm -S "$1" | awk '$4 ~ /wave4/{print $2}'))); }
+echo "        wave4(), HAPI: $(wc -l < "$W/od.dis") instructions, $(size "$W/od.o") B; plain C: $(wc -l < "$W/c.dis") instructions, $(size "$W/c.o") B (as C: $(wc -l < "$W/cc.dis"), $(size "$W/cc.o") B)"
+cmp -s "$W/c.dis" "$W/cc.dis" && ok "wave4_c.c: the same wave4() as C and as C++" || bad "wave4_c.c" "C and C++ builds differ"
+echo "        HAPI (<) vs plain C (>), instructions in either one only:"
+diff <(cut -f2,3 "$W/od.dis" | sort) <(cut -f2,3 "$W/c.dis" | sort) | grep '^[<>]' | sed 's/^/          /'
+if command -v g++ >/dev/null; then
+  sed 's|^bool wave4(|bool wave4_hapi(|' "$W/apiof.cpp" > "$W/h.cpp"
+  { echo '#include "h.cpp"'; echo '#include <stdio.h>'; echo '#define wave4 wave4_c'; echo '#include "'"$PWD"'/wave4_c.c"'
+    echo '__attribute__((noinline)) bool H(const uint8_t* x) {return wave4_hapi(x);}'
+    echo '__attribute__((noinline)) bool C(const uint8_t* x) {return wave4_c(x);}'
+    echo 'int main() {unsigned long long d=0; uint32_t i=0; do {uint8_t x[4]={uint8_t(i),uint8_t(i>>8),uint8_t(i>>16),uint8_t(i>>24)}; d+=H(x)!=C(x);} while(++i); printf("%llu\n",d); return d!=0;}'
+  } > "$W/ex.cpp"
+  g++ -std=c++17 -O2 -fno-ipa-icf -fno-ipa-pure-const "$W/ex.cpp" -o "$W/ex" 2>"$W/err" && d=$("$W/ex") \
+    && ok "wave4_c.c == HAPI cell on all 2^32 inputs (host g++, $(g++ -dumpversion))" || bad "exhaustive check" "${d:-$(grep -m1 error "$W/err")} inputs differ"
+else echo "  skip  exhaustive check (no host g++)"; fi
 echo; echo "$pass ok, $fail FAIL"; [ $fail -eq 0 ]

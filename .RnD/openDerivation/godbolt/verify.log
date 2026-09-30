@@ -5,5 +5,14 @@
         wave4(): 56 B of code
   ok    wave4_od.cpp and wave4_apiof.cpp: identical wave4() (28 instructions)
   ok    wave4() == static_net's bnc_predict (compare_emlearn, include/ headers)
+  ok    wave4_c.c compiles as C++ (avr-g++ -std=c++17 -Os -mmcu=atmega328p)
+  ok    wave4_c.c compiles as C (avr-gcc -std=c99 -Os -mmcu=atmega328p)
+        wave4(), HAPI: 28 instructions, 56 B; plain C: 27 instructions, 54 B (as C: 27, 54 B)
+  ok    wave4_c.c: the same wave4() as C and as C++
+        HAPI (<) vs plain C (>), instructions in either one only:
+          > ldd	r24, Z+3
+          < ldd	r25, Z+3
+          < mov	r24, r25
+  ok    wave4_c.c == HAPI cell on all 2^32 inputs (host g++, 13)
 
-5 ok, 0 FAIL
+9 ok, 0 FAIL
